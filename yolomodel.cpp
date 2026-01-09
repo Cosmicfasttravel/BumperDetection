@@ -68,4 +68,21 @@ std::vector<Detection> ProcessYoloOutput(
     }
     //nms
 
+    std::vector<int> indices;
+    cv::dnn::NMSBoxes(bounding_boxes, confidences, conf_threshold, nms_threshold, indices);
+
+    for (int idx : indices) {
+        Detection det;
+        det.bounding_box = bounding_boxes[idx];
+        det.confidence = confidences[idx];
+        det.class_id = class_ids[idx];
+        det.class_name = "bumper";
+        detections.push_back(det);
+    }
+
+    return detections;
+}
+
+int main() {
+
 }
