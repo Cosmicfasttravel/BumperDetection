@@ -18,7 +18,8 @@ message(STATUS "OpenCV_INCLUDE_DIRS: ${OpenCV_INCLUDE_DIRS}")
 message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
 message(STATUS "OpenCV_VERSION: ${OpenCV_VERSION}")
 
-add_executable(BumperDetection main.cpp)
+add_executable(BumperDetection main.cpp
+        "yolomodel.cpp")
 
 # Only link opencv_world (it contains all modules)
 target_link_libraries(BumperDetection
