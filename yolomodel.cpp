@@ -3,6 +3,7 @@
 #include <opencv2/dnn.hpp>
 #include <vector>
 #include <string>
+#include <chrono>
 
 struct Detection {
     int class_id;
@@ -15,8 +16,8 @@ std::vector<Detection> ProcessYoloOutput(
     const std::vector<cv::Mat>& outputs,
     int img_width,
     int img_height,
-    int input_width,   // Add this parameter
-    int input_height,  // Add this parameter
+    int input_width,
+    int input_height,
     float conf_threshold,
     float nms_threshold
 ) {
@@ -25,23 +26,10 @@ std::vector<Detection> ProcessYoloOutput(
     std::vector<float> confidences;
     std::vector<cv::Rect> boxes;
 
-    // Calculate scaling factors
     float scale_x = static_cast<float>(img_width) / input_width;
     float scale_y = static_cast<float>(img_height) / input_height;
 
-    std::cout << "\n[DEBUG] Image size: " << img_width << "x" << img_height << std::endl;
-    std::cout << "[DEBUG] Input size: " << input_width << "x" << input_height << std::endl;
-    std::cout << "[DEBUG] Scale factors: x=" << scale_x << ", y=" << scale_y << std::endl;
-    std::cout << "[DEBUG] Number of output blobs: " << outputs.size() << std::endl;
-
     cv::Mat output_data = outputs[0];
-
-    std::cout << "[DEBUG] Output dimensions: " << output_data.dims << std::endl;
-    std::cout << "[DEBUG] Output shape: ";
-    for (int i = 0; i < output_data.dims; i++) {
-        std::cout << output_data.size[i] << " ";
-    }
-    std::cout << std::endl;
 
     int num_detections;
     int num_values_per_detection;
@@ -50,27 +38,19 @@ std::vector<Detection> ProcessYoloOutput(
         int dim1 = output_data.size[1];
         int dim2 = output_data.size[2];
 
-        std::cout << "[DEBUG] dim1=" << dim1 << ", dim2=" << dim2 << std::endl;
-
         if (dim1 < 100 && dim2 > 1000) {
             output_data = output_data.reshape(1, dim1);
             cv::transpose(output_data, output_data);
             num_detections = dim2;
             num_values_per_detection = dim1;
-            std::cout << "[DEBUG] Transposed to [" << num_detections << ", "
-                      << num_values_per_detection << "]" << std::endl;
         } else {
             output_data = output_data.reshape(1, dim1);
             num_detections = dim1;
             num_values_per_detection = dim2;
-            std::cout << "[DEBUG] Reshaped to [" << num_detections << ", "
-                      << num_values_per_detection << "]" << std::endl;
         }
     } else if (output_data.dims == 2) {
         num_detections = output_data.rows;
         num_values_per_detection = output_data.cols;
-        std::cout << "[DEBUG] Already 2D: [" << num_detections << ", "
-                  << num_values_per_detection << "]" << std::endl;
     } else {
         std::cerr << "ERROR: Unexpected output dimensions!" << std::endl;
         return detections;
@@ -78,12 +58,6 @@ std::vector<Detection> ProcessYoloOutput(
 
     bool is_single_class = (num_values_per_detection == 5);
     int num_classes = is_single_class ? 1 : (num_values_per_detection - 4);
-
-    std::cout << "[DEBUG] Number of classes: " << num_classes << std::endl;
-    std::cout << "[DEBUG] Format: " << (is_single_class ? "Single-class" : "Multi-class") << std::endl;
-    std::cout << "[DEBUG] Processing " << num_detections << " detections..." << std::endl;
-
-    int valid_detections = 0;
 
     for (int i = 0; i < num_detections; ++i) {
         float* data = output_data.ptr<float>(i);
@@ -115,62 +89,38 @@ std::vector<Detection> ProcessYoloOutput(
             continue;
         }
 
-        valid_detections++;
-
-        if (valid_detections <= 3) {
-            std::cout << "[DEBUG] Detection " << valid_detections << ":" << std::endl;
-            std::cout << "  Raw coords: x=" << x_center << ", y=" << y_center
-                      << ", w=" << width << ", h=" << height << std::endl;
-            std::cout << "  Max score: " << max_score << ", class: " << max_class_id << std::endl;
-        }
-
-        // Check if normalized (0-1) or absolute (640x640 input space)
         bool is_normalized = (x_center <= 1.0f && y_center <= 1.0f &&
                              width <= 1.0f && height <= 1.0f);
 
         if (is_normalized) {
-            // Normalized coordinates - scale directly to image size
             x_center *= img_width;
             y_center *= img_height;
             width *= img_width;
             height *= img_height;
         } else {
-            // Absolute coordinates in input space (640x640)
-            // Scale to original image dimensions
             x_center *= scale_x;
             y_center *= scale_y;
             width *= scale_x;
             height *= scale_y;
         }
 
-        // Convert from center coords to corner coords
         int x = static_cast<int>(x_center - width / 2.0f);
         int y = static_cast<int>(y_center - height / 2.0f);
         int w = static_cast<int>(width);
         int h = static_cast<int>(height);
 
-        // Clamp to image bounds
         x = std::max(0, std::min(x, img_width - 1));
         y = std::max(0, std::min(y, img_height - 1));
         w = std::max(1, std::min(w, img_width - x));
         h = std::max(1, std::min(h, img_height - y));
-
-        if (valid_detections <= 3) {
-            std::cout << "  Scaled box: x=" << x << ", y=" << y
-                      << ", w=" << w << ", h=" << h << std::endl;
-        }
 
         class_ids.push_back(max_class_id);
         confidences.push_back(max_score);
         boxes.push_back(cv::Rect(x, y, w, h));
     }
 
-    std::cout << "[DEBUG] Found " << valid_detections << " detections above threshold" << std::endl;
-
     std::vector<int> nms_result;
     cv::dnn::NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, nms_result);
-
-    std::cout << "[DEBUG] After NMS: " << nms_result.size() << " detections" << std::endl;
 
     for (int idx : nms_result) {
         Detection result;
@@ -185,10 +135,66 @@ std::vector<Detection> ProcessYoloOutput(
     return detections;
 }
 
+// Function to test and select the best available backend
+void setupGPUBackend(cv::dnn::Net& net) {
+    std::cout << "\n[GPU DETECTION]" << std::endl;
+    std::cout << "Testing available GPU backends..." << std::endl;
+
+    // Test OpenCL
+    try {
+        cv::dnn::Net test_net = net;
+        test_net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+        test_net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
+
+        std::cout << "  OpenCL is available!" << std::endl;
+        net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+        net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
+        std::cout << "  Using OpenCL for GPU acceleration" << std::endl;
+        return;
+    } catch (...) {
+        std::cout << "  OpenCL not available" << std::endl;
+    }
+
+    // Test Vulkan
+    try {
+        cv::dnn::Net test_net = net;
+        test_net.setPreferableBackend(cv::dnn::DNN_BACKEND_VKCOM);
+        test_net.setPreferableTarget(cv::dnn::DNN_TARGET_VULKAN);
+
+        std::cout << "  Vulkan is available!" << std::endl;
+        net.setPreferableBackend(cv::dnn::DNN_BACKEND_VKCOM);
+        net.setPreferableTarget(cv::dnn::DNN_TARGET_VULKAN);
+        std::cout << "  Using Vulkan for GPU acceleration" << std::endl;
+        return;
+    } catch (...) {
+        std::cout << "  Vulkan not available" << std::endl;
+    }
+
+    // Test OpenCL with FP16
+    try {
+        cv::dnn::Net test_net = net;
+        test_net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+        test_net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL_FP16);
+
+        std::cout << "  OpenCL FP16 is available!" << std::endl;
+        net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+        net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL_FP16);
+        std::cout << "  Using OpenCL FP16 for GPU acceleration" << std::endl;
+        return;
+    } catch (...) {
+        std::cout << "  OpenCL FP16 not available" << std::endl;
+    }
+
+    // Fallback to CPU
+    std::cout << "  No GPU backends available, using CPU" << std::endl;
+    net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+    net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+}
+
 int main() {
     try {
         std::cout << std::string(60, '=') << std::endl;
-        std::cout << "YOLO BUMPER DETECTION" << std::endl;
+        std::cout << "YOLO BUMPER DETECTION (GPU ACCELERATED)" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
 
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov10.onnx";
@@ -203,8 +209,8 @@ int main() {
             return -1;
         }
 
-        net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+        // Automatically detect and set up best GPU backend
+        setupGPUBackend(net);
 
         std::cout << "  ✓ Model loaded successfully!" << std::endl;
 
@@ -228,7 +234,7 @@ int main() {
 
         const int INPUT_WIDTH = 640;
         const int INPUT_HEIGHT = 640;
-        const float CONF_THRESHOLD = 0.1;   // Lower threshold to see more detections
+        const float CONF_THRESHOLD = 0.1;
         const float NMS_THRESHOLD = 0.45;
 
         std::cout << "\n" << std::string(60, '=') << std::endl;
@@ -240,7 +246,8 @@ int main() {
         cv::Mat frame;
         int frame_count = 0;
         int detection_count = 0;
-        bool first_frame = true;
+
+        auto start_time = std::chrono::high_resolution_clock::now();
 
         while (true) {
             if (!cap.read(frame)) {
@@ -252,15 +259,25 @@ int main() {
 
             frame_count++;
 
-            // Process every 4th frame
+            // Process every frame with GPU acceleration
             if (frame_count % 4 != 0) continue;
 
-            std::cout << "\n--- Frame " << frame_count << "/" << total_frames << " ---" << std::endl;
+            if (frame_count % 100 == 0) {
+                auto current_time = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    current_time - start_time).count() / 1000.0;
+                double current_fps = frame_count / elapsed;
+                std::cout << "Frame " << frame_count << "/" << total_frames
+                          << " - FPS: " << std::fixed << std::setprecision(1)
+                          << current_fps << std::endl;
+            }
 
-            // Prepare input blob
+            cv::UMat frameUMat;
+            frame.copyTo(frameUMat); // Upload frame to GPU memory immediately
+
             cv::Mat blob;
             cv::dnn::blobFromImage(
-                frame,
+                frameUMat, // Use UMat here
                 blob,
                 1.0 / 255.0,
                 cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
@@ -270,12 +287,10 @@ int main() {
             );
 
             net.setInput(blob);
-
-            // Run inference
+            net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
             std::vector<cv::Mat> outputs;
             net.forward(outputs, net.getUnconnectedOutLayersNames());
 
-            // Process outputs
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs,
                 frame.cols,
@@ -286,12 +301,8 @@ int main() {
                 NMS_THRESHOLD
             );
 
-            // Only show debug info for first frame
-            first_frame = false;
-
             detection_count += detections.size();
 
-            // Draw detections
             for (const auto& det : detections) {
                 cv::rectangle(
                     frame,
@@ -337,7 +348,7 @@ int main() {
                 );
             }
 
-            cv::imshow("YOLO Bumper Detection", frame);
+            cv::imshow("YOLO Bumper Detection (GPU)", frame);
 
             int key = cv::waitKey(1);
             if (key == 27) {
@@ -346,11 +357,18 @@ int main() {
             }
         }
 
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            end_time - start_time);
+
         std::cout << "\n" << std::string(60, '=') << std::endl;
         std::cout << "SUMMARY" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
-        std::cout << "Frames processed: " << frame_count / 4 << std::endl;
+        std::cout << "Frames processed: " << frame_count << std::endl;
         std::cout << "Total detections: " << detection_count << std::endl;
+        std::cout << "Processing time: " << duration.count() / 1000.0 << " seconds" << std::endl;
+        std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
+                  << frame_count / (duration.count() / 1000.0) << std::endl;
         std::cout << std::string(60, '=') << std::endl;
 
     } catch (const cv::Exception& e) {
