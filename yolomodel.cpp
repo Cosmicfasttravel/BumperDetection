@@ -1,9 +1,11 @@
 ﻿#include <iostream>
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
 #include <opencv2/dnn.hpp>
 #include <vector>
 #include <string>
 #include <chrono>
+#include <iomanip>
 
 struct Detection {
     int class_id;
@@ -135,66 +137,54 @@ std::vector<Detection> ProcessYoloOutput(
     return detections;
 }
 
-// Function to test and select the best available backend
-void setupGPUBackend(cv::dnn::Net& net) {
+std::string setupGPUBackend(cv::dnn::Net& net) {
     std::cout << "\n[GPU DETECTION]" << std::endl;
-    std::cout << "Testing available GPU backends..." << std::endl;
 
-    // Test OpenCL
+    // Check OpenCL availability first
+    std::cout << (cv::ocl::haveOpenCL() ? "AVAILABLE" : "NOT FOUND") << std::endl;
+
+    if (cv::ocl::haveOpenCL()) {
+        cv::ocl::setUseOpenCL(true);
+        cv::ocl::Device device = cv::ocl::Device::getDefault();
+        std::cout << "OpenCL Device: " << device.name() << std::endl;
+        std::cout << "OpenCL Vendor: " << device.vendorName() << std::endl;
+        std::cout << "OpenCL Version: " << device.version() << std::endl;
+    }
+
+    // Try OpenCL
+    std::cout << "\nTesting backends..." << std::endl;
     try {
-        cv::dnn::Net test_net = net;
-        test_net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        test_net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
-
-        std::cout << "  OpenCL is available!" << std::endl;
         net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
-        std::cout << "  Using OpenCL for GPU acceleration" << std::endl;
-        return;
-    } catch (...) {
-        std::cout << "  OpenCL not available" << std::endl;
+
+        std::cout << "  ✓ Using OpenCL for GPU acceleration" << std::endl;
+        return "OpenCL";
+    } catch (const cv::Exception& e) {
+        std::cout << "  ✗ OpenCL failed: " << e.what() << std::endl;
     }
 
-    // Test Vulkan
+    // Try OpenCL FP16
     try {
-        cv::dnn::Net test_net = net;
-        test_net.setPreferableBackend(cv::dnn::DNN_BACKEND_VKCOM);
-        test_net.setPreferableTarget(cv::dnn::DNN_TARGET_VULKAN);
-
-        std::cout << "  Vulkan is available!" << std::endl;
-        net.setPreferableBackend(cv::dnn::DNN_BACKEND_VKCOM);
-        net.setPreferableTarget(cv::dnn::DNN_TARGET_VULKAN);
-        std::cout << "  Using Vulkan for GPU acceleration" << std::endl;
-        return;
-    } catch (...) {
-        std::cout << "  Vulkan not available" << std::endl;
-    }
-
-    // Test OpenCL with FP16
-    try {
-        cv::dnn::Net test_net = net;
-        test_net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        test_net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL_FP16);
-
-        std::cout << "  OpenCL FP16 is available!" << std::endl;
         net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL_FP16);
-        std::cout << "  Using OpenCL FP16 for GPU acceleration" << std::endl;
-        return;
-    } catch (...) {
-        std::cout << "  OpenCL FP16 not available" << std::endl;
+
+        std::cout << "  ✓ Using OpenCL FP16 for GPU acceleration" << std::endl;
+        return "OpenCL_FP16";
+    } catch (const cv::Exception& e) {
+        std::cout << "  ✗ OpenCL FP16 failed: " << e.what() << std::endl;
     }
 
     // Fallback to CPU
-    std::cout << "  No GPU backends available, using CPU" << std::endl;
+    std::cout << "  → Using CPU (no GPU acceleration)" << std::endl;
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
     net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+    return "CPU";
 }
 
 int main() {
     try {
         std::cout << std::string(60, '=') << std::endl;
-        std::cout << "YOLO BUMPER DETECTION (GPU ACCELERATED)" << std::endl;
+        std::cout << "YOLO BUMPER DETECTION" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
 
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov10.onnx";
@@ -209,8 +199,8 @@ int main() {
             return -1;
         }
 
-        // Automatically detect and set up best GPU backend
-        setupGPUBackend(net);
+        // Setup GPU backend ONCE
+        std::string backend = setupGPUBackend(net);
 
         std::cout << "  ✓ Model loaded successfully!" << std::endl;
 
@@ -232,24 +222,33 @@ int main() {
         std::cout << "  Total frames: " << total_frames << std::endl;
         std::cout << "  FPS: " << fps << std::endl;
 
-        const int INPUT_WIDTH = 640;
-        const int INPUT_HEIGHT = 640;
+        const int INPUT_WIDTH = 320;
+        const int INPUT_HEIGHT = 320;
         const float CONF_THRESHOLD = 0.1;
         const float NMS_THRESHOLD = 0.45;
 
         std::cout << "\n" << std::string(60, '=') << std::endl;
         std::cout << "PROCESSING VIDEO" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
+        std::cout << "Backend: " << backend << std::endl;
         std::cout << "Confidence threshold: " << CONF_THRESHOLD << std::endl;
         std::cout << "Press ESC to exit\n" << std::endl;
 
         cv::Mat frame;
         int frame_count = 0;
+        int processed_count = 0;
         int detection_count = 0;
 
         auto start_time = std::chrono::high_resolution_clock::now();
 
+        // Timing variables for performance analysis
+        long long total_blob_time = 0;
+        long long total_inference_time = 0;
+        long long total_postprocess_time = 0;
+
         while (true) {
+            auto frame_start = std::chrono::high_resolution_clock::now();
+
             if (!cap.read(frame)) {
                 std::cout << "\nEnd of video reached." << std::endl;
                 break;
@@ -259,37 +258,57 @@ int main() {
 
             frame_count++;
 
-            // Process every frame with GPU acceleration
-            if (frame_count % 4 != 0) continue;
+            // Process every 10th frame
+            if (frame_count % 10 != 0) continue;
 
-            if (frame_count % 100 == 0) {
-                auto current_time = std::chrono::high_resolution_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    current_time - start_time).count() / 1000.0;
-                double current_fps = frame_count / elapsed;
-                std::cout << "Frame " << frame_count << "/" << total_frames
-                          << " - FPS: " << std::fixed << std::setprecision(1)
-                          << current_fps << std::endl;
-            }
+            processed_count++;
 
-            cv::UMat frameUMat;
-            frame.copyTo(frameUMat); // Upload frame to GPU memory immediately
+            // BLOB CREATION with timing
+            auto blob_start = std::chrono::high_resolution_clock::now();
 
             cv::Mat blob;
-            cv::dnn::blobFromImage(
-                frameUMat, // Use UMat here
-                blob,
-                1.0 / 255.0,
-                cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
-                cv::Scalar(0, 0, 0),
-                true,
-                false
-            );
+            if (backend == "OpenCL" || backend == "OpenCL_FP16") {
+                // Use UMat for OpenCL
+                cv::UMat frameUMat;
+                frame.copyTo(frameUMat);
+
+                cv::dnn::blobFromImage(
+                    frameUMat,
+                    blob,
+                    1.0 / 255.0,
+                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
+                    cv::Scalar(0, 0, 0),
+                    true,
+                    false
+                );
+            } else {
+                cv::dnn::blobFromImage(
+                    frame,
+                    blob,
+                    1.0 / 255.0,
+                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
+                    cv::Scalar(0, 0, 0),
+                    true,
+                    false
+                );
+            }
+
+            auto blob_end = std::chrono::high_resolution_clock::now();
+            total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
+
+            // INFERENCE with timing
+            auto inference_start = std::chrono::high_resolution_clock::now();
 
             net.setInput(blob);
-            net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
+            // DO NOT set target here - it was already set in setupGPUBackend!
             std::vector<cv::Mat> outputs;
             net.forward(outputs, net.getUnconnectedOutLayersNames());
+
+            auto inference_end = std::chrono::high_resolution_clock::now();
+            total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(inference_end - inference_start).count();
+
+            // POST-PROCESSING with timing
+            auto postprocess_start = std::chrono::high_resolution_clock::now();
 
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs,
@@ -301,54 +320,47 @@ int main() {
                 NMS_THRESHOLD
             );
 
+            auto postprocess_end = std::chrono::high_resolution_clock::now();
+            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(postprocess_end - postprocess_start).count();
+
             detection_count += detections.size();
 
+            // Draw detections
             for (const auto& det : detections) {
-                cv::rectangle(
-                    frame,
-                    det.bounding_box,
-                    cv::Scalar(0, 255, 0),
-                    3
-                );
+                cv::rectangle(frame, det.bounding_box, cv::Scalar(0, 255, 0), 3);
 
                 std::stringstream ss;
-                ss << det.class_name << ": "
-                   << static_cast<int>(det.confidence * 100) << "%";
+                ss << det.class_name << ": " << static_cast<int>(det.confidence * 100) << "%";
                 std::string label = ss.str();
 
                 int baseline;
-                cv::Size label_size = cv::getTextSize(
-                    label,
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    2,
-                    &baseline
-                );
-
+                cv::Size label_size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, &baseline);
                 cv::Point label_origin(det.bounding_box.x, det.bounding_box.y - 10);
 
-                cv::rectangle(
-                    frame,
-                    cv::Point(label_origin.x,
-                             label_origin.y - label_size.height - baseline),
-                    cv::Point(label_origin.x + label_size.width,
-                             label_origin.y + baseline),
-                    cv::Scalar(0, 255, 0),
-                    cv::FILLED
-                );
+                cv::rectangle(frame,
+                    cv::Point(label_origin.x, label_origin.y - label_size.height - baseline),
+                    cv::Point(label_origin.x + label_size.width, label_origin.y + baseline),
+                    cv::Scalar(0, 255, 0), cv::FILLED);
 
-                cv::putText(
-                    frame,
-                    label,
-                    label_origin,
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    cv::Scalar(0, 0, 0),
-                    2
-                );
+                cv::putText(frame, label, label_origin, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
             }
 
-            cv::imshow("YOLO Bumper Detection (GPU)", frame);
+            // Show progress and timing every 25 processed frames
+            if (processed_count % 25 == 0) {
+                auto current_time = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    current_time - start_time).count() / 1000.0;
+                double current_fps = processed_count / elapsed;
+
+                std::cout << "\nFrame " << frame_count << "/" << total_frames
+                          << " (Processed: " << processed_count << ")" << std::endl;
+                std::cout << "  FPS: " << std::fixed << std::setprecision(1) << current_fps << std::endl;
+                std::cout << "  Avg blob time: " << (total_blob_time / processed_count) << "ms" << std::endl;
+                std::cout << "  Avg inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
+                std::cout << "  Avg postprocess: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
+            }
+
+            cv::imshow("YOLO Bumper Detection", frame);
 
             int key = cv::waitKey(1);
             if (key == 27) {
@@ -358,17 +370,23 @@ int main() {
         }
 
         auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end_time - start_time);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
         std::cout << "\n" << std::string(60, '=') << std::endl;
-        std::cout << "SUMMARY" << std::endl;
+        std::cout << "PERFORMANCE SUMMARY" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
-        std::cout << "Frames processed: " << frame_count << std::endl;
+        std::cout << "Backend used: " << backend << std::endl;
+        std::cout << "Total frames: " << frame_count << std::endl;
+        std::cout << "Frames processed: " << processed_count << std::endl;
         std::cout << "Total detections: " << detection_count << std::endl;
-        std::cout << "Processing time: " << duration.count() / 1000.0 << " seconds" << std::endl;
+        std::cout << "Processing time: " << std::fixed << std::setprecision(2)
+                  << duration.count() / 1000.0 << " seconds" << std::endl;
         std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
-                  << frame_count / (duration.count() / 1000.0) << std::endl;
+                  << processed_count / (duration.count() / 1000.0) << std::endl;
+        std::cout << "\nTiming Breakdown (per frame):" << std::endl;
+        std::cout << "  Blob creation: " << (total_blob_time / processed_count) << "ms" << std::endl;
+        std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
+        std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
 
     } catch (const cv::Exception& e) {
