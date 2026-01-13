@@ -174,6 +174,8 @@ std::string setupGPUBackend(cv::dnn::Net& net) {
         std::cout << "  ✗ OpenCL FP16 failed: " << e.what() << std::endl;
     }
 
+
+
     // Fallback to CPU
     std::cout << "  → Using CPU (no GPU acceleration)" << std::endl;
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
@@ -187,7 +189,7 @@ int main() {
         std::cout << "YOLO BUMPER DETECTION" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
 
-        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov10.onnx";
+        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
 
         std::cout << "\nLoading YOLO model..." << std::endl;
         std::cout << "  Model: " << model_path << std::endl;
@@ -202,12 +204,7 @@ int main() {
         // Setup GPU backend ONCE
         std::string backend = setupGPUBackend(net);
 
-        std::cout << "  ✓ Model loaded successfully!" << std::endl;
-
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotsecond.MP4";
-
-        std::cout << "\nOpening video..." << std::endl;
-        std::cout << "  Video: " << video_path << std::endl;
 
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
@@ -218,21 +215,11 @@ int main() {
         int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
         double fps = cap.get(cv::CAP_PROP_FPS);
 
-        std::cout << "  ✓ Video opened" << std::endl;
-        std::cout << "  Total frames: " << total_frames << std::endl;
-        std::cout << "  FPS: " << fps << std::endl;
 
         const int INPUT_WIDTH = 320;
         const int INPUT_HEIGHT = 320;
-        const float CONF_THRESHOLD = 0.1;
+        const float CONF_THRESHOLD = 0.15;
         const float NMS_THRESHOLD = 0.45;
-
-        std::cout << "\n" << std::string(60, '=') << std::endl;
-        std::cout << "PROCESSING VIDEO" << std::endl;
-        std::cout << std::string(60, '=') << std::endl;
-        std::cout << "Backend: " << backend << std::endl;
-        std::cout << "Confidence threshold: " << CONF_THRESHOLD << std::endl;
-        std::cout << "Press ESC to exit\n" << std::endl;
 
         cv::Mat frame;
         int frame_count = 0;
@@ -300,7 +287,7 @@ int main() {
             auto inference_start = std::chrono::high_resolution_clock::now();
 
             net.setInput(blob);
-            // DO NOT set target here - it was already set in setupGPUBackend!
+
             std::vector<cv::Mat> outputs;
             net.forward(outputs, net.getUnconnectedOutLayersNames());
 
@@ -351,13 +338,6 @@ int main() {
                 auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                     current_time - start_time).count() / 1000.0;
                 double current_fps = processed_count / elapsed;
-
-                std::cout << "\nFrame " << frame_count << "/" << total_frames
-                          << " (Processed: " << processed_count << ")" << std::endl;
-                std::cout << "  FPS: " << std::fixed << std::setprecision(1) << current_fps << std::endl;
-                std::cout << "  Avg blob time: " << (total_blob_time / processed_count) << "ms" << std::endl;
-                std::cout << "  Avg inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
-                std::cout << "  Avg postprocess: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
             }
 
             cv::imshow("YOLO Bumper Detection", frame);
