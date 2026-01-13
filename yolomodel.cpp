@@ -157,10 +157,10 @@ std::string setupGPUBackend(cv::dnn::Net& net) {
         net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
 
-        std::cout << "  ✓ Using OpenCL for GPU acceleration" << std::endl;
+        std::cout << "  Using OpenCL for GPU acceleration" << std::endl;
         return "OpenCL";
     } catch (const cv::Exception& e) {
-        std::cout << "  ✗ OpenCL failed: " << e.what() << std::endl;
+        std::cout << "  OpenCL failed: " << e.what() << std::endl;
     }
 
     // Try OpenCL FP16
@@ -168,10 +168,10 @@ std::string setupGPUBackend(cv::dnn::Net& net) {
         net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL_FP16);
 
-        std::cout << "  ✓ Using OpenCL FP16 for GPU acceleration" << std::endl;
+        std::cout << "  Using OpenCL FP16 for GPU acceleration" << std::endl;
         return "OpenCL_FP16";
     } catch (const cv::Exception& e) {
-        std::cout << "  ✗ OpenCL FP16 failed: " << e.what() << std::endl;
+        std::cout << "  OpenCL FP16 failed: " << e.what() << std::endl;
     }
 
 
@@ -201,7 +201,7 @@ int main() {
             return -1;
         }
 
-        // Setup GPU backend ONCE
+        // Setup GPU backend
         std::string backend = setupGPUBackend(net);
 
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotsecond.MP4";
