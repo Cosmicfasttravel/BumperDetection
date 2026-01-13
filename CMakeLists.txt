@@ -19,7 +19,8 @@ message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
 message(STATUS "OpenCV_VERSION: ${OpenCV_VERSION}")
 
 add_executable(BumperDetection main.cpp
-        "yolomodel.cpp")
+        "yolomodel.cpp"
+        yolomodelgpu.cpp)
 
 # Only link opencv_world (it contains all modules)
 target_link_libraries(BumperDetection
