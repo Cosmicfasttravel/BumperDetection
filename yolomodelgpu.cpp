@@ -7,6 +7,11 @@
 #include <chrono>
 #include <iomanip>
 
+// Include CUDA module if available
+#ifdef HAVE_OPENCV_CUDNN
+#include <opencv2/core/cuda.hpp>
+#endif
+
 struct Detection {
     int class_id;
     float confidence;
@@ -139,45 +144,92 @@ std::vector<Detection> ProcessYoloOutput(
 
 std::string setupGPUBackend(cv::dnn::Net& net) {
     std::cout << "\n[GPU DETECTION]" << std::endl;
+    std::cout << "Testing available backends..." << std::endl;
 
-    // Check OpenCL availability first
-    std::cout << (cv::ocl::haveOpenCL() ? "AVAILABLE" : "NOT FOUND") << std::endl;
+    // Priority 1: Try CUDA (fastest)
+    #ifdef HAVE_OPENCV_CUDNN
+    try {
+        int cuda_device_count = cv::cuda::getCudaEnabledDeviceCount();
+        if (cuda_device_count > 0) {
+            std::cout << "\n[CUDA Detection]" << std::endl;
+            std::cout << "CUDA devices available: " << cuda_device_count << std::endl;
 
+            cv::cuda::DeviceInfo deviceInfo;
+            std::cout << "GPU: " << deviceInfo.name() << std::endl;
+            std::cout << "Compute Capability: " << deviceInfo.majorVersion()
+                      << "." << deviceInfo.minorVersion() << std::endl;
+
+            std::cout << "\nAttempting CUDA backend..." << std::endl;
+            net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+            net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+
+            std::cout << "✓ Using CUDA for GPU acceleration (FASTEST)" << std::endl;
+            return "CUDA";
+        } else {
+            std::cout << "✗ No CUDA devices found" << std::endl;
+        }
+    } catch (const cv::Exception& e) {
+        std::cout << "✗ CUDA failed: " << e.what() << std::endl;
+    }
+    #else
+    std::cout << "✗ OpenCV not built with CUDA support" << std::endl;
+    std::cout << "  To enable CUDA, rebuild OpenCV with:" << std::endl;
+    std::cout << "  - OPENCV_DNN_CUDA=ON" << std::endl;
+    std::cout << "  - WITH_CUDA=ON" << std::endl;
+    std::cout << "  - WITH_CUDNN=ON" << std::endl;
+    #endif
+
+    // Priority 2: Try CUDA FP16 (even faster, slightly less accurate)
+    #ifdef HAVE_OPENCV_CUDNN
+    try {
+        std::cout << "\nAttempting CUDA FP16 backend..." << std::endl;
+        net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+        net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA_FP16);
+
+        std::cout << "✓ Using CUDA FP16 for GPU acceleration (VERY FAST)" << std::endl;
+        return "CUDA_FP16";
+    } catch (const cv::Exception& e) {
+        std::cout << "✗ CUDA FP16 failed: " << e.what() << std::endl;
+    }
+    #endif
+
+    // Priority 3: Try OpenCL (cross-platform)
+    std::cout << "\nAttempting OpenCL backend..." << std::endl;
     if (cv::ocl::haveOpenCL()) {
+        std::cout << "OpenCL runtime: AVAILABLE" << std::endl;
         cv::ocl::setUseOpenCL(true);
+
         cv::ocl::Device device = cv::ocl::Device::getDefault();
         std::cout << "OpenCL Device: " << device.name() << std::endl;
         std::cout << "OpenCL Vendor: " << device.vendorName() << std::endl;
-        std::cout << "OpenCL Version: " << device.version() << std::endl;
+
+        try {
+            net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+            net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
+
+            std::cout << "✓ Using OpenCL for GPU acceleration" << std::endl;
+            return "OpenCL";
+        } catch (const cv::Exception& e) {
+            std::cout << "✗ OpenCL failed: " << e.what() << std::endl;
+        }
+    } else {
+        std::cout << "✗ OpenCL not available" << std::endl;
     }
 
-    // Try OpenCL
-    std::cout << "\nTesting backends..." << std::endl;
+    // Priority 4: Try OpenCL FP16
     try {
-        net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL);
-
-        std::cout << "  Using OpenCL for GPU acceleration" << std::endl;
-        return "OpenCL";
-    } catch (const cv::Exception& e) {
-        std::cout << "  OpenCL failed: " << e.what() << std::endl;
-    }
-
-    // Try OpenCL FP16
-    try {
+        std::cout << "\nAttempting OpenCL FP16 backend..." << std::endl;
         net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         net.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL_FP16);
 
-        std::cout << "  Using OpenCL FP16 for GPU acceleration" << std::endl;
+        std::cout << "✓ Using OpenCL FP16 for GPU acceleration" << std::endl;
         return "OpenCL_FP16";
     } catch (const cv::Exception& e) {
-        std::cout << "  OpenCL FP16 failed: " << e.what() << std::endl;
+        std::cout << "✗ OpenCL FP16 failed: " << e.what() << std::endl;
     }
 
-
-
-    // Fallback to CPU
-    std::cout << "  → Using CPU (no GPU acceleration)" << std::endl;
+    // Fallback: CPU
+    std::cout << "\n⚠ Falling back to CPU (no GPU acceleration)" << std::endl;
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
     net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
     return "CPU";
@@ -189,9 +241,21 @@ int main() {
         std::cout << "YOLO BUMPER DETECTION" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
 
+        // Check OpenCV build info
+        std::cout << "\n[OpenCV Build Info]" << std::endl;
+        std::cout << "OpenCV version: " << CV_VERSION << std::endl;
+
+        #ifdef HAVE_OPENCV_CUDNN
+        std::cout << "CUDA DNN support: YES" << std::endl;
+        #else
+        std::cout << "CUDA DNN support: NO" << std::endl;
+        #endif
+
+        std::cout << "OpenCL support: " << (cv::ocl::haveOpenCL() ? "YES" : "NO") << std::endl;
+
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
 
-        std::cout << "\nLoading YOLO model..." << std::endl;
+        std::cout << "\n[Loading Model]" << std::endl;
         std::cout << "  Model: " << model_path << std::endl;
 
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
@@ -201,10 +265,14 @@ int main() {
             return -1;
         }
 
-        // Setup GPU backend
+        // Setup best available backend
         std::string backend = setupGPUBackend(net);
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotsecond.MP4";
+        std::cout << "\n✓ Model loaded with " << backend << " backend" << std::endl;
+
+        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotcropped.MP4";
+
+        std::cout << "\n[Opening Video]" << std::endl;
 
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
@@ -214,12 +282,34 @@ int main() {
 
         int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
         double fps = cap.get(cv::CAP_PROP_FPS);
+        int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
+        int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
 
+        std::cout << "  Resolution: " << frame_width << "x" << frame_height << std::endl;
+        std::cout << "  Total frames: " << total_frames << std::endl;
+        std::cout << "  FPS: " << fps << std::endl;
 
         const int INPUT_WIDTH = 320;
         const int INPUT_HEIGHT = 320;
         const float CONF_THRESHOLD = 0.15;
         const float NMS_THRESHOLD = 0.45;
+
+        // Adjust frame skip based on backend
+        int frame_skip = 1;  // Process every frame with CUDA
+        if (backend == "OpenCL" || backend == "OpenCL_FP16") {
+            frame_skip = 5;  // Every 5th frame for OpenCL
+        } else if (backend == "CPU") {
+            frame_skip = 10; // Every 10th frame for CPU
+        }
+
+        std::cout << "\n" << std::string(60, '=') << std::endl;
+        std::cout << "PROCESSING VIDEO" << std::endl;
+        std::cout << std::string(60, '=') << std::endl;
+        std::cout << "Backend: " << backend << std::endl;
+        std::cout << "Input size: " << INPUT_WIDTH << "x" << INPUT_HEIGHT << std::endl;
+        std::cout << "Frame skip: every " << frame_skip << " frame(s)" << std::endl;
+        std::cout << "Confidence threshold: " << CONF_THRESHOLD << std::endl;
+        std::cout << "Press ESC to exit\n" << std::endl;
 
         cv::Mat frame;
         int frame_count = 0;
@@ -228,14 +318,12 @@ int main() {
 
         auto start_time = std::chrono::high_resolution_clock::now();
 
-        // Timing variables for performance analysis
+        // Timing variables
         long long total_blob_time = 0;
         long long total_inference_time = 0;
         long long total_postprocess_time = 0;
 
         while (true) {
-            auto frame_start = std::chrono::high_resolution_clock::now();
-
             if (!cap.read(frame)) {
                 std::cout << "\nEnd of video reached." << std::endl;
                 break;
@@ -245,8 +333,13 @@ int main() {
 
             frame_count++;
 
-            // Process every 10th frame
-            if (frame_count % 10 != 0) continue;
+            // Process based on frame_skip
+            if (frame_count % frame_skip != 0) {
+                // Still display the frame
+                cv::imshow("YOLO Bumper Detection", frame);
+                if (cv::waitKey(1) == 27) break;
+                continue;
+            }
 
             processed_count++;
 
@@ -255,29 +348,13 @@ int main() {
 
             cv::Mat blob;
             if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-                // Use UMat for OpenCL
                 cv::UMat frameUMat;
                 frame.copyTo(frameUMat);
-
-                cv::dnn::blobFromImage(
-                    frameUMat,
-                    blob,
-                    1.0 / 255.0,
-                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
-                    cv::Scalar(0, 0, 0),
-                    true,
-                    false
-                );
+                cv::dnn::blobFromImage(frameUMat, blob, 1.0 / 255.0,
+                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
             } else {
-                cv::dnn::blobFromImage(
-                    frame,
-                    blob,
-                    1.0 / 255.0,
-                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
-                    cv::Scalar(0, 0, 0),
-                    true,
-                    false
-                );
+                cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
+                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
             }
 
             auto blob_end = std::chrono::high_resolution_clock::now();
@@ -287,7 +364,6 @@ int main() {
             auto inference_start = std::chrono::high_resolution_clock::now();
 
             net.setInput(blob);
-
             std::vector<cv::Mat> outputs;
             net.forward(outputs, net.getUnconnectedOutLayersNames());
 
@@ -298,13 +374,9 @@ int main() {
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
             std::vector<Detection> detections = ProcessYoloOutput(
-                outputs,
-                frame.cols,
-                frame.rows,
-                INPUT_WIDTH,
-                INPUT_HEIGHT,
-                CONF_THRESHOLD,
-                NMS_THRESHOLD
+                outputs, frame.cols, frame.rows,
+                INPUT_WIDTH, INPUT_HEIGHT,
+                CONF_THRESHOLD, NMS_THRESHOLD
             );
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
@@ -332,19 +404,27 @@ int main() {
                 cv::putText(frame, label, label_origin, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
             }
 
-            // Show progress and timing every 25 processed frames
+            // Display backend on frame
+            cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
+                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
+
+            // Show progress every 25 processed frames
             if (processed_count % 25 == 0) {
                 auto current_time = std::chrono::high_resolution_clock::now();
                 auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                     current_time - start_time).count() / 1000.0;
                 double current_fps = processed_count / elapsed;
+
+                std::cout << "Frame " << frame_count << "/" << total_frames
+                          << " (Processed: " << processed_count << ")"
+                          << " - FPS: " << std::fixed << std::setprecision(1) << current_fps << std::endl;
             }
 
             cv::imshow("YOLO Bumper Detection", frame);
 
             int key = cv::waitKey(1);
             if (key == 27) {
-                std::cout << "\n\nStopped by user." << std::endl;
+                std::cout << "\nStopped by user." << std::endl;
                 break;
             }
         }
@@ -355,7 +435,7 @@ int main() {
         std::cout << "\n" << std::string(60, '=') << std::endl;
         std::cout << "PERFORMANCE SUMMARY" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
-        std::cout << "Backend used: " << backend << std::endl;
+        std::cout << "Backend: " << backend << std::endl;
         std::cout << "Total frames: " << frame_count << std::endl;
         std::cout << "Frames processed: " << processed_count << std::endl;
         std::cout << "Total detections: " << detection_count << std::endl;
@@ -368,6 +448,19 @@ int main() {
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
         std::cout << std::string(60, '=') << std::endl;
+
+        // Performance interpretation
+        double avg_inference = static_cast<double>(total_inference_time) / processed_count;
+        std::cout << "\nPerformance Assessment:" << std::endl;
+        if (avg_inference < 50) {
+            std::cout << "  ✓✓✓ EXCELLENT! Real-time capable (20+ FPS)" << std::endl;
+        } else if (avg_inference < 200) {
+            std::cout << "  ✓✓ GOOD! Near real-time (5-20 FPS)" << std::endl;
+        } else if (avg_inference < 500) {
+            std::cout << "  ✓ USABLE! Moderate speed (2-5 FPS)" << std::endl;
+        } else {
+            std::cout << "  ⚠ SLOW! Consider GPU acceleration or smaller model" << std::endl;
+        }
 
     } catch (const cv::Exception& e) {
         std::cerr << "\nOpenCV Error: " << e.what() << std::endl;
