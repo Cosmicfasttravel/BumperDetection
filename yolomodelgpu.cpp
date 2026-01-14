@@ -420,8 +420,6 @@ int main() {
                           << " - FPS: " << std::fixed << std::setprecision(1) << current_fps << std::endl;
             }
 
-            cv::imshow("YOLO Bumper Detection", frame);
-
             int key = cv::waitKey(1);
             if (key == 27) {
                 std::cout << "\nStopped by user." << std::endl;

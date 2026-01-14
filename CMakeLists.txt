@@ -45,6 +45,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(BumperDetection
         main.cpp
         yolomodelgpu.cpp
+        yolomodel.cpp
 )
 
 target_link_libraries(BumperDetection
