@@ -328,13 +328,12 @@ int main() {
                 std::cout << "\nEnd of video reached." << std::endl;
                 break;
             }
-
             if (frame.empty()) continue;
 
             frame_count++;
 
             // Process based on frame_skip
-            if (frame_count % frame_skip != 0) {
+            if (frame_count % frame_skip == 0) {
                 // Still display the frame
                 cv::imshow("YOLO Bumper Detection", frame);
                 if (cv::waitKey(1) == 27) break;
