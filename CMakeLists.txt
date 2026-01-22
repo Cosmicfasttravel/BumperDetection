@@ -45,6 +45,10 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(BumperDetection
         main.cpp
         yolomodelgpu.cpp
+        GPU.cpp
+        GPU.h
+        edgeDetection.cpp
+        edgeDetection.h
 )
 
 target_link_libraries(BumperDetection
