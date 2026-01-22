@@ -176,7 +176,7 @@ int main() {
 
         std::cout << "\nModel loaded with " << backend << " backend" << std::endl;
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotsecond.MP4";
+        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotcropped.MP4";
 
         std::cout << "\n[Opening Video]" << std::endl;
 

@@ -50,7 +50,6 @@ namespace det {
         const Position3D& pos
     ) {
 
-        // Display distance
         std::stringstream ss;
         ss << std::fixed << std::setprecision(2)
            << pos.z_cm / 100.0 << "m";
@@ -58,13 +57,17 @@ namespace det {
         cv::putText(frame, ss.str(),
             cv::Point(m.rect.x + 10, m.rect.y - 10),
             cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+        cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3);
+
+        cv::line(frame, cv::Point(m.rect.x + m.w/2, m.rect.y + m.h/2), cv::Point(1920/2, 1080), cv::Scalar(255, 255, 255), 2);
+        cv::line(frame, cv::Point(1920/2, m.rect.y), cv::Point(1920/2, 1080), cv::Scalar(255, 255, 255), 2);
     }
 
     void detectEdgesBumper(
         cv::Mat& blankFrame,
         cv::Mat& frame,
         const std::vector<Detection>& detections,
-        double focal_length = 400, //robotsecond vid = ~400, robotcropped = ~1400
+        double focal_length = 1400, //robotsecond vid = ~400, robotcropped = ~1400
         double bumper_height_cm = 11
     ) {
         std::vector<std::vector<cv::Point>> contours, overlappingContours;
@@ -105,7 +108,7 @@ namespace det {
         );
 
         cv::Mat kernel = cv::getStructuringElement(
-            cv::MORPH_ELLIPSE, cv::Size(50, 50));
+            cv::MORPH_RECT, cv::Size(50, 25));
 
         cv::morphologyEx(
             overlapMask,
@@ -123,10 +126,13 @@ namespace det {
 
         // Process each contour and calculate distance
         for (const auto& contour : overlappingContours) {
-            if (contourArea(contour) < 600) continue;
+            if (contourArea(contour) < 0) continue;
             BumperMeasurements m = getMeasurementsFromContour(contour);
 
             Position3D pos = getPosition3D(m, focal_length, bumper_height_cm);
+
+            if (pos.z_cm >= 2000) continue;
+
             drawMeasurements(frame, m, pos);
         }
 
@@ -135,31 +141,3 @@ namespace det {
         cv::imshow("detectEdgesBumper", frame);
     }
 }
-
-/*
-CALIBRATION INSTRUCTIONS:
--------------------------
-Your focal_length = 800 is likely WRONG. Here's how to calibrate:
-
-1. Measure your bumper's actual width with a ruler
-   Example: 101.6 cm (40 inches)
-
-2. Place the robot at a KNOWN distance from camera
-   Example: 300 cm (10 feet) away
-
-3. Run this code and look at the console output for "Width: XXX px"
-   Example: you see "Width: 270 px"
-
-4. Calculate your correct focal length:
-   focal_length = (pixel_width × distance) / real_width
-   focal_length = (270 × 300) / 101.6 = 797.2
-
-5. Update the default parameter in detectEdgesBumper():
-   double focal_length = 797.2  // Your calibrated value
-
-TIPS:
-- Calibrate at a medium distance (200-400 cm works well)
-- Make sure the bumper is straight-on to the camera
-- The blue line should now consistently track the longest dimension
-- Distance should be accurate regardless of robot rotation
-*/
