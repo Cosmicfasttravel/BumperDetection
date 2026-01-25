@@ -68,12 +68,13 @@ namespace det {
         double max_cord_x = SCREEN_WIDTH / 2;
         double max_cord_y = SCREEN_HEIGHT / 2;
 
-        double x_angle = (X_FOV/2 * (robot_center.x / max_cord_x)) / 180/CV_PI;
-        double y_angle = (Y_FOV/2 * (robot_center.y / max_cord_y)) / 180/CV_PI;
+        double x_angle = (X_FOV/2 * (robot_center.x / max_cord_x)) * CV_PI / 180.0;
+        double y_angle = (Y_FOV/2 * (robot_center.y / max_cord_y)) * CV_PI / 180.0;
 
-        double x_coordinate = pos.z_cm * sin(y_angle) * cos(x_angle) / 100;
-        double y_coordinate = pos.z_cm * sin(y_angle) * sin(x_angle) / 100;
-        double z_coordinate = pos.z_cm * cos(y_angle) / 100;
+        double x_coordinate = pos.z_cm * cos(x_angle) / 100;
+        double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
+        double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
+
 
         ss << std::fixed << std::setprecision(2)
            << pos.z_cm / 100.0 << "m" << ", (" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)"; // 1/2 fov (70deg) * (pixel cord / max cord) centered around origin, center -> edge  |----[]----|
