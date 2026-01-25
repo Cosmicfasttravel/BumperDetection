@@ -3,6 +3,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/mat.hpp>
 #include <sstream>
+#include <cmath>
 #include <iomanip>
 
 struct Detection {
@@ -16,6 +17,7 @@ struct BumperMeasurements {
     double w{};
     double h{};
     cv::Rect rect;
+    cv::RotatedRect rotated_rect;
 };
 
 struct Position3D {
@@ -27,20 +29,23 @@ namespace det {
     BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point>& contour) {
         BumperMeasurements m;
         m.rect = boundingRect(contour);
+        m.rotated_rect = cv::minAreaRect(contour);
 
         m.w = m.rect.width;
-        m.h = m.rect.height;
+
+        m.h = m.rotated_rect.size.height;
 
         return m;
     }
 
     Position3D getPosition3D(
         const BumperMeasurements& m,
-        double focal_length,
-        double known_height_cm
+        double focal_length_cm = 0.36,
+        double known_height_cm = 10.6,
+        double pixel_height_cm = 0.0003
     ) {
         Position3D pos{};
-        pos.z_cm = (known_height_cm * focal_length) / m.h;
+        pos.z_cm = (known_height_cm * focal_length_cm) / (m.h * pixel_height_cm);
         return pos;
     }
 
@@ -49,26 +54,39 @@ namespace det {
         const BumperMeasurements& m,
         const Position3D& pos
     ) {
+        constexpr double SCREEN_WIDTH = 1280;
+        constexpr double SCREEN_HEIGHT = 720;
+        constexpr double X_FOV = 70;
+        constexpr double Y_FOV = 40;
+
 
         std::stringstream ss;
+        cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3);
+
+        cv::Point robot_center = cv::Point(m.rotated_rect.center.x - SCREEN_WIDTH / 2, m.rotated_rect.center.y - SCREEN_HEIGHT / 2);
+
+        double max_cord_x = SCREEN_WIDTH / 2;
+        double max_cord_y = SCREEN_HEIGHT / 2;
+
+        double x_angle = (X_FOV/2 * (robot_center.x / max_cord_x)) / 180/CV_PI;
+        double y_angle = (Y_FOV/2 * (robot_center.y / max_cord_y)) / 180/CV_PI;
+
+        double x_coordinate = pos.z_cm * sin(y_angle) * cos(x_angle) / 100;
+        double y_coordinate = pos.z_cm * sin(y_angle) * sin(x_angle) / 100;
+        double z_coordinate = pos.z_cm * cos(y_angle) / 100;
+
         ss << std::fixed << std::setprecision(2)
-           << pos.z_cm / 100.0 << "m";
+           << pos.z_cm / 100.0 << "m" << ", (" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)"; // 1/2 fov (70deg) * (pixel cord / max cord) centered around origin, center -> edge  |----[]----|
 
         cv::putText(frame, ss.str(),
             cv::Point(m.rect.x + 10, m.rect.y - 10),
             cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
-        cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3);
-
-        cv::line(frame, cv::Point(m.rect.x + m.w/2, m.rect.y + m.h/2), cv::Point(1920/2, 1080), cv::Scalar(255, 255, 255), 2);
-        cv::line(frame, cv::Point(1920/2, m.rect.y), cv::Point(1920/2, 1080), cv::Scalar(255, 255, 255), 2);
     }
 
     void detectEdgesBumper(
         cv::Mat& blankFrame,
         cv::Mat& frame,
-        const std::vector<Detection>& detections,
-        double focal_length = 1400, //robotsecond vid = ~400, robotcropped = ~1400
-        double bumper_height_cm = 11
+        const std::vector<Detection>& detections
     ) {
         std::vector<std::vector<cv::Point>> contours, overlappingContours;
         cv::Mat gray, edges, bMask, rMask, rMask1, hsv;
@@ -80,9 +98,10 @@ namespace det {
         cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
 
         rMask = rMask | rMask1;
-        cv::bitwise_or(bMask, rMask, gray);
+        // cv::bitwise_or(rMask, bMask, gray); //for comp use
+        gray = rMask; //for use on badger bots floors due to the color of the floors
 
-        cv::Canny(gray, edges, 100, 255);
+        cv::Canny(gray, edges, 120, 255);
 
         cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
@@ -96,7 +115,7 @@ namespace det {
                 }
             }
         }
-
+        cv::drawContours(frame, overlappingContours, -1, cv::Scalar(0, 0, 0), 2);
         cv::Mat overlapMask = cv::Mat::zeros(edges.size(), CV_8UC1);
 
         cv::drawContours(
@@ -126,12 +145,10 @@ namespace det {
 
         // Process each contour and calculate distance
         for (const auto& contour : overlappingContours) {
-            if (contourArea(contour) < 0) continue;
+            if (contourArea(contour) < 100) continue;
             BumperMeasurements m = getMeasurementsFromContour(contour);
 
-            Position3D pos = getPosition3D(m, focal_length, bumper_height_cm);
-
-            if (pos.z_cm >= 2000) continue;
+            Position3D pos = getPosition3D(m);
 
             drawMeasurements(frame, m, pos);
         }

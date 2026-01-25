@@ -159,7 +159,7 @@ int main() {
 
         std::cout << "OpenCL support: " << (cv::ocl::haveOpenCL() ? "YES" : "NO") << std::endl;
 
-        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov10.onnx"; //v10 = compact, v9 = tiny
+        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx"; //v10 = tiny, v9 = compact
 
         std::cout << "\n[Loading Model]" << std::endl;
         std::cout << "  Model: " << model_path << std::endl;
@@ -176,7 +176,7 @@ int main() {
 
         std::cout << "\nModel loaded with " << backend << " backend" << std::endl;
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotcropped.MP4";
+        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/5ft.MP4";
 
         std::cout << "\n[Opening Video]" << std::endl;
 
@@ -197,7 +197,7 @@ int main() {
 
         constexpr int INPUT_WIDTH = 640;
         constexpr int INPUT_HEIGHT = 640;
-        constexpr float CONF_THRESHOLD = 0.5;
+        constexpr float CONF_THRESHOLD = 0.75;
 
         // Adjust frame skip based on backend
         int frame_skip = 1;  // Process every frame with CUDA
@@ -227,6 +227,9 @@ int main() {
         long long total_blob_time = 0;
         long long total_inference_time = 0;
         long long total_postprocess_time = 0;
+
+        bool paused = false;
+        int waitTime = 1;
 
         while (true) {
 
@@ -330,14 +333,15 @@ int main() {
             }
             det::detectEdgesBumper(blankFrame, frame, detections);
 
-            int key = cv::waitKey(1);
-            bool paused = false;
+            int key = cv::waitKey(waitTime);
+
             if (key == 27) {
                 std::cout << "\nStopped by user." << std::endl;
                 break;
             }
-            if (key == 112) paused = true;
-            if (paused) cv::waitKey(-1);
+            if (key == 112) paused = !paused;
+            if (paused) waitTime = -1;
+            else waitTime = 1;
         }
 
         auto end_time = std::chrono::high_resolution_clock::now();
