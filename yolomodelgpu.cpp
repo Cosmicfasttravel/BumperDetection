@@ -176,7 +176,7 @@ int main() {
 
         std::cout << "\nModel loaded with " << backend << " backend" << std::endl;
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/5ft.MP4";
+        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotcropped.MP4";
 
         std::cout << "\n[Opening Video]" << std::endl;
 
@@ -185,15 +185,6 @@ int main() {
             std::cerr << "ERROR: Failed to open video!" << std::endl;
             return -1;
         }
-
-        int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
-        double fps = cap.get(cv::CAP_PROP_FPS);
-        int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
-        int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
-
-        std::cout << "  Resolution: " << frame_width << "x" << frame_height << std::endl;
-        std::cout << "  Total frames: " << total_frames << std::endl;
-        std::cout << "  FPS: " << fps << std::endl;
 
         constexpr int INPUT_WIDTH = 640;
         constexpr int INPUT_HEIGHT = 640;
@@ -206,16 +197,6 @@ int main() {
         } else if (backend == "CPU") {
             frame_skip = 10; // Every 10th frame for CPU
         }
-
-        std::cout << "\n" << std::string(60, '=') << std::endl;
-        std::cout << "PROCESSING VIDEO" << std::endl;
-        std::cout << std::string(60, '=') << std::endl;
-        std::cout << "Backend: " << backend << std::endl;
-        std::cout << "Input size: " << INPUT_WIDTH << "x" << INPUT_HEIGHT << std::endl;
-        std::cout << "Frame skip: every " << frame_skip << " frame(s)" << std::endl;
-        std::cout << "Confidence threshold: " << CONF_THRESHOLD << std::endl;
-        std::cout << "Press ESC to exit\n" << std::endl;
-
         cv::Mat frame, blankFrame;
         int frame_count = 0;
         int processed_count = 0;
@@ -254,24 +235,19 @@ int main() {
             //Create a blank frame that doesn't contain the rectangles
             blankFrame = frame.clone();
 
-            // BLOB CREATION with timing
             auto blob_start = std::chrono::high_resolution_clock::now();
 
             cv::Mat blob;
             if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-                cv::UMat frameUMat;
-                frame.copyTo(frameUMat);
-                cv::dnn::blobFromImage(frameUMat, blob, 1.0 / 255.0,
-                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
-            } else {
-                cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
-                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
+                return -1;
             }
+
+            cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
+            cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
 
             auto blob_end = std::chrono::high_resolution_clock::now();
             total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
 
-            // INFERENCE with timing
             auto inference_start = std::chrono::high_resolution_clock::now();
 
             net.setInput(blob);
@@ -281,7 +257,7 @@ int main() {
             auto inference_end = std::chrono::high_resolution_clock::now();
             total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(inference_end - inference_start).count();
 
-            // POST-PROCESSING with timing
+
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
             std::vector<Detection> detections = ProcessYoloOutput(
@@ -293,44 +269,32 @@ int main() {
             auto postprocess_end = std::chrono::high_resolution_clock::now();
             total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(postprocess_end - postprocess_start).count();
 
-            detection_count += detections.size();
+            detection_count += static_cast<int>(detections.size());
 
 
-            // Draw detections
-            for (const auto& det : detections) {
-                cv::rectangle(frame, det.bounding_box, cv::Scalar(0, 255, 0), 3);
+            // // Draw detections
+            // for (const auto& det : detections) {
+            //     cv::rectangle(frame, det.bounding_box, cv::Scalar(0, 255, 0), 3);
+            //
+            //     std::stringstream ss;
+            //     ss << det.class_name << ": " << static_cast<int>(det.confidence * 100) << "%";
+            //     std::string label = ss.str();
+            //
+            //     int baseline;
+            //     cv::Size label_size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, &baseline);
+            //     cv::Point label_origin(det.bounding_box.x, det.bounding_box.y - 10);
+            //
+            //     cv::rectangle(frame,
+            //         cv::Point(label_origin.x, label_origin.y - label_size.height - baseline),
+            //         cv::Point(label_origin.x + label_size.width, label_origin.y + baseline),
+            //         cv::Scalar(0, 255, 0), cv::FILLED);
+            //
+            //     cv::putText(frame, label, label_origin, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
+            // }
 
-                std::stringstream ss;
-                ss << det.class_name << ": " << static_cast<int>(det.confidence * 100) << "%";
-                std::string label = ss.str();
-
-                int baseline;
-                cv::Size label_size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, &baseline);
-                cv::Point label_origin(det.bounding_box.x, det.bounding_box.y - 10);
-
-                cv::rectangle(frame,
-                    cv::Point(label_origin.x, label_origin.y - label_size.height - baseline),
-                    cv::Point(label_origin.x + label_size.width, label_origin.y + baseline),
-                    cv::Scalar(0, 255, 0), cv::FILLED);
-
-                cv::putText(frame, label, label_origin, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
-            }
-
-            // Display backend on frame
             cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
 
-            // Show progress every 25 processed frames
-            if (processed_count % 25 == 0) {
-                auto current_time = std::chrono::high_resolution_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    current_time - start_time).count() / 1000.0;
-                double current_fps = processed_count / elapsed;
-
-                std::cout << "Frame " << frame_count << "/" << total_frames
-                          << " (Processed: " << processed_count << ")"
-                          << " - FPS: " << std::fixed << std::setprecision(1) << current_fps << std::endl;
-            }
             det::detectEdgesBumper(blankFrame, frame, detections);
 
             int key = cv::waitKey(waitTime);
@@ -346,13 +310,6 @@ int main() {
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-        std::cout << "\n" << std::string(60, '=') << std::endl;
-        std::cout << "PERFORMANCE SUMMARY" << std::endl;
-        std::cout << std::string(60, '=') << std::endl;
-        std::cout << "Backend: " << backend << std::endl;
-        std::cout << "Total frames: " << frame_count << std::endl;
-        std::cout << "Frames processed: " << processed_count << std::endl;
-        std::cout << "Total detections: " << detection_count << std::endl;
         std::cout << "Processing time: " << std::fixed << std::setprecision(2)
                   << duration.count() / 1000.0 << " seconds" << std::endl;
         std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
@@ -361,7 +318,6 @@ int main() {
         std::cout << "  Blob creation: " << (total_blob_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
-        std::cout << std::string(60, '=') << std::endl;
 
     } catch (const cv::Exception& e) {
         std::cerr << "\nOpenCV Error: " << e.what() << std::endl;

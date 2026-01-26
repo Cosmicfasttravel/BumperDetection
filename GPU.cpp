@@ -25,7 +25,7 @@ namespace gpu {
             net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
             net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
 
-            std::cout << "Using CUDA for GPU acceleration (FASTEST)" << std::endl;
+            std::cout << "Using CUDA for GPU acceleration" << std::endl;
             return "CUDA";
         }
         std::cout << "No CUDA devices found" << std::endl;

@@ -31,8 +31,7 @@ namespace det {
         m.rect = boundingRect(contour);
         m.rotated_rect = cv::minAreaRect(contour);
 
-        m.w = m.rect.width;
-
+        m.w = m.rotated_rect.size.width;
         m.h = m.rotated_rect.size.height;
 
         return m;
@@ -57,13 +56,13 @@ namespace det {
         constexpr double SCREEN_WIDTH = 1280;
         constexpr double SCREEN_HEIGHT = 720;
         constexpr double X_FOV = 70;
-        constexpr double Y_FOV = 40;
+        constexpr double Y_FOV = 43;
 
 
         std::stringstream ss;
-        cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3);
+        // cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3); //Draws rectangle surrounding the contour, non-rotated
 
-        cv::Point robot_center = cv::Point(m.rotated_rect.center.x - SCREEN_WIDTH / 2, m.rotated_rect.center.y - SCREEN_HEIGHT / 2);
+        cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2), static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
 
         double max_cord_x = SCREEN_WIDTH / 2;
         double max_cord_y = SCREEN_HEIGHT / 2;
@@ -77,7 +76,7 @@ namespace det {
 
 
         ss << std::fixed << std::setprecision(2)
-           << pos.z_cm / 100.0 << "m" << ", (" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)"; // 1/2 fov (70deg) * (pixel cord / max cord) centered around origin, center -> edge  |----[]----|
+           << pos.z_cm / 100.0 << "m" << ", (" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)";
 
         cv::putText(frame, ss.str(),
             cv::Point(m.rect.x + 10, m.rect.y - 10),
@@ -89,8 +88,8 @@ namespace det {
         cv::Mat& frame,
         const std::vector<Detection>& detections
     ) {
-        std::vector<std::vector<cv::Point>> contours, overlappingContours;
-        cv::Mat gray, edges, bMask, rMask, rMask1, hsv;
+        std::vector<std::vector<cv::Point>> contours, overlappingContoursRed, overlappingContoursBlue;
+        cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
@@ -99,62 +98,64 @@ namespace det {
         cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
 
         rMask = rMask | rMask1;
-        // cv::bitwise_or(rMask, bMask, gray); //for comp use
-        gray = rMask; //for use on badger bots floors due to the color of the floors
 
-        cv::Canny(gray, edges, 120, 255);
 
-        cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::Canny(rMask, edgesRed, 120, 255);
+        cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
         for (const auto& contour : contours) {
             cv::Rect contourRect = cv::boundingRect(contour);
 
             for (const auto& det : detections) {
                 if ((contourRect & det.bounding_box) == contourRect) {
-                    overlappingContours.push_back(contour);
+                    overlappingContoursRed.push_back(contour);
                     break;
                 }
             }
         }
-        cv::drawContours(frame, overlappingContours, -1, cv::Scalar(0, 0, 0), 2);
-        cv::Mat overlapMask = cv::Mat::zeros(edges.size(), CV_8UC1);
 
-        cv::drawContours(
-            overlapMask,
-            overlappingContours,
-            -1,
-            cv::Scalar(255),
-            cv::FILLED
-        );
+        cv::Canny(bMask, edgesBlue, 120, 255);
+        cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-        cv::Mat kernel = cv::getStructuringElement(
-            cv::MORPH_RECT, cv::Size(50, 25));
+        for (const auto& contour : contours) {
+            cv::Rect contourRect = cv::boundingRect(contour);
 
-        cv::morphologyEx(
-            overlapMask,
-            overlapMask,
-            cv::MORPH_CLOSE,
-            kernel
-        );
+            for (const auto& det : detections) {
+                if ((contourRect & det.bounding_box) == contourRect) {
+                    overlappingContoursBlue.push_back(contour);
+                    break;
+                }
+            }
+        }
 
-        cv::findContours(
-            overlapMask,
-            overlappingContours,
-            cv::RETR_EXTERNAL,
-            cv::CHAIN_APPROX_SIMPLE
-        );
+        cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
+        cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
 
-        // Process each contour and calculate distance
-        for (const auto& contour : overlappingContours) {
+        cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
+        cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
+        cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
+        cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
+        cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        for (const auto& contour : overlappingContoursRed) {
             if (contourArea(contour) < 100) continue;
             BumperMeasurements m = getMeasurementsFromContour(contour);
-
             Position3D pos = getPosition3D(m);
-
             drawMeasurements(frame, m, pos);
         }
 
-        cv::drawContours(frame, overlappingContours, -1, cv::Scalar(255, 0, 255), 2);
+        for (const auto& contour : overlappingContoursBlue) {
+            if (contourArea(contour) < 100) continue;
+            BumperMeasurements m = getMeasurementsFromContour(contour);
+            Position3D pos = getPosition3D(m);
+            drawMeasurements(frame, m, pos);
+        }
+
+        cv::drawContours(frame, overlappingContoursBlue, -1, cv::Scalar(255, 0, 0), 2);
+        cv::drawContours(frame, overlappingContoursRed, -1, cv::Scalar(0, 0, 255), 2);
 
         cv::imshow("detectEdgesBumper", frame);
     }
