@@ -176,7 +176,7 @@ int main() {
 
         std::cout << "\nModel loaded with " << backend << " backend" << std::endl;
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/robotcropped.MP4";
+        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/5ft.MP4";
 
         std::cout << "\n[Opening Video]" << std::endl;
 
@@ -191,7 +191,7 @@ int main() {
         constexpr float CONF_THRESHOLD = 0.75;
 
         // Adjust frame skip based on backend
-        int frame_skip = 1;  // Process every frame with CUDA
+        int frame_skip = 2;
         if (backend == "OpenCL" || backend == "OpenCL_FP16") {
             frame_skip = 5;  // Every 5th frame for OpenCL
         } else if (backend == "CPU") {

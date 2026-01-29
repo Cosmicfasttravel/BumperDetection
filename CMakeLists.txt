@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 # Point to CUDA-enabled OpenCV
 set(OpenCV_DIR "C:/opencv_cuda_install")
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED core imgproc imgcodecs text video videoio highgui)
+find_package(Leptonica CONFIG REQUIRED)
+find_package(Tesseract CONFIG REQUIRED)
 
 # Check if OpenCV has CUDA support
 if(OpenCV_CUDA_VERSION)
@@ -49,10 +51,20 @@ add_executable(BumperDetection
         GPU.h
         edgeDetection.cpp
         edgeDetection.h
+        kalmanFilter.cpp
+        kalmanFilter.h
 )
 
 target_link_libraries(BumperDetection
         ${OpenCV_LIBS}
+        opencv_core
+        opencv_imgproc
+        opencv_imgcodecs
+        opencv_video
+        opencv_videoio
+        opencv_highgui
+        opencv_text
+        Tesseract::libtesseract
         ${ONNX_LIBS}
 )
 

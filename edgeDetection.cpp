@@ -3,8 +3,13 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/mat.hpp>
 #include <sstream>
+#include <tesseract/baseapi.h>
+#include <leptonica/allheaders.h>
 #include <cmath>
+#include <filesystem>
 #include <iomanip>
+#include <opencv2/video/tracking.hpp>
+#include "kalmanFilter.h"
 
 struct Detection {
     int class_id;
@@ -24,15 +29,35 @@ struct Position3D {
     double z_cm;
 };
 
+
 namespace det {
+    template <typename T>
+    T findMode(const std::vector<T>& data) {
+        std::unordered_map<T, int> counts;
+        for (const T& value : data) {
+            counts[value]++;
+        }
+
+        int maxCount = 0;
+        T mostFrequentVal = T();
+
+        for (const auto& pair : counts) {
+            if (pair.second > maxCount) {
+                maxCount = pair.second;
+                mostFrequentVal = pair.first;
+            }
+        }
+
+        return mostFrequentVal;
+    }
 
     BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point>& contour) {
         BumperMeasurements m;
         m.rect = boundingRect(contour);
         m.rotated_rect = cv::minAreaRect(contour);
 
-        m.w = m.rotated_rect.size.width;
-        m.h = m.rotated_rect.size.height;
+        m.w = std::min((int)m.rotated_rect.size.width, m.rect.width);
+        m.h = std::min((int)m.rotated_rect.size.height, m.rect.height);
 
         return m;
     }
@@ -53,6 +78,7 @@ namespace det {
         const BumperMeasurements& m,
         const Position3D& pos
     ) {
+        kalmanFilter filter;
         constexpr double SCREEN_WIDTH = 1280;
         constexpr double SCREEN_HEIGHT = 720;
         constexpr double X_FOV = 70;
@@ -74,9 +100,14 @@ namespace det {
         double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
         double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
 
+        cv::Vec3d filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, (double)1/13);
+
+        filtered[0] = x_coordinate;
+        filtered[1] = y_coordinate;
+        filtered[2] = z_coordinate;
 
         ss << std::fixed << std::setprecision(2)
-           << pos.z_cm / 100.0 << "m" << ", (" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)";
+           << "(" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)";
 
         cv::putText(frame, ss.str(),
             cv::Point(m.rect.x + 10, m.rect.y - 10),
@@ -132,6 +163,9 @@ namespace det {
         cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
 
+        cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
+        cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
+
         cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
         cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
         cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -157,6 +191,53 @@ namespace det {
         cv::drawContours(frame, overlappingContoursBlue, -1, cv::Scalar(255, 0, 0), 2);
         cv::drawContours(frame, overlappingContoursRed, -1, cv::Scalar(0, 0, 255), 2);
 
+        tesseract::TessBaseAPI* api = new tesseract::TessBaseAPI();
+        if (api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng")) {
+            std::cerr << "Could not initialize tesseract." << std::endl;
+        }
+
+        for (const auto& det : detections) {
+            cv::Mat img = blankFrame(det.bounding_box);
+            cv::Mat imgClone = img.clone();
+            cv::cvtColor(img, img, cv::COLOR_BGR2HSV);
+            cv::cvtColor(img, imgClone, cv::COLOR_BGR2GRAY);
+            cv::inRange(img, cv::Scalar(0, 0, 100), cv::Scalar(179, 50, 255), img);
+            if (img.cols < 300) {
+                double scale = 300.0 / img.cols;
+                cv::resize(img, img, cv::Size(), scale, scale, cv::INTER_CUBIC);
+            }
+            if (imgClone.cols < 300) {
+                double scale = 300.0 / img.cols;
+                cv::resize(imgClone, imgClone, cv::Size(), scale, scale, cv::INTER_CUBIC);
+            }
+            cv::bilateralFilter(img.clone(), imgClone, 9, 75, 75);
+            cv::threshold(imgClone, imgClone, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+            kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
+            cv::morphologyEx(imgClone, imgClone, cv::MORPH_CLOSE, kernel);
+            cv::morphologyEx(imgClone, imgClone, cv::MORPH_OPEN, kernel);
+
+            img = imgClone & img;
+
+            api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+            api->SetVariable("tessedit_char_whitelist", "0123456789");
+
+            api->SetImage(img.data, img.cols, img.rows,
+                  img.channels(), img.step);
+            char* outText = api->GetUTF8Text();
+            std::string result(outText);
+            delete[] outText;
+
+            std::stringstream ss;
+            ss << std::fixed << "" << result;
+
+            if (ss.str().rfind("1306"))
+            cv::putText(frame, ss.str(),
+                cv::Point(det.bounding_box.x+ 10, det.bounding_box.y - 50),
+                cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2);
+
+        }
+        api->End();
         cv::imshow("detectEdgesBumper", frame);
     }
 }

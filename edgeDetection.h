@@ -12,6 +12,7 @@ struct Detection {
 namespace det {
     class edgeDetection {
         public:
+    private:
 
 
     };
