@@ -5,7 +5,7 @@ kalmanFilter::kalmanFilter()
 {
     kf.init(6, 3, 0, CV_64F);
 
-    double dt = 1.0 / 13.0;
+    double dt = 1.0 / 5.0; // change to 1/ AVG fps
 
     kf.transitionMatrix = (cv::Mat_<double>(6,6) <<
         1, 0, 0, dt, 0,  0,

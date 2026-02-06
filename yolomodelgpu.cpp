@@ -6,18 +6,16 @@
 #include <string>
 #include <chrono>
 #include <iomanip>
-
 #include "edgeDetection.h"
 #include "GPU.h"
 
 // Include CUDA module if available
 #ifdef HAVE_OPENCV_CUDNN
-#include <opencv2/core/cuda.hpp>
 #endif
 
 
 std::vector<Detection> ProcessYoloOutput(
-    const std::vector<cv::Mat>& outputs,
+    const std::vector<cv::Mat> &outputs,
     int img_width,
     int img_height,
     int input_width,
@@ -30,8 +28,8 @@ std::vector<Detection> ProcessYoloOutput(
     std::vector<float> confidences;
     std::vector<cv::Rect> boxes;
 
-    float scale_x = static_cast<float>(img_width) / input_width;
-    float scale_y = static_cast<float>(img_height) / input_height;
+    float scale_x = static_cast<float>(img_width) / static_cast<float>(input_width);
+    float scale_y = static_cast<float>(img_height) / static_cast<float>(input_height);
 
     cv::Mat output_data = outputs[0];
 
@@ -64,7 +62,7 @@ std::vector<Detection> ProcessYoloOutput(
     int num_classes = is_single_class ? 1 : (num_values_per_detection - 4);
 
     for (int i = 0; i < num_detections; ++i) {
-        float* data = output_data.ptr<float>(i);
+        auto *data = output_data.ptr<float>(i);
 
         float x_center = data[0];
         float y_center = data[1];
@@ -77,7 +75,7 @@ std::vector<Detection> ProcessYoloOutput(
         if (is_single_class) {
             max_score = data[4];
         } else {
-            float* class_scores = data + 4;
+            float *class_scores = data + 4;
             max_score = -1.0f;
             max_class_id = -1;
 
@@ -94,13 +92,13 @@ std::vector<Detection> ProcessYoloOutput(
         }
 
         bool is_normalized = (x_center <= 1.0f && y_center <= 1.0f &&
-                             width <= 1.0f && height <= 1.0f);
+                              width <= 1.0f && height <= 1.0f);
 
         if (is_normalized) {
-            x_center *= img_width;
-            y_center *= img_height;
-            width *= img_width;
-            height *= img_height;
+            x_center *= static_cast<float>(img_width);
+            y_center *= static_cast<float>(img_height);
+            width *= static_cast<float>(img_width);
+            height *= static_cast<float>(img_height);
         } else {
             x_center *= scale_x;
             y_center *= scale_y;
@@ -118,30 +116,50 @@ std::vector<Detection> ProcessYoloOutput(
         w = std::max(1, std::min(w, img_width - x));
         h = std::max(1, std::min(h, img_height - y));
 
-        class_ids.push_back(max_class_id);
-        confidences.push_back(max_score);
+        class_ids.emplace_back(max_class_id);
+        confidences.emplace_back(max_score);
         boxes.emplace_back(x, y, w, h);
     }
 
     std::vector<int> nms_result;
     cv::dnn::NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, nms_result);
 
-    for (int idx : nms_result) {
+    for (int idx: nms_result) {
         Detection result;
         result.class_id = class_ids[idx];
         result.confidence = confidences[idx];
         result.bounding_box = boxes[idx];
         result.class_name = "bumper";
 
-        detections.push_back(result);
+        detections.emplace_back(result);
     }
 
     return detections;
 }
 
 
-
 int main() {
+    std::string teamNumbers[5] = {"1306", "5324", "4613", "4959", "118"};
+    //for robot cropped "3928", "2560", "2457", "4959", "118"
+
+    // std::cout << "Input team numbers (5): " << std::endl;
+    // std::cout << "1: ";
+    // std::cin >> teamNumbers[0];
+    // std::cout << std::endl << "2: ";
+    // std::cin >> teamNumbers[1];
+    // std::cout << std::endl << "3: ";
+    // std::cin >> teamNumbers[2];
+    // std::cout << std::endl << "4: ";
+    // std::cin >> teamNumbers[3];
+    // std::cout << std::endl << "5: ";
+    // std::cin >> teamNumbers[4];
+
+    for (auto &teamNumber: teamNumbers) {
+        if (teamNumbers->length() >= 5 || teamNumbers->length() <= 1) {
+            teamNumber = "";
+        }
+    }
+
     try {
         std::cout << std::string(60, '=') << std::endl;
         std::cout << "YOLO BUMPER DETECTION" << std::endl;
@@ -151,15 +169,16 @@ int main() {
         std::cout << "\n[OpenCV Build Info]" << std::endl;
         std::cout << "OpenCV version: " << CV_VERSION << std::endl;
 
-        #ifdef HAVE_OPENCV_CUDNN
+#ifdef HAVE_OPENCV_CUDNN
         std::cout << "CUDA DNN support: YES" << std::endl;
-        #else
+#else
         std::cout << "CUDA DNN support: NO" << std::endl;
-        #endif
+#endif
 
         std::cout << "OpenCL support: " << (cv::ocl::haveOpenCL() ? "YES" : "NO") << std::endl;
 
-        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx"; //v10 = tiny, v9 = compact
+        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
+        //v10 = tiny, v9 = compact
 
         std::cout << "\n[Loading Model]" << std::endl;
         std::cout << "  Model: " << model_path << std::endl;
@@ -186,14 +205,10 @@ int main() {
             return -1;
         }
 
-        constexpr int INPUT_WIDTH = 640;
-        constexpr int INPUT_HEIGHT = 640;
-        constexpr float CONF_THRESHOLD = 0.75;
-
         // Adjust frame skip based on backend
         int frame_skip = 2;
         if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-            frame_skip = 5;  // Every 5th frame for OpenCL
+            frame_skip = 5; // Every 5th frame for OpenCL
         } else if (backend == "CPU") {
             frame_skip = 10; // Every 10th frame for CPU
         }
@@ -213,7 +228,9 @@ int main() {
         int waitTime = 1;
 
         while (true) {
-
+            constexpr int INPUT_HEIGHT = 640;
+            constexpr int INPUT_WIDTH = 640;
+            constexpr float CONF_THRESHOLD = 0.75;
             constexpr float NMS_THRESHOLD = 0.45;
             if (!cap.read(frame)) {
                 std::cout << "\nEnd of video reached." << std::endl;
@@ -225,8 +242,6 @@ int main() {
 
             // Process based on frame_skip
             if (frame_count % frame_skip != 0) {
-                // Still display the frame
-                cv::imshow("YOLO Bumper Detection", frame);
                 if (cv::waitKey(1) == 27) break;
                 continue;
             }
@@ -243,7 +258,7 @@ int main() {
             }
 
             cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
-            cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
+                                   cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
 
             auto blob_end = std::chrono::high_resolution_clock::now();
             total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
@@ -255,7 +270,8 @@ int main() {
             net.forward(outputs, net.getUnconnectedOutLayersNames());
 
             auto inference_end = std::chrono::high_resolution_clock::now();
-            total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(inference_end - inference_start).count();
+            total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                inference_end - inference_start).count();
 
 
             auto postprocess_start = std::chrono::high_resolution_clock::now();
@@ -267,7 +283,8 @@ int main() {
             );
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
-            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(postprocess_end - postprocess_start).count();
+            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                postprocess_end - postprocess_start).count();
 
             detection_count += static_cast<int>(detections.size());
 
@@ -293,9 +310,9 @@ int main() {
             // }
 
             cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
+                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
 
-            det::detectEdgesBumper(blankFrame, frame, detections);
+            detectEdgesBumper(blankFrame, frame, detections, teamNumbers);
 
             int key = cv::waitKey(waitTime);
 
@@ -311,18 +328,17 @@ int main() {
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         std::cout << "Processing time: " << std::fixed << std::setprecision(2)
-                  << duration.count() / 1000.0 << " seconds" << std::endl;
+                << static_cast<double>(duration.count()) / 1000.0 << " seconds" << std::endl;
         std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
-                  << processed_count / (duration.count() / 1000.0) << std::endl;
+                << processed_count / (static_cast<double>(duration.count()) / 1000.0) << std::endl;
         std::cout << "\nTiming Breakdown (per frame):" << std::endl;
         std::cout << "  Blob creation: " << (total_blob_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
-
-    } catch (const cv::Exception& e) {
+    } catch (const cv::Exception &e) {
         std::cerr << "\nOpenCV Error: " << e.what() << std::endl;
         return -1;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "\nError: " << e.what() << std::endl;
         return -1;
     }

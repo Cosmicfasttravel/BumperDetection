@@ -1,22 +1,16 @@
-﻿#include <iostream>
+﻿#include "edgeDetection.h"
+
+#include <iostream>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/mat.hpp>
 #include <sstream>
 #include <tesseract/baseapi.h>
 #include <leptonica/allheaders.h>
-#include <cmath>
 #include <filesystem>
 #include <iomanip>
 #include <opencv2/video/tracking.hpp>
 #include "kalmanFilter.h"
-
-struct Detection {
-    int class_id;
-    float confidence;
-    cv::Rect bounding_box;
-    std::string class_name;
-};
 
 struct BumperMeasurements {
     double w{};
@@ -30,214 +24,283 @@ struct Position3D {
 };
 
 
-namespace det {
-    template <typename T>
-    T findMode(const std::vector<T>& data) {
-        std::unordered_map<T, int> counts;
-        for (const T& value : data) {
-            counts[value]++;
+int levenshteinDist(const std::string& word1, const std::string& word2) {
+    const int size1 = static_cast<int>(word1.size());
+    const int size2 = static_cast<int>(word2.size());
+    std::vector<std::vector<int>> verif(size1 + 1, std::vector<int>(size2 + 1));
+    // Verification matrix i.e. 2D array which will store the calculated distance.
+
+    // If one of the words has zero length, the distance is equal to the size of the other word.
+    if (size1 == 0)
+        return size2;
+    if (size2 == 0)
+        return size1;
+
+    // Sets the first row and the first column of the verification matrix with the numerical order from 0 to the length of each word.
+    for (int i = 0; i <= size1; i++)
+        verif[i][0] = i;
+    for (int j = 0; j <= size2; j++)
+        verif[0][j] = j;
+
+    // Verification step / matrix filling.
+    for (int i = 1; i <= size1; i++) {
+        for (int j = 1; j <= size2; j++) {
+            // Sets the modification cost.
+            // 0 means no modification (i.e. equal letters) and 1 means that a modification is needed (i.e. unequal letters).
+            int cost = (word2[j - 1] == word1[i - 1]) ? 0 : 1;
+
+            // Sets the current position of the matrix as the minimum value between a (deletion), b (insertion) and c (substitution).
+            // a = the upper adjacent value plus 1: verif[i - 1][j] + 1
+            // b = the left adjacent value plus 1: verif[i][j - 1] + 1
+            // c = the upper left adjacent value plus the modification cost: verif[i - 1][j - 1] + cost
+            verif[i][j] = std::min(
+                std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
+                verif[i - 1][j - 1] + cost
+            );
         }
+    }
 
-        int maxCount = 0;
-        T mostFrequentVal = T();
+    // The last position of the matrix will contain the Levenshtein distance.
+    return verif[size1][size2];
+}
 
-        for (const auto& pair : counts) {
-            if (pair.second > maxCount) {
-                maxCount = pair.second;
-                mostFrequentVal = pair.first;
+template<typename T>
+T findMode(const std::vector<T> &data) {
+    std::unordered_map<T, int> counts;
+    for (const T &value: data) {
+        ++counts[value];
+    }
+
+    int maxCount = 0;
+    T mostFrequentVal = T();
+
+    for (const auto &pair: counts) {
+        if (pair.second > maxCount) {
+            maxCount = pair.second;
+            mostFrequentVal = pair.first;
+        }
+    }
+
+    return mostFrequentVal;
+}
+
+BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point> &contour) {
+    BumperMeasurements m;
+    m.rect = boundingRect(contour);
+    m.rotated_rect = cv::minAreaRect(contour);
+
+    m.w = std::min(static_cast<int>(m.rotated_rect.size.width), m.rect.width);
+    m.h = std::min(static_cast<int>(m.rotated_rect.size.height), m.rect.height);
+
+    return m;
+}
+
+Position3D getPosition3D(
+    const BumperMeasurements &m,
+    const double focal_length_cm = 0.36,
+    const double known_height_cm = 10.6,
+    const double pixel_height_cm = 0.0003
+) {
+    Position3D pos{};
+    pos.z_cm = (known_height_cm * focal_length_cm) / (m.h * pixel_height_cm);
+    return pos;
+}
+
+void drawMeasurements(
+    cv::Mat &frame,
+    const BumperMeasurements &m,
+    const Position3D &pos
+) {
+    kalmanFilter filter;
+    constexpr double SCREEN_WIDTH = 1280;
+    constexpr double SCREEN_HEIGHT = 720;
+    constexpr double X_FOV = 70;
+    constexpr double Y_FOV = 43;
+
+
+    std::stringstream ss;
+    // cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3); //Draws rectangle surrounding the contour, non-rotated
+
+    cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
+                                       static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
+
+    constexpr double max_cord_x = SCREEN_WIDTH / 2;
+    constexpr double max_cord_y = SCREEN_HEIGHT / 2;
+
+    const double x_angle = (X_FOV / 2 * (robot_center.x / max_cord_x)) * CV_PI / 180.0;
+    const double y_angle = (Y_FOV / 2 * (robot_center.y / max_cord_y)) * CV_PI / 180.0;
+
+    const double x_coordinate = pos.z_cm * cos(x_angle) / 100;
+    const double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
+    const double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
+
+    cv::Vec3d filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
+
+    filtered[0] = x_coordinate;
+    filtered[1] = y_coordinate;
+    filtered[2] = z_coordinate;
+
+    ss << std::fixed << std::setprecision(2)
+            << "(" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)";
+
+    cv::putText(frame, ss.str(),
+                cv::Point(m.rect.x + 10, m.rect.y - 10),
+                cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+}
+
+void detectEdgesBumper(
+    cv::Mat &blankFrame,
+    cv::Mat &frame,
+    const std::vector<Detection> &detections,
+    const std::string teamNumbers[5]
+) {
+    std::vector<std::vector<cv::Point> > contours, overlappingContoursRed, overlappingContoursBlue;
+    cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
+
+    cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+
+    cv::inRange(hsv, cv::Scalar(100, 120, 70), cv::Scalar(130, 255, 255), bMask);
+    cv::inRange(hsv, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), rMask);
+    cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
+
+    rMask = rMask | rMask1;
+
+    cv::Canny(rMask, edgesRed, 120, 255);
+    cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    for (const auto &contour: contours) {
+        cv::Rect contourRect = cv::boundingRect(contour);
+
+        for (const auto &det: detections) {
+            if ((contourRect & det.bounding_box) == contourRect) {
+                overlappingContoursRed.emplace_back(contour);
+                break;
             }
         }
-
-        return mostFrequentVal;
     }
 
-    BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point>& contour) {
-        BumperMeasurements m;
-        m.rect = boundingRect(contour);
-        m.rotated_rect = cv::minAreaRect(contour);
+    cv::Canny(bMask, edgesBlue, 120, 255);
+    cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-        m.w = std::min((int)m.rotated_rect.size.width, m.rect.width);
-        m.h = std::min((int)m.rotated_rect.size.height, m.rect.height);
+    for (const auto &contour: contours) {
+        cv::Rect contourRect = cv::boundingRect(contour);
 
-        return m;
+        for (const auto &det: detections) {
+            if ((contourRect & det.bounding_box) == contourRect) {
+                overlappingContoursBlue.emplace_back(contour);
+                break;
+            }
+        }
     }
 
-    Position3D getPosition3D(
-        const BumperMeasurements& m,
-        double focal_length_cm = 0.36,
-        double known_height_cm = 10.6,
-        double pixel_height_cm = 0.0003
-    ) {
-        Position3D pos{};
-        pos.z_cm = (known_height_cm * focal_length_cm) / (m.h * pixel_height_cm);
-        return pos;
+    cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
+    cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
+
+    cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
+    cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
+
+    cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
+    cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
+    cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
+    cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
+    cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    for (const auto &contour: overlappingContoursRed) {
+        if (contourArea(contour) < 250) continue;
+        BumperMeasurements m = getMeasurementsFromContour(contour);
+        Position3D pos = getPosition3D(m);
+        drawMeasurements(frame, m, pos);
     }
 
-    void drawMeasurements(
-        cv::Mat& frame,
-        const BumperMeasurements& m,
-        const Position3D& pos
-    ) {
-        kalmanFilter filter;
-        constexpr double SCREEN_WIDTH = 1280;
-        constexpr double SCREEN_HEIGHT = 720;
-        constexpr double X_FOV = 70;
-        constexpr double Y_FOV = 43;
-
-
-        std::stringstream ss;
-        // cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3); //Draws rectangle surrounding the contour, non-rotated
-
-        cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2), static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
-
-        double max_cord_x = SCREEN_WIDTH / 2;
-        double max_cord_y = SCREEN_HEIGHT / 2;
-
-        double x_angle = (X_FOV/2 * (robot_center.x / max_cord_x)) * CV_PI / 180.0;
-        double y_angle = (Y_FOV/2 * (robot_center.y / max_cord_y)) * CV_PI / 180.0;
-
-        double x_coordinate = pos.z_cm * cos(x_angle) / 100;
-        double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
-        double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
-
-        cv::Vec3d filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, (double)1/13);
-
-        filtered[0] = x_coordinate;
-        filtered[1] = y_coordinate;
-        filtered[2] = z_coordinate;
-
-        ss << std::fixed << std::setprecision(2)
-           << "(" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)";
-
-        cv::putText(frame, ss.str(),
-            cv::Point(m.rect.x + 10, m.rect.y - 10),
-            cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+    for (const auto &contour: overlappingContoursBlue) {
+        if (contourArea(contour) < 250) continue;
+        BumperMeasurements m = getMeasurementsFromContour(contour);
+        Position3D pos = getPosition3D(m);
+        drawMeasurements(frame, m, pos);
     }
 
-    void detectEdgesBumper(
-        cv::Mat& blankFrame,
-        cv::Mat& frame,
-        const std::vector<Detection>& detections
-    ) {
-        std::vector<std::vector<cv::Point>> contours, overlappingContoursRed, overlappingContoursBlue;
-        cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
+    cv::drawContours(frame, overlappingContoursBlue, -1, cv::Scalar(255, 0, 0), 2);
+    cv::drawContours(frame, overlappingContoursRed, -1, cv::Scalar(0, 0, 255), 2);
 
-        cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+    findNumbers(detections, blankFrame, frame, teamNumbers);
 
-        cv::inRange(hsv, cv::Scalar(100, 120, 70), cv::Scalar(130, 255, 255), bMask);
-        cv::inRange(hsv, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), rMask);
-        cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
+    cv::imshow("detectEdgesBumper", frame);
+}
 
-        rMask = rMask | rMask1;
+void findNumbers(const std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
+                 const std::string teamNumbers[5]) {
+    auto *api = new tesseract::TessBaseAPI();
+    if (api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng", tesseract::OEM_LSTM_ONLY)) {
+        std::cerr << "Could not initialize tesseract." << std::endl;
+        return;
+    }
 
+    for (const auto &det: detections) {
+        cv::Mat img = blankFrame(det.bounding_box).clone();
 
-        cv::Canny(rMask, edgesRed, 120, 255);
-        cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::Mat hsv, colorMask;
+        cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
+        cv::inRange(hsv, cv::Scalar(0, 0, 100), cv::Scalar(179, 50, 255), colorMask);
 
-        for (const auto& contour : contours) {
-            cv::Rect contourRect = cv::boundingRect(contour);
+        cv::Mat gray;
+        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
-            for (const auto& det : detections) {
-                if ((contourRect & det.bounding_box) == contourRect) {
-                    overlappingContoursRed.push_back(contour);
-                    break;
+        if (gray.cols < 300) {
+            double scale = 300.0 / gray.cols;
+            cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
+            cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
+        }
+
+        cv::Mat denoised;
+        cv::bilateralFilter(gray, denoised, 9, 75, 75);
+
+        cv::Mat binary;
+        cv::adaptiveThreshold(denoised, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C,
+                              cv::THRESH_BINARY, 11, 2);
+
+        cv::Mat final;
+        cv::bitwise_and(binary, colorMask, final);
+
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
+        cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
+
+        api->SetPageSegMode(tesseract::PSM_SPARSE_TEXT_OSD);
+        api->SetVariable("tessedit_char_whitelist", "0123456789");
+        api->SetImage(final.data, final.cols, final.rows, 1, final.step);
+
+        char *outText = api->GetUTF8Text();
+        std::string result(outText);
+        std::string sResult(outText);
+        delete[] outText;
+
+        result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
+
+        int minIndex = 0;
+
+        if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
+            int minDist = INT_MAX;
+            for (int i = 0; i < teamNumbers->size(); i++) {
+                int d = levenshteinDist(sResult, teamNumbers[i]);
+                if (d < minDist) {
+                    minDist = d;
+                    minIndex = i;
                 }
             }
         }
 
-        cv::Canny(bMask, edgesBlue, 120, 255);
-        cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-        for (const auto& contour : contours) {
-            cv::Rect contourRect = cv::boundingRect(contour);
-
-            for (const auto& det : detections) {
-                if ((contourRect & det.bounding_box) == contourRect) {
-                    overlappingContoursBlue.push_back(contour);
-                    break;
-                }
-            }
+        if (levenshteinDist(sResult, teamNumbers[minIndex]) >= 3) {
+            continue;
         }
 
-        cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
-        cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
-
-        cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
-        cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
-
-        cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
-        cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
-        cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-        cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
-        cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
-        cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-        for (const auto& contour : overlappingContoursRed) {
-            if (contourArea(contour) < 100) continue;
-            BumperMeasurements m = getMeasurementsFromContour(contour);
-            Position3D pos = getPosition3D(m);
-            drawMeasurements(frame, m, pos);
-        }
-
-        for (const auto& contour : overlappingContoursBlue) {
-            if (contourArea(contour) < 100) continue;
-            BumperMeasurements m = getMeasurementsFromContour(contour);
-            Position3D pos = getPosition3D(m);
-            drawMeasurements(frame, m, pos);
-        }
-
-        cv::drawContours(frame, overlappingContoursBlue, -1, cv::Scalar(255, 0, 0), 2);
-        cv::drawContours(frame, overlappingContoursRed, -1, cv::Scalar(0, 0, 255), 2);
-
-        tesseract::TessBaseAPI* api = new tesseract::TessBaseAPI();
-        if (api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng")) {
-            std::cerr << "Could not initialize tesseract." << std::endl;
-        }
-
-        for (const auto& det : detections) {
-            cv::Mat img = blankFrame(det.bounding_box);
-            cv::Mat imgClone = img.clone();
-            cv::cvtColor(img, img, cv::COLOR_BGR2HSV);
-            cv::cvtColor(img, imgClone, cv::COLOR_BGR2GRAY);
-            cv::inRange(img, cv::Scalar(0, 0, 100), cv::Scalar(179, 50, 255), img);
-            if (img.cols < 300) {
-                double scale = 300.0 / img.cols;
-                cv::resize(img, img, cv::Size(), scale, scale, cv::INTER_CUBIC);
-            }
-            if (imgClone.cols < 300) {
-                double scale = 300.0 / img.cols;
-                cv::resize(imgClone, imgClone, cv::Size(), scale, scale, cv::INTER_CUBIC);
-            }
-            cv::bilateralFilter(img.clone(), imgClone, 9, 75, 75);
-            cv::threshold(imgClone, imgClone, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
-
-            kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
-            cv::morphologyEx(imgClone, imgClone, cv::MORPH_CLOSE, kernel);
-            cv::morphologyEx(imgClone, imgClone, cv::MORPH_OPEN, kernel);
-
-            img = imgClone & img;
-
-            api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
-            api->SetVariable("tessedit_char_whitelist", "0123456789");
-
-            api->SetImage(img.data, img.cols, img.rows,
-                  img.channels(), img.step);
-            char* outText = api->GetUTF8Text();
-            std::string result(outText);
-            delete[] outText;
-
-            std::stringstream ss;
-            ss << std::fixed << "" << result;
-
-            if (ss.str().rfind("1306"))
-            cv::putText(frame, ss.str(),
-                cv::Point(det.bounding_box.x+ 10, det.bounding_box.y - 50),
-                cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2);
-
-        }
-        api->End();
-        cv::imshow("detectEdgesBumper", frame);
+        result = teamNumbers[minIndex];
+        cv::putText(frame, result,
+                    cv::Point(det.bounding_box.x + 10, det.bounding_box.y - 50),
+                    cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
     }
+
+    api->End();
+    delete api;
 }
