@@ -53,6 +53,8 @@ add_executable(BumperDetection
         edgeDetection.h
         kalmanFilter.cpp
         kalmanFilter.h
+        topDownView.cpp
+        topDownView.h
 )
 
 target_link_libraries(BumperDetection

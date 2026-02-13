@@ -1,5 +1,6 @@
 ﻿#include "edgeDetection.h"
 
+#include <deque>
 #include <iostream>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -11,6 +12,7 @@
 #include <iomanip>
 #include <opencv2/video/tracking.hpp>
 #include "kalmanFilter.h"
+#include "topDownView.h"
 
 struct BumperMeasurements {
     double w{};
@@ -23,36 +25,42 @@ struct Position3D {
     double z_cm;
 };
 
+// Global tracker instance
+static RobotTracker g_tracker;
 
-int levenshteinDist(const std::string& word1, const std::string& word2) {
+int hammingDistance(const std::string &str1, const std::string &str2) {
+    if (str1.length() != str2.length()) {
+        return 4;
+    }
+
+    int count = 0;
+    for (size_t i = 0; i < str1.length(); ++i) {
+        if (str1[i] != str2[i]) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
-    std::vector<std::vector<int>> verif(size1 + 1, std::vector<int>(size2 + 1));
-    // Verification matrix i.e. 2D array which will store the calculated distance.
+    std::vector<std::vector<int> > verif(size1 + 1, std::vector<int>(size2 + 1));
 
-    // If one of the words has zero length, the distance is equal to the size of the other word.
     if (size1 == 0)
         return size2;
     if (size2 == 0)
         return size1;
 
-    // Sets the first row and the first column of the verification matrix with the numerical order from 0 to the length of each word.
     for (int i = 0; i <= size1; i++)
         verif[i][0] = i;
     for (int j = 0; j <= size2; j++)
         verif[0][j] = j;
 
-    // Verification step / matrix filling.
     for (int i = 1; i <= size1; i++) {
         for (int j = 1; j <= size2; j++) {
-            // Sets the modification cost.
-            // 0 means no modification (i.e. equal letters) and 1 means that a modification is needed (i.e. unequal letters).
             int cost = (word2[j - 1] == word1[i - 1]) ? 0 : 1;
-
-            // Sets the current position of the matrix as the minimum value between a (deletion), b (insertion) and c (substitution).
-            // a = the upper adjacent value plus 1: verif[i - 1][j] + 1
-            // b = the left adjacent value plus 1: verif[i][j - 1] + 1
-            // c = the upper left adjacent value plus the modification cost: verif[i - 1][j - 1] + cost
             verif[i][j] = std::min(
                 std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
                 verif[i - 1][j - 1] + cost
@@ -60,7 +68,6 @@ int levenshteinDist(const std::string& word1, const std::string& word2) {
         }
     }
 
-    // The last position of the matrix will contain the Levenshtein distance.
     return verif[size1][size2];
 }
 
@@ -109,17 +116,26 @@ Position3D getPosition3D(
 void drawMeasurements(
     cv::Mat &frame,
     const BumperMeasurements &m,
-    const Position3D &pos
+    const Position3D &pos,
+    const std::string &robot_label = "",
+    const std::string &prev_label = "",
+    const cv::Scalar &robot_color = cv::Scalar(0, 255, 0)
 ) {
-    kalmanFilter filter;
+    static std::unordered_map<std::string, kalmanFilter> filters;
+    kalmanFilter &filter = filters[""];
+    if (prev_label == robot_label) {
+        filter = filters[robot_label];
+    }
+    if (robot_label.empty() && !prev_label.empty()) {
+        filter = filters[prev_label];
+    }
+
     constexpr double SCREEN_WIDTH = 1280;
     constexpr double SCREEN_HEIGHT = 720;
     constexpr double X_FOV = 70;
     constexpr double Y_FOV = 43;
 
-
     std::stringstream ss;
-    // cv::rectangle(frame, m.rect.tl(), m.rect.br(), cv::Scalar(255, 255, 255), 3); //Draws rectangle surrounding the contour, non-rotated
 
     cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
                                        static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
@@ -133,15 +149,21 @@ void drawMeasurements(
     const double x_coordinate = pos.z_cm * cos(x_angle) / 100;
     const double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
     const double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
-
-    cv::Vec3d filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-
+    cv::Vec3d filtered;
     filtered[0] = x_coordinate;
     filtered[1] = y_coordinate;
     filtered[2] = z_coordinate;
+    if (robot_label.empty() && prev_label.empty()) {
+        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
+    }
+
+    // Update tracker with robot position
+    if (!robot_label.empty()) {
+        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], robot_label, robot_color);
+    }
 
     ss << std::fixed << std::setprecision(2)
-            << "(" << x_coordinate << "m, " << y_coordinate << "m, " << z_coordinate << "m)";
+            << "(" << filtered[0] << "m, " << filtered[1] << "m, " << filtered[2] << "m)";
 
     cv::putText(frame, ss.str(),
                 cv::Point(m.rect.x + 10, m.rect.y - 10),
@@ -150,9 +172,9 @@ void drawMeasurements(
 
 void detectEdgesBumper(
     cv::Mat &blankFrame,
+    const std::string teamNumbers[5],
     cv::Mat &frame,
-    const std::vector<Detection> &detections,
-    const std::string teamNumbers[5]
+    std::vector<Detection> &detections
 ) {
     std::vector<std::vector<cv::Point> > contours, overlappingContoursRed, overlappingContoursBlue;
     cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
@@ -181,7 +203,7 @@ void detectEdgesBumper(
 
     cv::Canny(bMask, edgesBlue, 120, 255);
     cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
+    std::string label;
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
 
@@ -208,29 +230,51 @@ void detectEdgesBumper(
     cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
     cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
+    // Clear previous robot positions
+    g_tracker.clearRobots();
+
+    int robot_id = 0;
+
+    findNumbers(detections, blankFrame, frame, teamNumbers);
+
+    // Process red robots
     for (const auto &contour: overlappingContoursRed) {
         if (contourArea(contour) < 250) continue;
         BumperMeasurements m = getMeasurementsFromContour(contour);
         Position3D pos = getPosition3D(m);
-        drawMeasurements(frame, m, pos);
+        std::string prevLabel = label;
+        for (auto &det: detections) {
+            if ((det.bounding_box & boundingRect(contour)) == boundingRect(contour)) {
+                label = "Red-" + det.label;
+            }
+        }
+        drawMeasurements(frame, m, pos, label, prevLabel, cv::Scalar(0, 0, 255));
     }
 
+    // Process blue robots
     for (const auto &contour: overlappingContoursBlue) {
         if (contourArea(contour) < 250) continue;
         BumperMeasurements m = getMeasurementsFromContour(contour);
         Position3D pos = getPosition3D(m);
-        drawMeasurements(frame, m, pos);
+        std::string prevLabel = label;
+        for (auto &det: detections) {
+            if ((det.bounding_box & boundingRect(contour)) == boundingRect(contour)) {
+                label = "Blue-" + det.label;
+            }
+        }
+        drawMeasurements(frame, m, pos, label, prevLabel, cv::Scalar(255, 0, 0));
     }
 
     cv::drawContours(frame, overlappingContoursBlue, -1, cv::Scalar(255, 0, 0), 2);
     cv::drawContours(frame, overlappingContoursRed, -1, cv::Scalar(0, 0, 255), 2);
 
-    findNumbers(detections, blankFrame, frame, teamNumbers);
+    // Render top-down view
+    g_tracker.render();
 
     cv::imshow("detectEdgesBumper", frame);
 }
 
-void findNumbers(const std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
+void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
                  const std::string teamNumbers[5]) {
     auto *api = new tesseract::TessBaseAPI();
     if (api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng", tesseract::OEM_LSTM_ONLY)) {
@@ -238,7 +282,7 @@ void findNumbers(const std::vector<Detection> &detections, const cv::Mat &blankF
         return;
     }
 
-    for (const auto &det: detections) {
+    for (auto &det: detections) {
         cv::Mat img = blankFrame(det.bounding_box).clone();
 
         cv::Mat hsv, colorMask;
@@ -292,10 +336,13 @@ void findNumbers(const std::vector<Detection> &detections, const cv::Mat &blankF
         }
 
         if (levenshteinDist(sResult, teamNumbers[minIndex]) >= 3) {
-            continue;
+            api->End();
+            delete api;
+            return;
         }
 
         result = teamNumbers[minIndex];
+        det.label = result;
         cv::putText(frame, result,
                     cv::Point(det.bounding_box.x + 10, det.bounding_box.y - 50),
                     cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);

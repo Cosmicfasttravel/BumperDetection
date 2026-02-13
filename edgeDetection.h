@@ -7,6 +7,7 @@ struct Detection {
     float confidence;
     cv::Rect bounding_box;
     std::string class_name;
+    std::string label;
 };
 
 
@@ -17,12 +18,14 @@ private:
 
 void detectEdgesBumper(
     cv::Mat &blankFrame,
+    const std::string teamNumbers[5],
     cv::Mat &frame,
-    const std::vector<Detection> &detections,
-    const std::string teamNumbers[5]
+    std::vector<Detection> &detections
 );
 
-void findNumbers(const std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
+
+
+void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
                  const std::string teamNumbers[5]);
 
 #endif //BUMPERDETECTION_EDGEDETECTION_H

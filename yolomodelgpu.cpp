@@ -9,6 +9,8 @@
 #include "edgeDetection.h"
 #include "GPU.h"
 
+using Clock = std::chrono::high_resolution_clock;
+
 // Include CUDA module if available
 #ifdef HAVE_OPENCV_CUDNN
 #endif
@@ -226,8 +228,10 @@ int main() {
 
         bool paused = false;
         int waitTime = 1;
-
+        static auto prev_frame_time = Clock::now();
         while (true) {
+            auto frame_start = Clock::now();
+
             constexpr int INPUT_HEIGHT = 640;
             constexpr int INPUT_WIDTH = 640;
             constexpr float CONF_THRESHOLD = 0.75;
@@ -312,7 +316,17 @@ int main() {
             cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
 
-            detectEdgesBumper(blankFrame, frame, detections, teamNumbers);
+            auto frame_end = Clock::now();
+            using FrameDuration = std::chrono::duration<double>;
+            auto delta = FrameDuration(frame_end - prev_frame_time).count(); // seconds
+            std::stringstream ss;
+            ss << std::fixed << std::setprecision(2) << "FPS: " << (1.0 / delta);
+
+            cv::putText(frame, ss.str(), cv::Point(10, 50),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
+            cv::rectangle(frame, cv::Point(1280/2, 720/2), cv::Point(1280/2, 720/2), cv::Scalar(255, 255, 255), cv::FILLED);
+
+            detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
 
             int key = cv::waitKey(waitTime);
 
@@ -323,6 +337,8 @@ int main() {
             if (key == 112) paused = !paused;
             if (paused) waitTime = -1;
             else waitTime = 1;
+
+            prev_frame_time = frame_start;
         }
 
         auto end_time = std::chrono::high_resolution_clock::now();
