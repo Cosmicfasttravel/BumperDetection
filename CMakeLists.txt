@@ -45,16 +45,15 @@ message(STATUS "=====================================")
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(BumperDetection
-        main.cpp
-        yolomodelgpu.cpp
-        GPU.cpp
-        GPU.h
-        edgeDetection.cpp
-        edgeDetection.h
-        kalmanFilter.cpp
-        kalmanFilter.h
-        topDownView.cpp
-        topDownView.h
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/yolomodelgpu.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/GPU.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/GPU.h
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/edgeDetection.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/edgeDetection.h
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/kalmanFilter.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/kalmanFilter.h
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/topDownView.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/topDownView.h
 )
 
 target_link_libraries(BumperDetection
