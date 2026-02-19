@@ -52,9 +52,6 @@ void TopDownVisualizer::drawCamera() {
     triangle.push_back(cv::Point(camera_pos.x - size/2, camera_pos.y + size/2));  // Bottom left
     triangle.push_back(cv::Point(camera_pos.x + size/2, camera_pos.y + size/2));  // Bottom right
 
-    // Fill the triangle
-    cv::fillConvexPoly(canvas, triangle, cv::Scalar(255, 255, 0));  // Cyan camera
-
     // Draw outline
     cv::polylines(canvas, triangle, true, cv::Scalar(255, 255, 255), 2);
 

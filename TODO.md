@@ -1,15 +1,18 @@
 ﻿# TODO
-## Maximum priority:
+## Highest priority:
 ### - Test
 
 ## High priority:
-### - Check algorithms to make sure they are implemented (kalman, tesseract, Levenshtein)
 ### - Optimize algorithms
-### - Find if Hamming - Levenshtein combo is faster
 
 ## Medium Priority:
+### - Find the best Tesseract and contour finding method
+### - Improve Naming
+### - Change Kalman filter to use velocity for runtime tuning
 
 ## Low Priority:
 ### - Switch from onnx to tensorflow
-### - Remove imshows due to lost performance
+### - Remove "imshow"s due to lost performance
+
+## Lowest Priority:
 ### - Micro optimizations

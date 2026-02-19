@@ -22,9 +22,9 @@ kalmanFilter::kalmanFilter()
         0,0,1,0,0,0
     );
 
-    cv::setIdentity(kf.processNoiseCov, cv::Scalar(5));//motion
-    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1.5));//noise
-    cv::setIdentity(kf.errorCovPost, cv::Scalar(2));//measurement variance
+    cv::setIdentity(kf.processNoiseCov, cv::Scalar(10));//motion
+    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(50));//noise
+    cv::setIdentity(kf.errorCovPost, cv::Scalar(50));//measurement variance
 }
 
 cv::Vec3d kalmanFilter::update(double x, double y, double z, double dt)

@@ -10,6 +10,7 @@
 #include <leptonica/allheaders.h>
 #include <filesystem>
 #include <iomanip>
+#include <unordered_set>
 #include <opencv2/video/tracking.hpp>
 #include "kalmanFilter.h"
 #include "topDownView.h"
@@ -117,18 +118,14 @@ void drawMeasurements(
     cv::Mat &frame,
     const BumperMeasurements &m,
     const Position3D &pos,
-    const std::string &robot_label = "",
-    const std::string &prev_label = "",
-    const cv::Scalar &robot_color = cv::Scalar(0, 255, 0)
+    const Detection &detection,
+    const cv::Scalar &robot_color,
+    const std::vector<std::string> &visibleNumbers
 ) {
+    static int tick;
+
     static std::unordered_map<std::string, kalmanFilter> filters;
-    kalmanFilter &filter = filters[""];
-    if (prev_label == robot_label) {
-        filter = filters[robot_label];
-    }
-    if (robot_label.empty() && !prev_label.empty()) {
-        filter = filters[prev_label];
-    }
+    std::string label = findMode(detection.label_list);
 
     constexpr double SCREEN_WIDTH = 1280;
     constexpr double SCREEN_HEIGHT = 720;
@@ -153,13 +150,13 @@ void drawMeasurements(
     filtered[0] = x_coordinate;
     filtered[1] = y_coordinate;
     filtered[2] = z_coordinate;
-    if (robot_label.empty() && prev_label.empty()) {
-        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-    }
 
     // Update tracker with robot position
-    if (!robot_label.empty()) {
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], robot_label, robot_color);
+    if (!label.empty()) {
+        kalmanFilter &filter = filters[label];
+        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
+        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label,
+                                      robot_color);
     }
 
     ss << std::fixed << std::setprecision(2)
@@ -168,122 +165,42 @@ void drawMeasurements(
     cv::putText(frame, ss.str(),
                 cv::Point(m.rect.x + 10, m.rect.y - 10),
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+
+    // //erase
+    // for (auto it = filters.begin(); it != filters.end();) {
+    //     bool found = false;
+    //     for (auto &num: visibleNumbers) {
+    //         if (it->first == num) {
+    //             found = true;
+    //         }
+    //     }
+    //     if (!found) {
+    //         it = filters.erase(it);
+    //     }
+    //     else {
+    //         ++it;
+    //     }
+    // }
+
+
+    if (tick >= 20) {
+        filters.erase(filters.begin(), filters.end());
+    }
+
+    tick++;
 }
 
-void detectEdgesBumper(
-    cv::Mat &blankFrame,
-    const std::string teamNumbers[5],
-    cv::Mat &frame,
-    std::vector<Detection> &detections
-) {
-    std::vector<std::vector<cv::Point> > contours, overlappingContoursRed, overlappingContoursBlue;
-    cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
-
-    cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
-
-    cv::inRange(hsv, cv::Scalar(100, 120, 70), cv::Scalar(130, 255, 255), bMask);
-    cv::inRange(hsv, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), rMask);
-    cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
-
-    rMask = rMask | rMask1;
-
-    cv::Canny(rMask, edgesRed, 120, 255);
-    cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    for (const auto &contour: contours) {
-        cv::Rect contourRect = cv::boundingRect(contour);
-
-        for (const auto &det: detections) {
-            if ((contourRect & det.bounding_box) == contourRect) {
-                overlappingContoursRed.emplace_back(contour);
-                break;
-            }
-        }
-    }
-
-    cv::Canny(bMask, edgesBlue, 120, 255);
-    cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    std::string label;
-    for (const auto &contour: contours) {
-        cv::Rect contourRect = cv::boundingRect(contour);
-
-        for (const auto &det: detections) {
-            if ((contourRect & det.bounding_box) == contourRect) {
-                overlappingContoursBlue.emplace_back(contour);
-                break;
-            }
-        }
-    }
-
-    cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
-    cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
-
-    cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
-    cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
-
-    cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
-    cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
-    cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
-    cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
-    cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    // Clear previous robot positions
-    g_tracker.clearRobots();
-
-    int robot_id = 0;
-
-    findNumbers(detections, blankFrame, frame, teamNumbers);
-
-    // Process red robots
-    for (const auto &contour: overlappingContoursRed) {
-        if (contourArea(contour) < 250) continue;
-        BumperMeasurements m = getMeasurementsFromContour(contour);
-        Position3D pos = getPosition3D(m);
-        std::string prevLabel = label;
-        for (auto &det: detections) {
-            if ((det.bounding_box & boundingRect(contour)) == boundingRect(contour)) {
-                label = "Red-" + det.label;
-            }
-        }
-        drawMeasurements(frame, m, pos, label, prevLabel, cv::Scalar(0, 0, 255));
-    }
-
-    // Process blue robots
-    for (const auto &contour: overlappingContoursBlue) {
-        if (contourArea(contour) < 250) continue;
-        BumperMeasurements m = getMeasurementsFromContour(contour);
-        Position3D pos = getPosition3D(m);
-        std::string prevLabel = label;
-        for (auto &det: detections) {
-            if ((det.bounding_box & boundingRect(contour)) == boundingRect(contour)) {
-                label = "Blue-" + det.label;
-            }
-        }
-        drawMeasurements(frame, m, pos, label, prevLabel, cv::Scalar(255, 0, 0));
-    }
-
-    cv::drawContours(frame, overlappingContoursBlue, -1, cv::Scalar(255, 0, 0), 2);
-    cv::drawContours(frame, overlappingContoursRed, -1, cv::Scalar(0, 0, 255), 2);
-
-    // Render top-down view
-    g_tracker.render();
-
-    cv::imshow("detectEdgesBumper", frame);
-}
-
-void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
-                 const std::string teamNumbers[5]) {
+std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
+                                     const std::string teamNumbers[5]) {
     auto *api = new tesseract::TessBaseAPI();
     if (api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng", tesseract::OEM_LSTM_ONLY)) {
         std::cerr << "Could not initialize tesseract." << std::endl;
-        return;
+        return {};
     }
-
+    std::vector<std::string> visibleNumbers;
     for (auto &det: detections) {
         cv::Mat img = blankFrame(det.bounding_box).clone();
+        cv::GaussianBlur(img, img, cv::Size(7, 7), 0);
 
         cv::Mat hsv, colorMask;
         cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
@@ -327,7 +244,11 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, 
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
             int minDist = INT_MAX;
             for (int i = 0; i < teamNumbers->size(); i++) {
-                int d = levenshteinDist(sResult, teamNumbers[i]);
+                int d;
+                if (teamNumbers[i].length() == result.length())
+                    d = hammingDistance(sResult, teamNumbers[i]);
+                else
+                    d = levenshteinDist(sResult, teamNumbers[i]);
                 if (d < minDist) {
                     minDist = d;
                     minIndex = i;
@@ -335,19 +256,129 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, 
             }
         }
 
-        if (levenshteinDist(sResult, teamNumbers[minIndex]) >= 3) {
-            api->End();
-            delete api;
-            return;
+        if (levenshteinDist(sResult, teamNumbers[minIndex]) > 3) {
+            continue;
         }
 
         result = teamNumbers[minIndex];
-        det.label = result;
         cv::putText(frame, result,
                     cv::Point(det.bounding_box.x + 10, det.bounding_box.y - 50),
                     cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+
+        det.label_list.emplace_back(result);
+
+        visibleNumbers.push_back(result);
+
+        if (det.label_list.size() > 50) {
+            det.label_list.erase(det.label_list.begin());
+        }
     }
+
 
     api->End();
     delete api;
+    return visibleNumbers;
+}
+
+void detectEdgesBumper(
+    cv::Mat &blankFrame,
+    const std::string teamNumbers[5],
+    cv::Mat &frame,
+    std::vector<Detection> &detections
+) {
+    std::vector<std::vector<cv::Point> > contours, overlappingContoursRed, overlappingContoursBlue;
+    cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
+
+    cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+
+    cv::inRange(hsv, cv::Scalar(100, 120, 70), cv::Scalar(130, 255, 255), bMask);
+    cv::inRange(hsv, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), rMask);
+    cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
+
+    rMask = rMask | rMask1;
+
+    cv::Canny(rMask, edgesRed, 120, 255);
+    cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    for (const auto &contour: contours) {
+        cv::Rect contourRect = cv::boundingRect(contour);
+
+        for (const auto &det: detections) {
+            if ((contourRect & det.bounding_box) == contourRect) {
+                overlappingContoursRed.emplace_back(contour);
+                break;
+            }
+        }
+    }
+
+    cv::Canny(bMask, edgesBlue, 120, 255);
+    cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    for (const auto &contour: contours) {
+        cv::Rect contourRect = cv::boundingRect(contour);
+
+        for (const auto &det: detections) {
+            if ((contourRect & det.bounding_box) == contourRect) {
+                overlappingContoursBlue.emplace_back(contour);
+                break;
+            }
+        }
+    }
+
+    cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
+    cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
+
+    cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
+    cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
+
+    cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
+    cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
+    cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
+    cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
+    cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    // Clear previous robot positions
+    g_tracker.clearRobots();
+
+    std::vector<std::string> visibleNumbers{};
+    visibleNumbers = findNumbers(detections, blankFrame, frame, teamNumbers);
+
+    std::vector<std::vector<cv::Point> >::value_type largestContour = {cv::Point(0, 0)};
+    int maxArea = 500;
+    cv::Scalar color;
+
+    // Process red robots
+    for (const auto &contour: overlappingContoursRed) {
+        if (contourArea(contour) < maxArea) continue;
+        maxArea = static_cast<int>(contourArea(contour));
+        largestContour = contour;
+        color = cv::Scalar(0, 0, 255);
+    }
+    // Process blue robots
+    for (const auto &contour: overlappingContoursBlue) {
+        if (contourArea(contour) < maxArea) continue;
+        maxArea = static_cast<int>(contourArea(contour));
+        largestContour = contour;
+        color = cv::Scalar(255, 0, 0);
+    }
+    if (!largestContour.empty()) {
+        BumperMeasurements m = getMeasurementsFromContour(largestContour);
+        Position3D pos = getPosition3D(m);
+        Detection detection;
+        for (auto &det: detections) {
+            if ((det.bounding_box & boundingRect(largestContour)) == boundingRect(largestContour)) {
+                detection = det;
+            }
+        }
+        drawMeasurements(frame, m, pos, detection, cv::Scalar(0, 0, 255), visibleNumbers);
+
+        cv::drawContours(frame, largestContour, -1, color, 2);
+    }
+
+    // Render top-down view
+    g_tracker.render();
+
+    cv::imshow("detectEdgesBumper", frame);
 }

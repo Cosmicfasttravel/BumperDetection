@@ -292,27 +292,6 @@ int main() {
 
             detection_count += static_cast<int>(detections.size());
 
-
-            // // Draw detections
-            // for (const auto& det : detections) {
-            //     cv::rectangle(frame, det.bounding_box, cv::Scalar(0, 255, 0), 3);
-            //
-            //     std::stringstream ss;
-            //     ss << det.class_name << ": " << static_cast<int>(det.confidence * 100) << "%";
-            //     std::string label = ss.str();
-            //
-            //     int baseline;
-            //     cv::Size label_size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, &baseline);
-            //     cv::Point label_origin(det.bounding_box.x, det.bounding_box.y - 10);
-            //
-            //     cv::rectangle(frame,
-            //         cv::Point(label_origin.x, label_origin.y - label_size.height - baseline),
-            //         cv::Point(label_origin.x + label_size.width, label_origin.y + baseline),
-            //         cv::Scalar(0, 255, 0), cv::FILLED);
-            //
-            //     cv::putText(frame, label, label_origin, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
-            // }
-
             cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
 
