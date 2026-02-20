@@ -18,16 +18,6 @@ else()
     message(WARNING "✗ OpenCV NOT built with CUDA support")
 endif()
 
-# ONNX Runtime (if you're still using it)
-set(ONNXRUNTIME_DIR "C:/onnxruntime")
-if(EXISTS ${ONNXRUNTIME_DIR})
-    include_directories(${ONNXRUNTIME_DIR}/include)
-    set(ONNX_LIBS "${ONNXRUNTIME_DIR}/lib/onnxruntime.lib")
-    set(ONNX_DLL "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll")
-else()
-    set(ONNX_LIBS "")
-    set(ONNX_DLL "")
-endif()
 
 # Debug output
 message(STATUS "=====================================")
@@ -66,7 +56,6 @@ target_link_libraries(BumperDetection
         opencv_highgui
         opencv_text
         Tesseract::libtesseract
-        ${ONNX_LIBS}
 )
 
 # Copy OpenCV DLLs

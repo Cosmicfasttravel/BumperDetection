@@ -124,7 +124,14 @@ std::vector<Detection> ProcessYoloOutput(
     }
 
     std::vector<int> nms_result;
-    cv::dnn::NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, nms_result);
+    cv::dnn::NMSBoxesBatched(
+        boxes,
+        confidences,
+        class_ids,
+        conf_threshold,
+        nms_threshold,
+        nms_result
+    );
 
     for (int idx: nms_result) {
         Detection result;
@@ -141,7 +148,7 @@ std::vector<Detection> ProcessYoloOutput(
 
 
 int main() {
-    std::string teamNumbers[5] = {"1306", "5324", "4613", "4959", "118"};
+    std::string teamNumbers[5] = {"1306", "2560", "2457", "4959", "118"};
     //for robot cropped "3928", "2560", "2457", "4959", "118"
 
     // std::cout << "Input team numbers (5): " << std::endl;
@@ -163,57 +170,27 @@ int main() {
     }
 
     try {
-        std::cout << std::string(60, '=') << std::endl;
-        std::cout << "YOLO BUMPER DETECTION" << std::endl;
-        std::cout << std::string(60, '=') << std::endl;
-
-        // Check OpenCV build info
-        std::cout << "\n[OpenCV Build Info]" << std::endl;
-        std::cout << "OpenCV version: " << CV_VERSION << std::endl;
-
-#ifdef HAVE_OPENCV_CUDNN
-        std::cout << "CUDA DNN support: YES" << std::endl;
-#else
-        std::cout << "CUDA DNN support: NO" << std::endl;
-#endif
-
-        std::cout << "OpenCL support: " << (cv::ocl::haveOpenCL() ? "YES" : "NO") << std::endl;
-
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
-        //v10 = tiny, v9 = compact
-
-        std::cout << "\n[Loading Model]" << std::endl;
-        std::cout << "  Model: " << model_path << std::endl;
 
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
 
         if (net.empty()) {
-            std::cerr << "ERROR: Failed to load model!" << std::endl;
             return -1;
         }
 
         // Setup best available backend
         std::string backend = gpu::setupGPUBackend(net);
 
-        std::cout << "\nModel loaded with " << backend << " backend" << std::endl;
-
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
-
-        std::cout << "\n[Opening Video]" << std::endl;
 
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
-            std::cerr << "ERROR: Failed to open video!" << std::endl;
             return -1;
         }
 
         // Adjust frame skip based on backend
-        int frame_skip = 2;
-        if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-            frame_skip = 5; // Every 5th frame for OpenCL
-        } else if (backend == "CPU") {
-            frame_skip = 10; // Every 10th frame for CPU
-        }
+        int frame_skip = 1;
+
         cv::Mat frame, blankFrame;
         int frame_count = 0;
         int processed_count = 0;
@@ -229,6 +206,8 @@ int main() {
         bool paused = false;
         int waitTime = 1;
         static auto prev_frame_time = Clock::now();
+
+        startOCR();
         while (true) {
             auto frame_start = Clock::now();
 
@@ -237,7 +216,6 @@ int main() {
             constexpr float CONF_THRESHOLD = 0.75;
             constexpr float NMS_THRESHOLD = 0.45;
             if (!cap.read(frame)) {
-                std::cout << "\nEnd of video reached." << std::endl;
                 break;
             }
             if (frame.empty()) continue;
@@ -257,9 +235,6 @@ int main() {
             auto blob_start = std::chrono::high_resolution_clock::now();
 
             cv::Mat blob;
-            if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-                return -1;
-            }
 
             cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
                                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
@@ -267,16 +242,22 @@ int main() {
             auto blob_end = std::chrono::high_resolution_clock::now();
             total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
 
-            auto inference_start = std::chrono::high_resolution_clock::now();
 
+            std::chrono::time_point<std::chrono::steady_clock> start;
+            std::chrono::time_point<std::chrono::steady_clock> end;
+            if (frame_count >= 5) {
+                start = std::chrono::high_resolution_clock::now();
+            }
             net.setInput(blob);
             std::vector<cv::Mat> outputs;
             net.forward(outputs, net.getUnconnectedOutLayersNames());
 
-            auto inference_end = std::chrono::high_resolution_clock::now();
-            total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                inference_end - inference_start).count();
+            if (frame_count >= 5) {
+                end = std::chrono::high_resolution_clock::now();
+            }
 
+            total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                end - start).count();
 
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
@@ -286,31 +267,30 @@ int main() {
                 CONF_THRESHOLD, NMS_THRESHOLD
             );
 
-            auto postprocess_end = std::chrono::high_resolution_clock::now();
-            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                postprocess_end - postprocess_start).count();
-
             detection_count += static_cast<int>(detections.size());
 
             cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
 
             auto frame_end = Clock::now();
-            using FrameDuration = std::chrono::duration<double>;
-            auto delta = FrameDuration(frame_end - prev_frame_time).count(); // seconds
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << "FPS: " << (1.0 / delta);
 
-            cv::putText(frame, ss.str(), cv::Point(10, 50),
-                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
-            cv::rectangle(frame, cv::Point(1280/2, 720/2), cv::Point(1280/2, 720/2), cv::Scalar(255, 255, 255), cv::FILLED);
+            if (frame_count >= 5) {
+                using FrameDuration = std::chrono::duration<double>;
+                auto delta = FrameDuration(frame_end - prev_frame_time).count(); // seconds
+                std::stringstream ss;
+                ss << std::fixed << std::setprecision(2) << "FPS: " << (1.0 / delta);
+                cv::putText(frame, ss.str(), cv::Point(10, 50),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
+            }
 
             detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
 
-            int key = cv::waitKey(waitTime);
+            auto postprocess_end = std::chrono::high_resolution_clock::now();
+            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                postprocess_end - postprocess_start).count();
 
+            int key = cv::waitKey(waitTime);
             if (key == 27) {
-                std::cout << "\nStopped by user." << std::endl;
                 break;
             }
             if (key == 112) paused = !paused;
@@ -326,10 +306,12 @@ int main() {
                 << static_cast<double>(duration.count()) / 1000.0 << " seconds" << std::endl;
         std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
                 << processed_count / (static_cast<double>(duration.count()) / 1000.0) << std::endl;
-        std::cout << "\nTiming Breakdown (per frame):" << std::endl;
+        std::cout << "\nTiming Breakdown:" << std::endl;
         std::cout << "  Blob creation: " << (total_blob_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
+
+        endOCR();
     } catch (const cv::Exception &e) {
         std::cerr << "\nOpenCV Error: " << e.what() << std::endl;
         return -1;

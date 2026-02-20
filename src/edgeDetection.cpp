@@ -47,7 +47,7 @@ int hammingDistance(const std::string &str1, const std::string &str2) {
 int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
-    std::vector<std::vector<int> > verif(size1 + 1, std::vector<int>(size2 + 1));
+    std::vector verif(size1 + 1, std::vector<int>(size2 + 1));
 
     if (size1 == 0)
         return size2;
@@ -126,6 +126,7 @@ void drawMeasurements(
 
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = findMode(detection.label_list);
+    kalmanFilter &filter = filters[label];
 
     constexpr double SCREEN_WIDTH = 1280;
     constexpr double SCREEN_HEIGHT = 720;
@@ -153,11 +154,10 @@ void drawMeasurements(
 
     // Update tracker with robot position
     if (!label.empty()) {
-        kalmanFilter &filter = filters[label];
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label,
-                                      robot_color);
     }
+
+    g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, robot_color);
 
     ss << std::fixed << std::setprecision(2)
             << "(" << filtered[0] << "m, " << filtered[1] << "m, " << filtered[2] << "m)";
@@ -166,37 +166,42 @@ void drawMeasurements(
                 cv::Point(m.rect.x + 10, m.rect.y - 10),
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
 
-    // //erase
-    // for (auto it = filters.begin(); it != filters.end();) {
-    //     bool found = false;
-    //     for (auto &num: visibleNumbers) {
-    //         if (it->first == num) {
-    //             found = true;
-    //         }
-    //     }
-    //     if (!found) {
-    //         it = filters.erase(it);
-    //     }
-    //     else {
-    //         ++it;
-    //     }
-    // }
-
-
-    if (tick >= 20) {
-        filters.erase(filters.begin(), filters.end());
+    //erase
+    for (auto it = filters.begin(); it != filters.end();) {
+        bool found = false;
+        for (auto &num: visibleNumbers) {
+            if (it->first == num) {
+                found = true;
+            }
+        }
+        if (!found) {
+            it = filters.erase(it);
+        }
+        else {
+            ++it;
+        }
     }
 
     tick++;
 }
 
+void startOCR() {
+    api = new tesseract::TessBaseAPI();
+    api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+
+    api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+    api->SetVariable("tessedit_char_whitelist", "0123456789");
+}
+
+void endOCR() {
+    api->End();
+    delete api;
+}
+
 std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
                                      const std::string teamNumbers[5]) {
-    auto *api = new tesseract::TessBaseAPI();
-    if (api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng", tesseract::OEM_LSTM_ONLY)) {
-        std::cerr << "Could not initialize tesseract." << std::endl;
-        return {};
-    }
+
+
     std::vector<std::string> visibleNumbers;
     for (auto &det: detections) {
         cv::Mat img = blankFrame(det.bounding_box).clone();
@@ -228,27 +233,23 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
         cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
 
-        api->SetPageSegMode(tesseract::PSM_SPARSE_TEXT_OSD);
-        api->SetVariable("tessedit_char_whitelist", "0123456789");
         api->SetImage(final.data, final.cols, final.rows, 1, final.step);
 
         char *outText = api->GetUTF8Text();
         std::string result(outText);
-        std::string sResult(outText);
         delete[] outText;
 
         result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
 
         int minIndex = 0;
-
+        int minDist = INT_MAX;
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
-            int minDist = INT_MAX;
             for (int i = 0; i < teamNumbers->size(); i++) {
                 int d;
                 if (teamNumbers[i].length() == result.length())
-                    d = hammingDistance(sResult, teamNumbers[i]);
+                    d = hammingDistance(result, teamNumbers[i]);
                 else
-                    d = levenshteinDist(sResult, teamNumbers[i]);
+                    d = levenshteinDist(result, teamNumbers[i]);
                 if (d < minDist) {
                     minDist = d;
                     minIndex = i;
@@ -256,27 +257,21 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
             }
         }
 
-        if (levenshteinDist(sResult, teamNumbers[minIndex]) > 3) {
+        if (minDist > 3) {
             continue;
         }
 
         result = teamNumbers[minIndex];
-        cv::putText(frame, result,
-                    cv::Point(det.bounding_box.x + 10, det.bounding_box.y - 50),
-                    cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
 
         det.label_list.emplace_back(result);
 
-        visibleNumbers.push_back(result);
+        visibleNumbers.emplace_back(findMode(det.label_list));
 
         if (det.label_list.size() > 50) {
             det.label_list.erase(det.label_list.begin());
         }
     }
 
-
-    api->End();
-    delete api;
     return visibleNumbers;
 }
 
@@ -345,8 +340,8 @@ void detectEdgesBumper(
     std::vector<std::string> visibleNumbers{};
     visibleNumbers = findNumbers(detections, blankFrame, frame, teamNumbers);
 
-    std::vector<std::vector<cv::Point> >::value_type largestContour = {cv::Point(0, 0)};
-    int maxArea = 500;
+    std::vector<cv::Point> largestContour;
+    int maxArea = 0;
     cv::Scalar color;
 
     // Process red robots
