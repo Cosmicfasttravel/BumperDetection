@@ -48,17 +48,13 @@ void TopDownVisualizer::drawCamera() {
     // Draw camera as a triangle pointing upward (forward in world coordinates)
     int size = 20;
     std::vector<cv::Point> triangle;
-    triangle.push_back(cv::Point(camera_pos.x, camera_pos.y - size));  // Top point (forward)
-    triangle.push_back(cv::Point(camera_pos.x - size/2, camera_pos.y + size/2));  // Bottom left
-    triangle.push_back(cv::Point(camera_pos.x + size/2, camera_pos.y + size/2));  // Bottom right
+    triangle.emplace_back(camera_pos.x, camera_pos.y - size);  // Top point (forward)
+    triangle.emplace_back(camera_pos.x - size/2, camera_pos.y + size/2);  // Bottom left
+    triangle.emplace_back(cv::Point(camera_pos.x + size/2, camera_pos.y + size/2));  // Bottom right
 
     // Draw outline
     cv::polylines(canvas, triangle, true, cv::Scalar(255, 255, 255), 2);
 
-    // Add label
-    cv::putText(canvas, "Camera",
-                cv::Point(camera_pos.x - 30, camera_pos.y + size + 20),
-                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 }
 
 void TopDownVisualizer::drawFieldOfView(double fov_angle, double max_distance) {
