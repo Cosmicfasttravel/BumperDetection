@@ -174,7 +174,7 @@ int main() {
         // Setup best available backend
         std::string backend = setupGPUBackend(net);
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
+        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/robotcropped.MP4";
 
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
