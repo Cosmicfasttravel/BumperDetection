@@ -1,7 +1,4 @@
 ﻿#include "GPU.h"
-#include <iostream>
-
-#include <opencv2/core/ocl.hpp>
 
 namespace gpu {
     std::string setupGPUBackend(cv::dnn::Net& net) {

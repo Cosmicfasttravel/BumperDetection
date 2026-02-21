@@ -11,11 +11,6 @@
 
 using Clock = std::chrono::high_resolution_clock;
 
-// Include CUDA module if available
-#ifdef HAVE_OPENCV_CUDNN
-#endif
-
-
 std::vector<Detection> ProcessYoloOutput(
     const std::vector<cv::Mat> &outputs,
     int img_width,

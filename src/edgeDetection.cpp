@@ -305,35 +305,39 @@ void detectEdgesBumper(
     findNumbers(detections, blankFrame, teamNumbers);
 
     std::vector<std::vector<cv::Point>>::value_type largestContour = {cv::Point(0, 0)};
-    int maxArea = 500;
-    cv::Scalar color;
 
     // Process red robots
     for (const auto &contour: overlappingContoursRed) {
-        if (contourArea(contour) < maxArea) continue;
-        maxArea = static_cast<int>(contourArea(contour));
-        largestContour = contour;
-        color = cv::Scalar(0, 0, 255);
+        for (auto &det: detections) {
+            if (((boundingRect(contour) & det.bounding_box).area()) > 0) {
+                if (contourArea(contour) < det.largestContourSize) continue;
+                det.largestContourSize = static_cast<int>(contourArea(contour));
+                det.largestContour = contour;
+                det.largestContourColor = cv::Scalar(0, 0, 255);
+            }
+        }
     }
     // Process blue robots
     for (const auto &contour: overlappingContoursBlue) {
-        if (contourArea(contour) < maxArea) continue;
-        maxArea = static_cast<int>(contourArea(contour));
-        largestContour = contour;
-        color = cv::Scalar(255, 0, 0);
-    }
-    if (!largestContour.empty()) {
-        BumperMeasurements m = getMeasurementsFromContour(largestContour);
-        Position3D pos = getPosition3D(m);
-        Detection detection;
         for (auto &det: detections) {
-            if ((det.bounding_box & boundingRect(largestContour)) == boundingRect(largestContour)) {
-                detection = det;
+            if (((boundingRect(contour) & det.bounding_box).area()) > 0) {
+                if (contourArea(contour) < det.largestContourSize) continue;
+                det.largestContourSize = static_cast<int>(contourArea(contour));
+                det.largestContour = contour;
+                det.largestContourColor = cv::Scalar(255, 0, 0);
             }
         }
-        drawMeasurements(m, pos, detection, cv::Scalar(0, 0, 255));
-
-        cv::drawContours(frame, largestContour, -1, color, 2);
+    }
+    for (auto &det: detections) {
+        if (!det.largestContour.empty()) {
+            BumperMeasurements m = getMeasurementsFromContour(det.largestContour);
+            Position3D pos = getPosition3D(m);
+            drawMeasurements(m, pos, det, det.largestContourColor);
+            det.largestContourSize = 0;
+        }
+        else {
+            std::cout << "No detections found!" << std::endl;
+        }
     }
 
     // Render top-down view

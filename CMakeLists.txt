@@ -5,8 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 # Point to CUDA-enabled OpenCV
-set(OpenCV_DIR "C:/opencv_cuda_install")
-find_package(OpenCV REQUIRED core imgproc imgcodecs text video videoio highgui)
+set(OpenCV_DIR "C:/opencv/build")
+find_package(OpenCV REQUIRED)
 find_package(Leptonica CONFIG REQUIRED)
 find_package(Tesseract CONFIG REQUIRED)
 
@@ -43,7 +43,6 @@ target_link_libraries(BumperDetection
         opencv_video
         opencv_videoio
         opencv_highgui
-        opencv_text
         Tesseract::libtesseract
         ${ONNX_LIBS}
 )
