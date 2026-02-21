@@ -2,6 +2,7 @@
 #define BUMPERDETECTION_EDGEDETECTION_H
 #include <list>
 #include <opencv2/core/mat.hpp>
+#include <tesseract/baseapi.h>
 
 struct Detection {
     int class_id;
@@ -19,5 +20,8 @@ void detectEdgesBumper(
     std::vector<Detection> &detections
 );
 
+inline auto *api = new tesseract::TessBaseAPI();
+void startOCR();
+void endOCR();
 
 #endif //BUMPERDETECTION_EDGEDETECTION_H
