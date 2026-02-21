@@ -56,7 +56,6 @@ std::vector<Detection> ProcessYoloOutput(
         num_detections = output_data.rows;
         num_values_per_detection = output_data.cols;
     } else {
-        std::cerr << "ERROR: Unexpected output dimensions!" << std::endl;
         return detections;
     }
 
@@ -163,57 +162,27 @@ int main() {
     }
 
     try {
-        std::cout << std::string(60, '=') << std::endl;
-        std::cout << "YOLO BUMPER DETECTION" << std::endl;
-        std::cout << std::string(60, '=') << std::endl;
-
-        // Check OpenCV build info
-        std::cout << "\n[OpenCV Build Info]" << std::endl;
-        std::cout << "OpenCV version: " << CV_VERSION << std::endl;
-
-#ifdef HAVE_OPENCV_CUDNN
-        std::cout << "CUDA DNN support: YES" << std::endl;
-#else
-        std::cout << "CUDA DNN support: NO" << std::endl;
-#endif
-
-        std::cout << "OpenCL support: " << (cv::ocl::haveOpenCL() ? "YES" : "NO") << std::endl;
 
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
-        //v10 = tiny, v9 = compact
-
-        std::cout << "\n[Loading Model]" << std::endl;
-        std::cout << "  Model: " << model_path << std::endl;
 
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
 
         if (net.empty()) {
-            std::cerr << "ERROR: Failed to load model!" << std::endl;
             return -1;
         }
 
         // Setup best available backend
         std::string backend = gpu::setupGPUBackend(net);
 
-        std::cout << "\nModel loaded with " << backend << " backend" << std::endl;
-
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
-
-        std::cout << "\n[Opening Video]" << std::endl;
 
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
-            std::cerr << "ERROR: Failed to open video!" << std::endl;
             return -1;
         }
 
         // Adjust frame skip based on backend
         int frame_skip = 2;
-        if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-            frame_skip = 5; // Every 5th frame for OpenCL
-        } else if (backend == "CPU") {
-            frame_skip = 10; // Every 10th frame for CPU
-        }
         cv::Mat frame, blankFrame;
         int frame_count = 0;
         int processed_count = 0;
@@ -229,6 +198,8 @@ int main() {
         bool paused = false;
         int waitTime = 1;
         static auto prev_frame_time = Clock::now();
+
+        startOCR();
         while (true) {
             auto frame_start = Clock::now();
 
@@ -237,7 +208,6 @@ int main() {
             constexpr float CONF_THRESHOLD = 0.75;
             constexpr float NMS_THRESHOLD = 0.45;
             if (!cap.read(frame)) {
-                std::cout << "\nEnd of video reached." << std::endl;
                 break;
             }
             if (frame.empty()) continue;
@@ -292,9 +262,6 @@ int main() {
 
             detection_count += static_cast<int>(detections.size());
 
-            cv::putText(frame, "Backend: " + backend, cv::Point(10, 30),
-                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
-
             auto frame_end = Clock::now();
             using FrameDuration = std::chrono::duration<double>;
             auto delta = FrameDuration(frame_end - prev_frame_time).count(); // seconds
@@ -306,11 +273,9 @@ int main() {
             cv::rectangle(frame, cv::Point(1280/2, 720/2), cv::Point(1280/2, 720/2), cv::Scalar(255, 255, 255), cv::FILLED);
 
             detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
-
             int key = cv::waitKey(waitTime);
 
             if (key == 27) {
-                std::cout << "\nStopped by user." << std::endl;
                 break;
             }
             if (key == 112) paused = !paused;
@@ -331,12 +296,12 @@ int main() {
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
     } catch (const cv::Exception &e) {
-        std::cerr << "\nOpenCV Error: " << e.what() << std::endl;
         return -1;
     } catch (const std::exception &e) {
-        std::cerr << "\nError: " << e.what() << std::endl;
         return -1;
     }
+
+    endOCR();
 
     return 0;
 }
