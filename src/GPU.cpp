@@ -4,7 +4,6 @@
 namespace gpu {
     std::string setupGPUBackend(cv::dnn::Net& net) {
 
-        // Try CUDA FP16
 #ifdef HAVE_OPENCV_CUDNN
         try {
             net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
