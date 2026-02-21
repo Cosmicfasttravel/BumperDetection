@@ -122,7 +122,7 @@ void drawMeasurements(
     static int tick;
 
     static std::unordered_map<std::string, kalmanFilter> filters;
-    std::string label = findMode(detection.label_list);
+    std::string label = detection.label;
 
     constexpr double SCREEN_WIDTH = 1280;
     constexpr double SCREEN_HEIGHT = 720;
@@ -152,9 +152,8 @@ void drawMeasurements(
     if (!label.empty()) {
         kalmanFilter &filter = filters[label];
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label,
-                                      robot_color);
     }
+    g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, robot_color);
 
     if (tick >= 20) {
         filters.erase(filters.begin(), filters.end());
@@ -239,10 +238,7 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
 
         result = teamNumbers[minIndex];
 
-        det.label_list.emplace_back(result);
-        if (det.label_list.size() > 50) {
-            det.label_list.erase(det.label_list.begin());
-        }
+        det.label = result;
     }
 }
 

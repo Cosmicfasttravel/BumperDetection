@@ -8,7 +8,7 @@ struct Detection {
     float confidence;
     cv::Rect bounding_box;
     std::string class_name;
-    std::vector<std::string> label_list;
+    std::string label;
 };
 
 
