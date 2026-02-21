@@ -172,7 +172,7 @@ int main() {
         }
 
         // Setup best available backend
-        std::string backend = gpu::setupGPUBackend(net);
+        std::string backend = setupGPUBackend(net);
 
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
 
@@ -198,6 +198,7 @@ int main() {
 
         bool paused = false;
         int waitTime = 1;
+
         static auto prev_frame_time = Clock::now();
 
         startOCR();

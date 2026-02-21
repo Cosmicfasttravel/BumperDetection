@@ -4,6 +4,7 @@
 
 ## High priority:
 ### - Optimize algorithms
+### - Add a list that stores the labels
 
 ## Medium Priority:
 ### - Find the best Tesseract and contour finding method

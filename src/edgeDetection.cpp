@@ -5,13 +5,10 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/mat.hpp>
-#include <sstream>
 #include <tesseract/baseapi.h>
 #include <leptonica/allheaders.h>
 #include <filesystem>
-#include <iomanip>
 #include <unordered_set>
-#include <opencv2/video/tracking.hpp>
 #include "kalmanFilter.h"
 #include "topDownView.h"
 
@@ -47,7 +44,7 @@ int hammingDistance(const std::string &str1, const std::string &str2) {
 int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
-    std::vector<std::vector<int> > verif(size1 + 1, std::vector<int>(size2 + 1));
+    std::vector verif(size1 + 1, std::vector<int>(size2 + 1));
 
     if (size1 == 0)
         return size2;
@@ -115,7 +112,6 @@ Position3D getPosition3D(
 }
 
 void drawMeasurements(
-    cv::Mat &frame,
     const BumperMeasurements &m,
     const Position3D &pos,
     const Detection &detection,
@@ -124,16 +120,14 @@ void drawMeasurements(
 ) {
 
     static std::unordered_map<std::string, kalmanFilter> filters;
-    std::string label = findMode(detection.label_list);
+    std::string label = detection.label;
 
     constexpr double SCREEN_WIDTH = 1280;
     constexpr double SCREEN_HEIGHT = 720;
     constexpr double X_FOV = 70;
     constexpr double Y_FOV = 43;
 
-    std::stringstream ss;
-
-    cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
+    auto robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
                                        static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
 
     constexpr double max_cord_x = SCREEN_WIDTH / 2;
@@ -154,9 +148,9 @@ void drawMeasurements(
     if (!label.empty()) {
         kalmanFilter &filter = filters[label];
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label,
-                                      robot_color);
+
     }
+    g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, robot_color);
 
     //erase
     for (auto it = filters.begin(); it != filters.end();) {
@@ -226,7 +220,6 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
 
         char *outText = api->GetUTF8Text();
         std::string result(outText);
-        std::string sResult(outText);
         delete[] outText;
 
         result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
@@ -237,9 +230,9 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
             for (int i = 0; i < teamNumbers->size(); i++) {
                 int d;
                 if (teamNumbers[i].length() == result.length())
-                    d = hammingDistance(sResult, teamNumbers[i]);
+                    d = hammingDistance(result, teamNumbers[i]);
                 else
-                    d = levenshteinDist(sResult, teamNumbers[i]);
+                    d = levenshteinDist(result, teamNumbers[i]);
                 if (d < minDist) {
                     minDist = d;
                     minIndex = i;
@@ -247,22 +240,13 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
             }
         }
 
-        if (minDist > 3) {
-            continue;
-        }
-
         result = teamNumbers[minIndex];
         cv::putText(frame, result,
                     cv::Point(det.bounding_box.x + 10, det.bounding_box.y - 50),
                     cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
 
-        det.label_list.emplace_back(result);
-
-        visibleNumbers.push_back(result);
-
-        if (det.label_list.size() > 50) {
-            det.label_list.erase(det.label_list.begin());
-        }
+        det.label = result;
+        visibleNumbers.emplace_back(result);
     }
 
     return visibleNumbers;
@@ -283,7 +267,7 @@ void detectEdgesBumper(
     cv::inRange(hsv, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), rMask);
     cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
 
-    rMask = rMask | rMask1;
+    cv::bitwise_or(rMask1, rMask, rMask);
 
     cv::Canny(rMask, edgesRed, 120, 255);
     cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -333,7 +317,7 @@ void detectEdgesBumper(
     std::vector<std::string> visibleNumbers{};
     visibleNumbers = findNumbers(detections, blankFrame, frame, teamNumbers);
 
-    std::vector<std::vector<cv::Point> >::value_type largestContour = {cv::Point(0, 0)};
+    std::vector<std::vector<cv::Point>>::value_type largestContour = {cv::Point(0, 0)};
     int maxArea = 0;
     cv::Scalar color;
 
@@ -360,7 +344,7 @@ void detectEdgesBumper(
                 detection = det;
             }
         }
-        drawMeasurements(frame, m, pos, detection, cv::Scalar(0, 0, 255), visibleNumbers);
+        drawMeasurements(m, pos, detection, cv::Scalar(0, 0, 255), visibleNumbers);
 
         cv::drawContours(frame, largestContour, -1, color, 2);
     }
