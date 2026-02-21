@@ -170,7 +170,6 @@ int main() {
         if (net.empty()) {
             return -1;
         }
-
         // Setup best available backend
         std::string backend = setupGPUBackend(net);
 
