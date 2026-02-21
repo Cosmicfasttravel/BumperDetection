@@ -141,7 +141,7 @@ std::vector<Detection> ProcessYoloOutput(
 
 
 int main() {
-    std::string teamNumbers[5] = {"1306", "5324", "4613", "4959", "118"};
+    std::string teamNumbers[5] = {"1306", "2560", "2457", "4959", "118"};
     //for robot cropped "3928", "2560", "2457", "4959", "118"
 
     // std::cout << "Input team numbers (5): " << std::endl;
@@ -269,8 +269,9 @@ int main() {
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
-            cv::rectangle(frame, cv::Point(1280/2, 720/2), cv::Point(1280/2, 720/2), cv::Scalar(255, 255, 255), cv::FILLED);
-
+            for (auto& det : detections) {
+                cv::rectangle(frame, det.bounding_box, cv::FILLED);
+            }
             detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
 
             int key = cv::waitKey(waitTime);

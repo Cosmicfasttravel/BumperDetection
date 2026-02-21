@@ -118,7 +118,6 @@ void drawMeasurements(
     const cv::Scalar &robot_color,
     const std::vector<std::string> &visibleNumbers
 ) {
-
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
@@ -128,7 +127,7 @@ void drawMeasurements(
     constexpr double Y_FOV = 43;
 
     auto robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
-                                       static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
+                                  static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
 
     constexpr double max_cord_x = SCREEN_WIDTH / 2;
     constexpr double max_cord_y = SCREEN_HEIGHT / 2;
@@ -148,7 +147,6 @@ void drawMeasurements(
     if (!label.empty()) {
         kalmanFilter &filter = filters[label];
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-
     }
     g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, robot_color);
 
@@ -162,12 +160,10 @@ void drawMeasurements(
         }
         if (!found) {
             it = filters.erase(it);
-        }
-        else {
+        } else {
             ++it;
         }
     }
-
 }
 
 void startOCR() {
@@ -177,6 +173,7 @@ void startOCR() {
     api->SetPageSegMode(tesseract::PSM_SPARSE_TEXT_OSD);
     api->SetVariable("tessedit_char_whitelist", "0123456789");
 }
+
 void endOCR() {
     api->End();
     delete api;
@@ -184,7 +181,6 @@ void endOCR() {
 
 std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
                                      const std::string teamNumbers[5]) {
-
     std::vector<std::string> visibleNumbers;
     for (auto &det: detections) {
         cv::Mat img = blankFrame(det.bounding_box).clone();
@@ -229,16 +225,15 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
             for (int i = 0; i < teamNumbers->size(); i++) {
                 int d;
-                if (teamNumbers[i].length() == result.length())
-                    d = hammingDistance(result, teamNumbers[i]);
-                else
-                    d = levenshteinDist(result, teamNumbers[i]);
+                d = levenshteinDist(result, teamNumbers[i]);
                 if (d < minDist) {
                     minDist = d;
                     minIndex = i;
                 }
             }
         }
+        if (minDist > 5)
+            continue;
 
         result = teamNumbers[minIndex];
         cv::putText(frame, result,
@@ -317,36 +312,43 @@ void detectEdgesBumper(
     std::vector<std::string> visibleNumbers{};
     visibleNumbers = findNumbers(detections, blankFrame, frame, teamNumbers);
 
-    std::vector<std::vector<cv::Point>>::value_type largestContour = {cv::Point(0, 0)};
-    int maxArea = 0;
-    cv::Scalar color;
+    cv::drawContours(frame, overlappingContoursBlue, 0, cv::Scalar(255, 0, 0), 2);
+    cv::drawContours(frame, overlappingContoursRed, 0, cv::Scalar(0, 0, 255), 2);
+
 
     // Process red robots
     for (const auto &contour: overlappingContoursRed) {
-        if (contourArea(contour) < maxArea) continue;
-        maxArea = static_cast<int>(contourArea(contour));
-        largestContour = contour;
-        color = cv::Scalar(0, 0, 255);
+        for (auto &det: detections) {
+            if (((boundingRect(contour) & det.bounding_box).area()) > 0) {
+                if (contourArea(contour) < det.largestContourSize) continue;
+                det.largestContourSize = static_cast<int>(contourArea(contour));
+                det.largestContour = contour;
+                det.largestContourColor = cv::Scalar(0, 0, 255);
+            }
+        }
     }
     // Process blue robots
     for (const auto &contour: overlappingContoursBlue) {
-        if (contourArea(contour) < maxArea) continue;
-        maxArea = static_cast<int>(contourArea(contour));
-        largestContour = contour;
-        color = cv::Scalar(255, 0, 0);
-    }
-    if (!largestContour.empty()) {
-        BumperMeasurements m = getMeasurementsFromContour(largestContour);
-        Position3D pos = getPosition3D(m);
-        Detection detection;
         for (auto &det: detections) {
-            if ((det.bounding_box & boundingRect(largestContour)) == boundingRect(largestContour)) {
-                detection = det;
+            if (((boundingRect(contour) & det.bounding_box).area()) > 0) {
+                if (contourArea(contour) < det.largestContourSize) continue;
+                det.largestContourSize = static_cast<int>(contourArea(contour));
+                det.largestContour = contour;
+                det.largestContourColor = cv::Scalar(255, 0, 0);
             }
         }
-        drawMeasurements(m, pos, detection, cv::Scalar(0, 0, 255), visibleNumbers);
-
-        cv::drawContours(frame, largestContour, -1, color, 2);
+    }
+    for (auto &det: detections) {
+        if (!det.largestContour.empty()) {
+            BumperMeasurements m = getMeasurementsFromContour(det.largestContour);
+            Position3D pos = getPosition3D(m);
+            cv::drawContours(frame, det.largestContour, 0, det.largestContourColor, 2);
+            drawMeasurements(m, pos, det, det.largestContourColor, visibleNumbers);
+            det.largestContourSize = 0;
+        }
+        else {
+            std::cout << "No detections found!" << std::endl;
+        }
     }
 
     // Render top-down view
