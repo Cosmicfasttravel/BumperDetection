@@ -4,7 +4,6 @@ project(BumperDetection)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-# Point to CUDA-enabled OpenCV
 set(OpenCV_DIR "C:/opencv/build")
 find_package(OpenCV REQUIRED)
 find_package(Leptonica CONFIG REQUIRED)

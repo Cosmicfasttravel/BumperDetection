@@ -158,7 +158,7 @@ int main() {
 
     try {
 
-        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
+        std::string model_path = "bumper_yolov9.onnx";
 
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
 
@@ -171,7 +171,7 @@ int main() {
 
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
 
-        cv::VideoCapture cap(video_path);
+        cv::VideoCapture cap(0);
         if (!cap.isOpened()) {
             return -1;
         }
