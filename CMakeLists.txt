@@ -10,14 +10,6 @@ find_package(OpenCV REQUIRED core imgproc imgcodecs text video videoio highgui)
 find_package(Leptonica CONFIG REQUIRED)
 find_package(Tesseract CONFIG REQUIRED)
 
-# Check if OpenCV has CUDA support
-if(OpenCV_CUDA_VERSION)
-    message(STATUS "✓ OpenCV built with CUDA: ${OpenCV_CUDA_VERSION}")
-    add_definitions(-DHAVE_OPENCV_CUDNN)
-else()
-    message(WARNING "✗ OpenCV NOT built with CUDA support")
-endif()
-
 # ONNX Runtime (if you're still using it)
 set(ONNXRUNTIME_DIR "C:/onnxruntime")
 if(EXISTS ${ONNXRUNTIME_DIR})
@@ -28,19 +20,6 @@ else()
     set(ONNX_LIBS "")
     set(ONNX_DLL "")
 endif()
-
-# Debug output
-message(STATUS "=====================================")
-message(STATUS "Build Configuration:")
-message(STATUS "=====================================")
-message(STATUS "OpenCV_VERSION: ${OpenCV_VERSION}")
-message(STATUS "OpenCV_DIR: ${OpenCV_DIR}")
-if(OpenCV_CUDA_VERSION)
-    message(STATUS "CUDA: YES (${OpenCV_CUDA_VERSION})")
-else()
-    message(STATUS "CUDA: NO")
-endif()
-message(STATUS "=====================================")
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
@@ -97,27 +76,5 @@ if(WIN32)
                 "${ONNX_DLL}"
                 $<TARGET_FILE_DIR:BumperDetection>
         )
-    endif()
-
-    # Copy CUDA DLLs
-    if(DEFINED ENV{CUDA_PATH})
-        file(GLOB CUDA_DLLS "$ENV{CUDA_PATH}/bin/cudart*.dll")
-        file(GLOB CUDNN_DLLS "C:/Program Files/NVIDIA/CUDNN/v9.17/bin/13.1/*.dll")
-
-        foreach(dll ${CUDA_DLLS})
-            add_custom_command(TARGET BumperDetection POST_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "${dll}"
-                    $<TARGET_FILE_DIR:BumperDetection>
-            )
-        endforeach()
-
-        foreach(dll ${CUDNN_DLLS})
-            add_custom_command(TARGET BumperDetection POST_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "${dll}"
-                    $<TARGET_FILE_DIR:BumperDetection>
-            )
-        endforeach()
     endif()
 endif()
