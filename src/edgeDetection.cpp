@@ -100,7 +100,7 @@ BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point> &cont
     return m;
 }
 
-Position3D getPosition3D(
+Position3D getZCord(
     const BumperMeasurements &m,
     const double focal_length_cm = 0.36,
     const double known_height_cm = 10.6,
@@ -179,8 +179,7 @@ void endOCR() {
     delete api;
 }
 
-std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame,
-                                     const std::string teamNumbers[5]) {
+std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame, const std::string teamNumbers[5]) {
     std::vector<std::string> visibleNumbers;
     for (auto &det: detections) {
         cv::Mat img = blankFrame(det.bounding_box).clone();
@@ -193,12 +192,14 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         cv::Mat gray;
         cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
+        //Make sure the image is big enough in width and height
         if (gray.cols < 300) {
             double scale = 300.0 / gray.cols;
             cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
             cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
         }
 
+        //Denoise
         cv::Mat denoised;
         cv::bilateralFilter(gray, denoised, 9, 75, 75);
 
@@ -209,11 +210,13 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         cv::Mat final;
         cv::bitwise_and(binary, colorMask, final);
 
+        //Make a rectangle shape to combine contours and fill small holes
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
         cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
 
         api->SetImage(final.data, final.cols, final.rows, 1, final.step);
 
+        //Get the text pointer then destroy it
         char *outText = api->GetUTF8Text();
         std::string result(outText);
         delete[] outText;
@@ -222,6 +225,8 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
 
         int minIndex = 0;
         int minDist = INT_MAX;
+
+        //Find what if the result has a levenshtein distance of 5 or less
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
             for (int i = 0; i < teamNumbers->size(); i++) {
                 int d;
@@ -236,6 +241,8 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
             continue;
 
         result = teamNumbers[minIndex];
+
+        //Draw the result
         cv::putText(frame, result,
                     cv::Point(det.bounding_box.x + 10, det.bounding_box.y - 50),
                     cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
@@ -282,7 +289,6 @@ void detectEdgesBumper(
     cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
-
         for (const auto &det: detections) {
             if ((contourRect & det.bounding_box) == contourRect) {
                 overlappingContoursBlue.emplace_back(contour);
@@ -341,7 +347,7 @@ void detectEdgesBumper(
     for (auto &det: detections) {
         if (!det.largestContour.empty()) {
             BumperMeasurements m = getMeasurementsFromContour(det.largestContour);
-            Position3D pos = getPosition3D(m);
+            Position3D pos = getZCord(m);
             cv::drawContours(frame, det.largestContour, 0, det.largestContourColor, 2);
             drawMeasurements(m, pos, det, det.largestContourColor, visibleNumbers);
             det.largestContourSize = 0;

@@ -1,6 +1,5 @@
 ﻿#ifndef BUMPERDETECTION_EDGEDETECTION_H
 #define BUMPERDETECTION_EDGEDETECTION_H
-#include <list>
 #include <opencv2/core/mat.hpp>
 #include <tesseract/baseapi.h>
 
