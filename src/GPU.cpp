@@ -7,9 +7,7 @@ std::string setupGPUBackend(cv::dnn::Net &net) {
         net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA_FP16);
 
         return "CUDA_FP16";
-    } catch (const cv::Exception &e) {
-    }
-
+    } catch (const cv::Exception &e) {}
     try {
         int cuda_device_count = cv::cuda::getCudaEnabledDeviceCount();
         if (cuda_device_count > 0) {
@@ -18,8 +16,6 @@ std::string setupGPUBackend(cv::dnn::Net &net) {
 
             return "CUDA";
         }
-    } catch (const cv::Exception &e) {
-    }
-
+    } catch (const cv::Exception &e) {}
     return "";
 }
