@@ -171,7 +171,7 @@ int main() {
 
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
 
-        cv::VideoCapture cap(0);
+        cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
             return -1;
         }
@@ -223,11 +223,18 @@ int main() {
 
             cv::Mat blob;
             if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-                return -1;
+                cv::UMat frameUMat;
+                frame.copyTo(frameUMat);
+                cv::dnn::blobFromImage(
+                    frameUMat,
+                    blob,
+                    1.0 / 255.0,
+                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
             }
-
-            cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
+            else {
+                cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
                                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
+            }
 
             auto blob_end = std::chrono::high_resolution_clock::now();
             total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
