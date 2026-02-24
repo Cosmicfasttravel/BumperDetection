@@ -6,8 +6,8 @@
 #include <string>
 #include <chrono>
 #include <iomanip>
-#include "edgeDetection.h"
-#include "GPU.h"
+#include "robotTracking.h"
+#include "setupGPU.h"
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -254,10 +254,6 @@ int main() {
                 CONF_THRESHOLD, NMS_THRESHOLD
             );
 
-            auto postprocess_end = std::chrono::high_resolution_clock::now();
-            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                postprocess_end - postprocess_start).count();
-
             detection_count += static_cast<int>(detections.size());
 
             auto frame_end = Clock::now();
@@ -271,10 +267,9 @@ int main() {
             for (auto& det : detections) {
                 cv::rectangle(frame, det.bounding_box, cv::FILLED);
             }
-            detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
+            analyzeDetections(blankFrame, teamNumbers, frame, detections);
 
             int key = cv::waitKey(waitTime);
-
             if (key == 27) {
                 break;
             }
@@ -283,6 +278,10 @@ int main() {
             else waitTime = 1;
 
             prev_frame_time = frame_start;
+
+            auto postprocess_end = std::chrono::high_resolution_clock::now();
+            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                postprocess_end - postprocess_start).count();
         }
 
         auto end_time = std::chrono::high_resolution_clock::now();

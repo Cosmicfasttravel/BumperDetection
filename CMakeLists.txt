@@ -1,4 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.21)
+cmake_policy(SET CMP0146 OLD)
 project(BumperDetection)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -45,11 +46,11 @@ message(STATUS "=====================================")
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(BumperDetection
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/yolomodelgpu.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/GPU.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/GPU.h
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/edgeDetection.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/edgeDetection.h
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/main.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/setupGPU.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/setupGPU.h
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/robotTracking.cpp
+        C:/Users/marcu/CLionProjects/robotvisiontest/src/robotTracking.h
         C:/Users/marcu/CLionProjects/robotvisiontest/src/kalmanFilter.cpp
         C:/Users/marcu/CLionProjects/robotvisiontest/src/kalmanFilter.h
         C:/Users/marcu/CLionProjects/robotvisiontest/src/topDownView.cpp

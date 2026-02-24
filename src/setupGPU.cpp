@@ -1,4 +1,4 @@
-﻿#include "GPU.h"
+﻿#include "setupGPU.h"
 #include <opencv2/core/ocl.hpp>
 
 std::string setupGPUBackend(cv::dnn::Net &net) {

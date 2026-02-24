@@ -1,4 +1,4 @@
-﻿#include "edgeDetection.h"
+﻿#include "robotTracking.h"
 
 #include <deque>
 #include <iostream>
@@ -20,6 +20,8 @@ struct BumperMeasurements {
 };
 
 struct Position3D {
+    double x_cm;
+    double y_cm;
     double z_cm;
 };
 
@@ -100,7 +102,7 @@ BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point> &cont
     return m;
 }
 
-Position3D getZCord(
+Position3D getPos(
     const BumperMeasurements &m,
     const double focal_length_cm = 0.36,
     const double known_height_cm = 10.6,
@@ -108,18 +110,6 @@ Position3D getZCord(
 ) {
     Position3D pos{};
     pos.z_cm = (known_height_cm * focal_length_cm) / (m.h * pixel_height_cm);
-    return pos;
-}
-
-void drawMeasurements(
-    const BumperMeasurements &m,
-    const Position3D &pos,
-    const Detection &detection,
-    const cv::Scalar &robot_color,
-    const std::vector<std::string> &visibleNumbers
-) {
-    static std::unordered_map<std::string, kalmanFilter> filters;
-    std::string label = detection.label;
 
     constexpr double SCREEN_WIDTH = 1280;
     constexpr double SCREEN_HEIGHT = 720;
@@ -135,18 +125,31 @@ void drawMeasurements(
     const double x_angle = (X_FOV / 2 * (robot_center.x / max_cord_x)) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2 * (robot_center.y / max_cord_y)) * CV_PI / 180.0;
 
-    const double x_coordinate = pos.z_cm * cos(x_angle) / 100;
-    const double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
-    const double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
+    pos.x_cm = pos.z_cm * cos(x_angle) / 100;
+    pos.y_cm = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
+    pos.z_cm = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
+
+    return pos;
+}
+
+void drawMeasurements(
+    const Position3D &pos,
+    const Detection &detection,
+    const cv::Scalar &robot_color,
+    const std::vector<std::string> &visibleNumbers
+) {
+    static std::unordered_map<std::string, kalmanFilter> filters;
+    std::string label = detection.label;
+
     cv::Vec3d filtered;
-    filtered[0] = x_coordinate;
-    filtered[1] = y_coordinate;
-    filtered[2] = z_coordinate;
+    filtered[0] = pos.x_cm;
+    filtered[1] = pos.y_cm;
+    filtered[2] = pos.z_cm;
 
     // Update tracker with robot position
     if (!label.empty()) {
         kalmanFilter &filter = filters[label];
-        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
+        filtered = filter.update(pos.x_cm, pos.y_cm, pos.z_cm, static_cast<double>(1) / 5);
     }
     g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, robot_color);
 
@@ -254,7 +257,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
     return visibleNumbers;
 }
 
-void detectEdgesBumper(
+void analyzeDetections(
     cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
@@ -271,9 +274,8 @@ void detectEdgesBumper(
 
     cv::bitwise_or(rMask1, rMask, rMask);
 
-    cv::Canny(rMask, edgesRed, 120, 255);
+    cv::Canny(rMask, edgesRed, 85, 255);
     cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
 
@@ -285,7 +287,7 @@ void detectEdgesBumper(
         }
     }
 
-    cv::Canny(bMask, edgesBlue, 120, 255);
+    cv::Canny(bMask, edgesBlue, 85, 255);
     cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
@@ -347,9 +349,9 @@ void detectEdgesBumper(
     for (auto &det: detections) {
         if (!det.largestContour.empty()) {
             BumperMeasurements m = getMeasurementsFromContour(det.largestContour);
-            Position3D pos = getZCord(m);
+            Position3D pos = getPos(m);
             cv::drawContours(frame, det.largestContour, 0, det.largestContourColor, 2);
-            drawMeasurements(m, pos, det, det.largestContourColor, visibleNumbers);
+            drawMeasurements(pos, det, det.largestContourColor, visibleNumbers);
             det.largestContourSize = 0;
         }
         else {

@@ -44,47 +44,6 @@ void TopDownVisualizer::drawGrid() {
     }
 }
 
-void TopDownVisualizer::drawCamera() {
-    // Draw camera as a triangle pointing upward (forward in world coordinates)
-    int size = 20;
-    std::vector<cv::Point> triangle;
-    triangle.push_back(cv::Point(camera_pos.x, camera_pos.y - size));  // Top point (forward)
-    triangle.push_back(cv::Point(camera_pos.x - size/2, camera_pos.y + size/2));  // Bottom left
-    triangle.push_back(cv::Point(camera_pos.x + size/2, camera_pos.y + size/2));  // Bottom right
-
-    // Draw outline
-    cv::polylines(canvas, triangle, true, cv::Scalar(255, 255, 255), 2);
-
-    // Add label
-    cv::putText(canvas, "Camera",
-                cv::Point(camera_pos.x - 30, camera_pos.y + size + 20),
-                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
-}
-
-void TopDownVisualizer::drawFieldOfView(double fov_angle, double max_distance) {
-    // Draw a cone representing the camera's field of view
-    double half_fov = fov_angle / 2.0 * CV_PI / 180.0;
-
-    // Calculate the cone endpoints
-    cv::Point left_point = worldToCanvas(max_distance * cos(half_fov),
-                                         -max_distance * sin(half_fov));
-    cv::Point right_point = worldToCanvas(max_distance * cos(half_fov),
-                                          max_distance * sin(half_fov));
-
-    // Draw cone lines
-    cv::line(canvas, camera_pos, left_point, cv::Scalar(100, 100, 200), 1, cv::LINE_AA);
-    cv::line(canvas, camera_pos, right_point, cv::Scalar(100, 100, 200), 1, cv::LINE_AA);
-
-    // Draw arc at the end
-    cv::ellipse(canvas, camera_pos,
-                cv::Size(static_cast<int>(max_distance / scale),
-                         static_cast<int>(max_distance / scale)),
-                -90,  // Rotation
-                -fov_angle / 2.0,  // Start angle
-                fov_angle / 2.0,   // End angle
-                cv::Scalar(100, 100, 200), 1, cv::LINE_AA);
-}
-
 void TopDownVisualizer::drawDistanceCircles(const std::vector<double>& distances) {
     for (double dist : distances) {
         int radius = static_cast<int>(dist / scale);
@@ -112,10 +71,6 @@ void TopDownVisualizer::drawRobot(const RobotPosition& robot, int radius) {
 
     // Draw outline
     cv::circle(canvas, pos, radius, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
-
-    // Draw direction indicator (small line pointing forward)
-    cv::Point forward_point(pos.x, pos.y - radius - 5);
-    cv::line(canvas, pos, forward_point, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
 
     // Add label if provided
     if (!robot.label.empty()) {

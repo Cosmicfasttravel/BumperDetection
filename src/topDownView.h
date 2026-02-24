@@ -41,9 +41,6 @@ public:
     // Clear the canvas
     void clear();
 
-    // Draw the camera at center
-    void drawCamera();
-
     // Draw grid lines
     void drawGrid();
 
@@ -52,9 +49,6 @@ public:
 
     // Draw multiple robots
     void drawRobots(const std::vector<RobotPosition>& robots);
-
-    // Draw field of view cone
-    void drawFieldOfView(double fov_angle = 70.0, double max_distance = 10.0);
 
     // Add distance circles
     void drawDistanceCircles(const std::vector<double>& distances);
@@ -117,14 +111,8 @@ public:
         // Draw distance circles (1m, 2m, 3m, 5m, 8m)
         visualizer.drawDistanceCircles({1.0, 2.0, 3.0, 5.0, 8.0});
 
-        // Draw field of view
-        visualizer.drawFieldOfView(70.0, 10.0);  // 70 degree FOV, 10m max
-
         // Draw all robots
         visualizer.drawRobots(tracked_robots);
-
-        // Draw camera last (so it's on top)
-        visualizer.drawCamera();
 
         // Show the visualization
         visualizer.show("Robot Positions - Top Down View");
