@@ -129,8 +129,6 @@ void drawMeasurements(
     constexpr double X_FOV = 70;
     constexpr double Y_FOV = 43;
 
-    std::stringstream ss;
-
     cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
                                        static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
 

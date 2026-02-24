@@ -155,7 +155,6 @@ int main() {
             teamNumber = "";
         }
     }
-
     try {
 
         std::string model_path = "bumper_yolov9.onnx";
@@ -225,11 +224,16 @@ int main() {
             if (backend == "OpenCL" || backend == "OpenCL_FP16") {
                 cv::UMat frameUMat;
                 frame.copyTo(frameUMat);
+
                 cv::dnn::blobFromImage(
                     frameUMat,
                     blob,
                     1.0 / 255.0,
-                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
+                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
+                    cv::Scalar(0, 0, 0),
+                    true,
+                    false
+                );
             }
             else {
                 cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
@@ -272,7 +276,6 @@ int main() {
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
-            cv::rectangle(frame, cv::Point(1280/2, 720/2), cv::Point(1280/2, 720/2), cv::Scalar(255, 255, 255), cv::FILLED);
 
             detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
             int key = cv::waitKey(waitTime);

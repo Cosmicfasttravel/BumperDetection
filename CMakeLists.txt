@@ -4,7 +4,7 @@ project(BumperDetection)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-set(OpenCV_DIR "C:/opencv/build")
+set(OpenCV_DIR "C:/opencv_opencl_install/build")
 find_package(OpenCV REQUIRED)
 find_package(Leptonica CONFIG REQUIRED)
 find_package(Tesseract CONFIG REQUIRED)
