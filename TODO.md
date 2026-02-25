@@ -11,7 +11,7 @@
 ### - Change Kalman filter to use velocity for runtime tuning
 
 ## Low Priority:
-### - Switch from onnx to tensorflow
+### - Switch from onnx to Tensor RT
 
 ## Lowest Priority:
 ### - Micro optimizations

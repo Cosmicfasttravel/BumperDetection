@@ -57,6 +57,16 @@ add_executable(BumperDetection
         C:/Users/marcu/CLionProjects/robotvisiontest/src/topDownView.h
 )
 
+set(TENSORRT_ROOT "C:/TensorRT-10.15.1.29")
+
+target_include_directories(BumperDetection PRIVATE
+        ${TENSORRT_ROOT}/include
+)
+
+target_link_directories(BumperDetection PRIVATE
+        ${TENSORRT_ROOT}/lib
+)
+
 target_link_libraries(BumperDetection
         ${OpenCV_LIBS}
         opencv_core
@@ -68,6 +78,9 @@ target_link_libraries(BumperDetection
         opencv_text
         Tesseract::libtesseract
         ${ONNX_LIBS}
+        nvinfer_10
+        nvonnxparser_10
+        nvinfer_plugin_10
 )
 
 # Copy OpenCV DLLs

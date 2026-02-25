@@ -28,21 +28,6 @@ struct Position3D {
 // Global tracker instance
 static RobotTracker g_tracker;
 
-int hammingDistance(const std::string &str1, const std::string &str2) {
-    if (str1.length() != str2.length()) {
-        return 4;
-    }
-
-    int count = 0;
-    for (size_t i = 0; i < str1.length(); ++i) {
-        if (str1[i] != str2[i]) {
-            count++;
-        }
-    }
-
-    return count;
-}
-
 int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
@@ -229,7 +214,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         int minIndex = 0;
         int minDist = INT_MAX;
 
-        //Find what if the result has a levenshtein distance of 5 or less
+        //Find what if the result has a levenshtein distance of 3 or less
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
             for (int i = 0; i < teamNumbers->size(); i++) {
                 int d;
@@ -240,7 +225,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
                 }
             }
         }
-        if (minDist > 5)
+        if (minDist > 3)
             continue;
 
         result = teamNumbers[minIndex];
