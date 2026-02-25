@@ -10,6 +10,7 @@ set(OpenCV_DIR "C:/opencv_cuda_install")
 find_package(OpenCV REQUIRED core imgproc imgcodecs text video videoio highgui)
 find_package(Leptonica CONFIG REQUIRED)
 find_package(Tesseract CONFIG REQUIRED)
+find_package(CUDA REQUIRED)
 
 # Check if OpenCV has CUDA support
 if(OpenCV_CUDA_VERSION)
@@ -19,7 +20,7 @@ else()
     message(WARNING "✗ OpenCV NOT built with CUDA support")
 endif()
 
-# ONNX Runtime (if you're still using it)
+# ONNX Runtime
 set(ONNXRUNTIME_DIR "C:/onnxruntime")
 if(EXISTS ${ONNXRUNTIME_DIR})
     include_directories(${ONNXRUNTIME_DIR}/include)
@@ -63,6 +64,8 @@ target_include_directories(BumperDetection PRIVATE
         ${TENSORRT_ROOT}/include
 )
 
+include_directories(${CUDA_INCLUDE_DIRS})
+
 target_link_directories(BumperDetection PRIVATE
         ${TENSORRT_ROOT}/lib
 )
@@ -81,6 +84,7 @@ target_link_libraries(BumperDetection
         nvinfer_10
         nvonnxparser_10
         nvinfer_plugin_10
+        ${CUDA_LIBRARIES}
 )
 
 # Copy OpenCV DLLs
