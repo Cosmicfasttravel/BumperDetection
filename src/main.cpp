@@ -6,8 +6,27 @@
 #include <string>
 #include <chrono>
 #include <iomanip>
+#include <cuda_fp16.h>
+#include <fstream>
+
 #include "robotTracking.h"
 #include "setupGPU.h"
+
+#include "NvOnnxParser.h"
+using namespace nvonnxparser;
+
+#include "NvInfer.h"
+using namespace nvinfer1;
+
+class Logger : public ILogger {
+    void log(Severity severity, const char *msg) noexcept override {
+        if (severity <= Severity::kWARNING)
+            std::cout << "WARNING: " << msg << std::endl;
+
+        if (severity <= Severity::kVERBOSE)
+            std::cout << "INFO: " << msg << std::endl;
+    }
+} logger;
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -165,6 +184,70 @@ int main() {
     try {
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
 
+        std::vector<char> engineData;
+        size_t size{0};
+
+        if (std::ifstream file("C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/yolov26.engine", std::ios::binary); file.good()) {
+            file.seekg(0, std::ifstream::end);
+            size = file.tellg();
+            file.seekg(0, std::ifstream::beg);
+            engineData.resize(size);
+            file.read(engineData.data(), size);
+            file.close();
+        }
+
+        IRuntime *runtime = createInferRuntime(logger);
+        assert(runtime != nullptr);
+        ICudaEngine *engine = runtime->deserializeCudaEngine(engineData.data(), size);
+        if (!engine) {
+            auto builder = createInferBuilder(logger);
+            uint32_t flags = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+            auto network = builder->createNetworkV2(flags);
+            auto config = builder->createBuilderConfig();
+            config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1ULL << 30);
+
+            auto parser = createParser(*network, logger);
+            if (!parser->parseFromFile("C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov26.onnx", 0)) {
+                std::cerr << "Loading .onnx failed";
+                return -1;
+            }
+
+            std::cout << "Building Engine";
+            engine = builder->buildEngineWithConfig(*network, *config);
+            if (!engine) {
+                std::cerr << "Loading engine failed";
+                return -1;
+            }
+            auto context = engine->createExecutionContext();
+            if (!context) {
+                std::cerr << "Loading context failed";
+                return -1;
+            }
+            IHostMemory* serializedModel = builder->buildSerializedNetwork(*network, *config);
+            if (!serializedModel) {
+                std::cerr << "Loading serializedModel failed";
+                return -1;
+            }
+
+            std::ofstream engineFile("yolov26.engine", std::ios::binary);
+            if (!engineFile) {
+                std::cerr << "Cannot open file to save engine!" << std::endl;
+                delete serializedModel;
+                return -1;
+            }
+
+            // Write the raw data
+            engineFile.write(static_cast<const char*>(serializedModel->data()), serializedModel->size());
+            engineFile.close();
+
+            delete builder;
+            delete parser;
+            delete network;
+            delete config;
+            delete serializedModel;
+        }
+
+
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
 
         if (net.empty()) {
@@ -174,6 +257,7 @@ int main() {
         std::string backend = setupGPUBackend(net);
 
         std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
+
 
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
@@ -264,7 +348,7 @@ int main() {
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
-            for (auto& det : detections) {
+            for (auto &det: detections) {
                 cv::rectangle(frame, det.bounding_box, cv::FILLED);
             }
             analyzeDetections(blankFrame, teamNumbers, frame, detections);

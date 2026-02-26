@@ -137,5 +137,14 @@ if(WIN32)
                     $<TARGET_FILE_DIR:BumperDetection>
             )
         endforeach()
+        file(GLOB TENSORRT_DLLS "${TENSORRT_ROOT}/lib/*.dll")
+
+        foreach(dll ${TENSORRT_DLLS})
+            add_custom_command(TARGET BumperDetection POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${dll}"
+                    $<TARGET_FILE_DIR:BumperDetection>
+            )
+        endforeach()
     endif()
 endif()
