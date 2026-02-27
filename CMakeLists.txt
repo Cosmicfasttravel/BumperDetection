@@ -23,15 +23,15 @@ endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(BumperDetection
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/yolomodelgpu.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/GPU.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/GPU.h
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/edgeDetection.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/edgeDetection.h
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/kalmanFilter.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/kalmanFilter.h
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/topDownView.cpp
-        C:/Users/marcu/CLionProjects/robotvisiontest/src/topDownView.h
+        src/yolomodelgpu.cpp
+        src/GPU.cpp
+        src/GPU.h
+        src/edgeDetection.cpp
+        src/edgeDetection.h
+        src/kalmanFilter.cpp
+        src/kalmanFilter.h
+        src/topDownView.cpp
+        src/topDownView.h
 )
 
 target_link_libraries(BumperDetection
