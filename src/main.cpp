@@ -182,12 +182,12 @@ int main() {
     }
 
     try {
-        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
+        std::string model_path = "../modeltest/bumper_yolov9.onnx";
 
         std::vector<char> engineData;
         size_t size{0};
 
-        if (std::ifstream file("C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/yolov26.engine", std::ios::binary); file.good()) {
+        if (std::ifstream file("../modeltest/yolov26.engine", std::ios::binary); file.good()) {
             file.seekg(0, std::ifstream::end);
             size = file.tellg();
             file.seekg(0, std::ifstream::beg);
@@ -207,7 +207,7 @@ int main() {
             config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1ULL << 30);
 
             auto parser = createParser(*network, logger);
-            if (!parser->parseFromFile("C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov26.onnx", 0)) {
+            if (!parser->parseFromFile("../modeltest/bumper_yolov26.onnx", 0)) {
                 std::cerr << "Loading .onnx failed";
                 return -1;
             }
@@ -256,7 +256,7 @@ int main() {
         // Setup best available backend
         std::string backend = setupGPUBackend(net);
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
+        std::string video_path = "../vids/5ft.MP4";
 
 
         cv::VideoCapture cap(video_path);
