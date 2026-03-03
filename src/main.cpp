@@ -57,21 +57,7 @@ std::vector<Detection> ProcessYoloOutput(
     int num_detections;
     int num_values_per_detection;
 
-    if (output_data.dims == 3) {
-        int dim1 = output_data.size[1];
-        int dim2 = output_data.size[2];
-
-        if (dim1 < 100 && dim2 > 1000) {
-            output_data = output_data.reshape(1, dim1);
-            cv::transpose(output_data, output_data);
-            num_detections = dim2;
-            num_values_per_detection = dim1;
-        } else {
-            output_data = output_data.reshape(1, dim1);
-            num_detections = dim1;
-            num_values_per_detection = dim2;
-        }
-    } else if (output_data.dims == 2) {
+    if (output_data.dims == 2) {
         num_detections = output_data.rows;
         num_values_per_detection = output_data.cols;
     } else {
@@ -143,7 +129,8 @@ std::vector<Detection> ProcessYoloOutput(
     }
 
     std::vector<int> nms_result;
-    cv::dnn::NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, nms_result);
+    if (!boxes.empty())
+        cv::dnn::NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, nms_result);
 
     for (int idx: nms_result) {
         Detection result;
@@ -182,12 +169,10 @@ int main() {
     }
 
     try {
-        std::string model_path = "../modeltest/bumper_yolov9.onnx";
-
         std::vector<char> engineData;
         size_t size{0};
 
-        if (std::ifstream file("../modeltest/yolov26.engine", std::ios::binary); file.good()) {
+        if (std::ifstream file("../modeltest/yolov9.engine", std::ios::binary); file.good()) {
             file.seekg(0, std::ifstream::end);
             size = file.tellg();
             file.seekg(0, std::ifstream::beg);
@@ -204,10 +189,11 @@ int main() {
             uint32_t flags = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
             auto network = builder->createNetworkV2(flags);
             auto config = builder->createBuilderConfig();
+            config->setFlag(BuilderFlag::kINT4);
             config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1ULL << 30);
 
             auto parser = createParser(*network, logger);
-            if (!parser->parseFromFile("../modeltest/bumper_yolov26.onnx", 0)) {
+            if (!parser->parseFromFile("../modeltest/bumper_yolov9.onnx", 0)) {
                 std::cerr << "Loading .onnx failed";
                 return -1;
             }
@@ -229,7 +215,7 @@ int main() {
                 return -1;
             }
 
-            std::ofstream engineFile("yolov26.engine", std::ios::binary);
+            std::ofstream engineFile("yolov9.engine", std::ios::binary);
             if (!engineFile) {
                 std::cerr << "Cannot open file to save engine!" << std::endl;
                 delete serializedModel;
@@ -246,15 +232,7 @@ int main() {
             delete config;
             delete serializedModel;
         }
-
-
-        cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
-
-        if (net.empty()) {
-            return -1;
-        }
-        // Setup best available backend
-        std::string backend = setupGPUBackend(net);
+        IExecutionContext *context = engine->createExecutionContext();
 
         std::string video_path = "../vids/5ft.MP4";
 
@@ -285,6 +263,31 @@ int main() {
         static auto prev_frame_time = Clock::now();
 
         startOCR();
+
+        cudaStream_t stream;
+        cudaStreamCreate(&stream);
+
+        void* dInput{nullptr};
+        void* dOutput{nullptr};
+
+        size_t inputSize = 1 * 3 * 640 * 640 * sizeof(float);
+        auto dims = engine->getTensorShape("output0");
+
+        int totalSize = 1;
+        for (int i = 0; i < dims.nbDims; ++i)
+            totalSize *= dims.d[i];
+
+        size_t outputSize = totalSize * sizeof(float);
+
+        cudaMalloc(&dInput, inputSize);
+        cudaMalloc(&dOutput, outputSize);
+
+        context->setTensorAddress("images", dInput);
+        context->setTensorAddress("output0", dOutput);
+
+        float* outputData;
+        cudaMallocHost((void**)&outputData, outputSize);
+
         while (true) {
             auto frame_start = Clock::now();
 
@@ -309,28 +312,49 @@ int main() {
             //Create a blank frame that doesn't contain the rectangles
             blankFrame = frame.clone();
 
-            auto blob_start = std::chrono::high_resolution_clock::now();
+            auto preprocess_start = std::chrono::high_resolution_clock::now();
 
-            cv::Mat blob;
+            cv::Mat resized;
+            cv::resize(frame, resized, cv::Size(640, 640));
+            cv::cvtColor(resized, resized, cv::COLOR_BGR2RGB);
+            resized.convertTo(resized, CV_32F, 1.0 / 255.0);
 
-            cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
-                                   cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
+            std::vector<cv::Mat> channels;
+            cv::split(resized, channels);
 
-            auto blob_end = std::chrono::high_resolution_clock::now();
-            total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
+            std::vector<float> inputData(inputSize / sizeof(float));
+            for (int i = 0; i < 3; ++i) {
+                memcpy(inputData.data() + i*640*640, channels[i].data, 640*640*sizeof(float));
+            }
+            cudaMemcpyAsync(dInput, inputData.data(), inputData.size() * sizeof(float),
+                cudaMemcpyHostToDevice, stream);
+
+            auto preprocess_end = std::chrono::high_resolution_clock::now();
+            total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                            preprocess_end - preprocess_start).count();
 
             auto inference_start = std::chrono::high_resolution_clock::now();
+            context->enqueueV3(stream);
 
-            net.setInput(blob);
-            std::vector<cv::Mat> outputs;
-            net.forward(outputs, net.getUnconnectedOutLayersNames());
+            cudaMemcpyAsync(outputData, dOutput, outputSize,
+                            cudaMemcpyDeviceToHost, stream);
+
+            cudaStreamSynchronize(stream);
 
             auto inference_end = std::chrono::high_resolution_clock::now();
             total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                inference_end - inference_start).count();
-
-
+                                        inference_end - inference_start).count();
             auto postprocess_start = std::chrono::high_resolution_clock::now();
+            cv::Mat outputMat(8400, 5, CV_32F);
+            float* dst = (float*)outputMat.data;
+            float* src = outputData;
+
+            for (int f = 0; f < 5; ++f)
+                for (int a = 0; a < 8400; ++a)
+                    dst[a * 5 + f] = src[f * 8400 + a];
+
+            std::vector<cv::Mat> outputs;
+            outputs.push_back(outputMat);
 
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs, frame.cols, frame.rows,
@@ -351,6 +375,7 @@ int main() {
             for (auto &det: detections) {
                 cv::rectangle(frame, det.bounding_box, cv::FILLED);
             }
+
             analyzeDetections(blankFrame, teamNumbers, frame, detections);
 
             int key = cv::waitKey(waitTime);
@@ -367,6 +392,10 @@ int main() {
             total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
                 postprocess_end - postprocess_start).count();
         }
+        cudaFree(dInput);
+        cudaFree(dOutput);
+        cudaFreeHost(outputData);
+        cudaStreamDestroy(stream);
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -379,6 +408,7 @@ int main() {
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
     } catch (const cv::Exception &e) {
+        std::cout << e.what() << std::endl;
         return -1;
     } catch (const std::exception &e) {
         return -1;

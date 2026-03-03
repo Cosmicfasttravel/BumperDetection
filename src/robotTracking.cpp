@@ -1,5 +1,5 @@
 ﻿#include "robotTracking.h"
-
+#include <chrono>
 #include <deque>
 #include <iostream>
 #include <opencv2/highgui.hpp>
@@ -170,6 +170,7 @@ void endOCR() {
 std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame, cv::Mat &frame, const std::string teamNumbers[5]) {
     std::vector<std::string> visibleNumbers;
     for (auto &det: detections) {
+
         cv::Mat img = blankFrame(det.bounding_box).clone();
         cv::GaussianBlur(img, img, cv::Size(7, 7), 0);
 
@@ -189,7 +190,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
 
         //Denoise
         cv::Mat denoised;
-        cv::bilateralFilter(gray, denoised, 9, 75, 75);
+        cv::GaussianBlur(gray, denoised, cv::Size(5, 5), 0);
 
         cv::Mat binary;
         cv::adaptiveThreshold(denoised, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -216,7 +217,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
 
         //Find what if the result has a levenshtein distance of 3 or less
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
-            for (int i = 0; i < teamNumbers->size(); i++) {
+            for (int i = 0; i < 5; i++) {
                 int d;
                 d = levenshteinDist(result, teamNumbers[i]);
                 if (d < minDist) {
@@ -248,6 +249,11 @@ void analyzeDetections(
     cv::Mat &frame,
     std::vector<Detection> &detections
 ) {
+    if (detections.empty()) {
+        return;
+    }
+
+    auto t0 = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<cv::Point> > contours, overlappingContoursRed, overlappingContoursBlue;
     cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
 
@@ -261,6 +267,7 @@ void analyzeDetections(
 
     cv::Canny(rMask, edgesRed, 85, 255);
     cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    auto t1 = std::chrono::high_resolution_clock::now();
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
 
@@ -283,10 +290,11 @@ void analyzeDetections(
             }
         }
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
 
     cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
     cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
+    static cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
 
     cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
     cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
@@ -298,6 +306,8 @@ void analyzeDetections(
     cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
     cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
     cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    auto t3 = std::chrono::high_resolution_clock::now();
 
     // Clear previous robot positions
     g_tracker.clearRobots();
@@ -344,6 +354,7 @@ void analyzeDetections(
         }
     }
 
+    auto t4 = std::chrono::high_resolution_clock::now();
     // Render top-down view
     g_tracker.render();
 
