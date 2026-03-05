@@ -266,6 +266,7 @@ void detectEdgesBumper(
     std::vector<Detection> &detections
 ) {
     auto t1 = std::chrono::high_resolution_clock::now();
+    static cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(30, 10));
     std::vector<std::vector<cv::Point>> contours, overlappingContoursRed, overlappingContoursBlue;
     cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
 
@@ -276,6 +277,7 @@ void detectEdgesBumper(
     cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
 
     rMask = rMask | rMask1;
+    
     auto t2 = std::chrono::high_resolution_clock::now();
     cv::Canny(rMask, edgesRed, 120, 255);
     cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -304,12 +306,9 @@ void detectEdgesBumper(
     }
     
     auto t6 = std::chrono::high_resolution_clock::now();
+    //NEEDS OPTIMIZATION ~30ms boost (guess)
     cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
     cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
-    static cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
-
-    cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
-    cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
 
     cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
     cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
@@ -318,6 +317,7 @@ void detectEdgesBumper(
     cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
     cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
     cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
     auto t7 = std::chrono::high_resolution_clock::now();
 
     // Clear previous robot positions
@@ -367,8 +367,6 @@ void detectEdgesBumper(
     auto t9 = std::chrono::high_resolution_clock::now();
     cv::imshow("detectEdgesBumper", frame);
     auto t10 = std::chrono::high_resolution_clock::now();
-    
-    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t7-t6).count() << std::endl;
 
     logTimes({t1,t2,t3,t4,t5,t6,t7,t8,t9,t10});
 }
