@@ -288,6 +288,15 @@ int main() {
         float* outputData;
         cudaMallocHost((void**)&outputData, outputSize);
 
+        cv::Mat resizedU8(640, 640, CV_8UC3);
+        cv::Mat resizedF(640, 640, CV_32FC3);
+
+        std::vector<cv::Mat> channels(3);
+        cv::Mat outputMat(8400, 5, CV_32F);
+        float* dst = (float*)outputMat.data;
+
+        float* inputData;
+        cudaMallocHost((void**)&inputData, inputSize);
         while (true) {
             auto frame_start = Clock::now();
 
@@ -314,20 +323,15 @@ int main() {
 
             auto preprocess_start = std::chrono::high_resolution_clock::now();
 
-            cv::Mat resized;
-            cv::resize(frame, resized, cv::Size(640, 640));
-            cv::cvtColor(resized, resized, cv::COLOR_BGR2RGB);
-            resized.convertTo(resized, CV_32F, 1.0 / 255.0);
+            cv::resize(frame, resizedU8, cv::Size(640, 640));
+            cv::cvtColor(resizedU8, resizedU8, cv::COLOR_BGR2RGB);
+            resizedU8.convertTo(resizedF, CV_32F, 1.0/255.0);
+            cv::split(resizedF, channels);
 
-            std::vector<cv::Mat> channels;
-            cv::split(resized, channels);
-
-            std::vector<float> inputData(inputSize / sizeof(float));
             for (int i = 0; i < 3; ++i) {
-                memcpy(inputData.data() + i*640*640, channels[i].data, 640*640*sizeof(float));
+                memcpy(inputData + i*640*640, channels[i].data, 640*640*sizeof(float));
             }
-            cudaMemcpyAsync(dInput, inputData.data(), inputData.size() * sizeof(float),
-                cudaMemcpyHostToDevice, stream);
+            cudaMemcpyAsync(dInput, inputData, inputSize, cudaMemcpyHostToDevice, stream);
 
             auto preprocess_end = std::chrono::high_resolution_clock::now();
             total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -345,8 +349,6 @@ int main() {
             total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
                                         inference_end - inference_start).count();
             auto postprocess_start = std::chrono::high_resolution_clock::now();
-            cv::Mat outputMat(8400, 5, CV_32F);
-            float* dst = (float*)outputMat.data;
             float* src = outputData;
 
             for (int f = 0; f < 5; ++f)
@@ -396,6 +398,10 @@ int main() {
         cudaFree(dOutput);
         cudaFreeHost(outputData);
         cudaStreamDestroy(stream);
+        cudaFreeHost(inputData);
+        delete context;
+        delete engine;
+        delete runtime;
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -415,6 +421,8 @@ int main() {
     }
 
     endOCR();
+
+    std::cout << "reached end without errors!";
 
     return 0;
 }

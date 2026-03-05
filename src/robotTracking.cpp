@@ -249,10 +249,6 @@ void analyzeDetections(
     cv::Mat &frame,
     std::vector<Detection> &detections
 ) {
-    if (detections.empty()) {
-        return;
-    }
-
     auto t0 = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<cv::Point> > contours, overlappingContoursRed, overlappingContoursBlue;
     cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
@@ -355,6 +351,13 @@ void analyzeDetections(
     }
 
     auto t4 = std::chrono::high_resolution_clock::now();
+
+    std::cout
+        << "hsv:" << std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count()
+        << " canny/contours:" << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()
+        << " morph:" << std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count()
+        << " ocr:" << std::chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count()
+        << "ms" << std::endl;
     // Render top-down view
     g_tracker.render();
 
