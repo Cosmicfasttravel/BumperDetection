@@ -10,6 +10,27 @@
 #include <cstring>
 #include "rknn_api.h"
 #include "edgeDetection.h"
+#include <thread>
+#include <atomic>
+#include <mutex>
+
+cv::Mat latestFrame;
+std::mutex frameMutex;
+std::atomic<bool> capturing(true);
+
+void captureThread(cv::VideoCapture &cap)
+{
+    cv::Mat frame;
+    while (capturing)
+    {
+        cap.read(frame);
+        if (!frame.empty())
+        {
+            std::lock_guard<std::mutex> lock(frameMutex);
+            latestFrame = frame.clone();
+        }
+    }
+}
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -20,8 +41,8 @@ std::vector<Detection> ProcessYoloOutput(
     int input_width,
     int input_height,
     float conf_threshold,
-    float nms_threshold
-) {
+    float nms_threshold)
+{
     std::vector<Detection> detections;
     std::vector<int> class_ids;
     std::vector<float> confidences;
@@ -35,31 +56,40 @@ std::vector<Detection> ProcessYoloOutput(
     int num_detections;
     int num_values_per_detection;
 
-    if (output_data.dims == 3) {
+    if (output_data.dims == 3)
+    {
         int dim1 = output_data.size[1];
         int dim2 = output_data.size[2];
 
-        if (dim1 < 100 && dim2 > 1000) {
+        if (dim1 < 100 && dim2 > 1000)
+        {
             output_data = output_data.reshape(1, dim1);
             cv::transpose(output_data, output_data);
             num_detections = dim2;
             num_values_per_detection = dim1;
-        } else {
+        }
+        else
+        {
             output_data = output_data.reshape(1, dim1);
             num_detections = dim1;
             num_values_per_detection = dim2;
         }
-    } else if (output_data.dims == 2) {
+    }
+    else if (output_data.dims == 2)
+    {
         num_detections = output_data.rows;
         num_values_per_detection = output_data.cols;
-    } else {
+    }
+    else
+    {
         return detections;
     }
 
     bool is_single_class = (num_values_per_detection == 5);
     int num_classes = is_single_class ? 1 : (num_values_per_detection - 4);
 
-    for (int i = 0; i < num_detections; ++i) {
+    for (int i = 0; i < num_detections; ++i)
+    {
         auto *data = output_data.ptr<float>(i);
 
         float x_center = data[0];
@@ -70,34 +100,43 @@ std::vector<Detection> ProcessYoloOutput(
         float max_score;
         int max_class_id = 0;
 
-        if (is_single_class) {
+        if (is_single_class)
+        {
             max_score = data[4];
-        } else {
+        }
+        else
+        {
             float *class_scores = data + 4;
             max_score = -1.0f;
             max_class_id = -1;
 
-            for (int c = 0; c < num_classes; c++) {
-                if (class_scores[c] > max_score) {
+            for (int c = 0; c < num_classes; c++)
+            {
+                if (class_scores[c] > max_score)
+                {
                     max_score = class_scores[c];
                     max_class_id = c;
                 }
             }
         }
 
-        if (max_score < conf_threshold) {
+        if (max_score < conf_threshold)
+        {
             continue;
         }
 
         bool is_normalized = (x_center <= 1.0f && y_center <= 1.0f &&
                               width <= 1.0f && height <= 1.0f);
 
-        if (is_normalized) {
+        if (is_normalized)
+        {
             x_center *= static_cast<float>(img_width);
             y_center *= static_cast<float>(img_height);
             width *= static_cast<float>(img_width);
             height *= static_cast<float>(img_height);
-        } else {
+        }
+        else
+        {
             x_center *= scale_x;
             y_center *= scale_y;
             width *= scale_x;
@@ -126,10 +165,10 @@ std::vector<Detection> ProcessYoloOutput(
         class_ids,
         conf_threshold,
         nms_threshold,
-        nms_result
-    );
+        nms_result);
 
-    for (int idx: nms_result) {
+    for (int idx : nms_result)
+    {
         Detection result;
         result.class_id = class_ids[idx];
         result.confidence = confidences[idx];
@@ -142,50 +181,63 @@ std::vector<Detection> ProcessYoloOutput(
     return detections;
 }
 
-
-int run() {
+int run()
+{
     std::string teamNumbers[5] = {"1306", "5324", "4613", "4959", "118"};
 
-    for (auto &teamNumber: teamNumbers) {
-        if (teamNumbers->length() >= 5 || teamNumbers->length() <= 1) {
+    for (auto &teamNumber : teamNumbers)
+    {
+        if (teamNumbers->length() >= 5 || teamNumbers->length() <= 1)
+        {
             teamNumber = "";
         }
     }
 
-    try {
+    try
+    {
         // Load RKNN model
         std::string model_path = "../bumper_yolov9_320x.rknn";
-        FILE* fp = fopen(model_path.c_str(), "rb");
-        if (!fp) {
+        FILE *fp = fopen(model_path.c_str(), "rb");
+        if (!fp)
+        {
             std::cerr << "Failed to open model: " << model_path << std::endl;
             return -1;
         }
         fseek(fp, 0, SEEK_END);
         long model_size = ftell(fp);
         rewind(fp);
-        void* model_data = malloc(model_size);
+        void *model_data = malloc(model_size);
         fread(model_data, 1, model_size, fp);
         fclose(fp);
 
         rknn_context ctx;
         int ret = rknn_init(&ctx, model_data, model_size, 0, nullptr);
-    
+
         free(model_data);
-        if (ret != 0) {
+        if (ret != 0)
+        {
             std::cerr << "Failed to init RKNN: " << ret << std::endl;
             return -1;
         }
         rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
-	    rknn_set_core_mask(ctx, core_mask);
+        rknn_set_core_mask(ctx, core_mask);
         std::cout << "RKNN model loaded successfully" << std::endl;
 
         std::string video_path = "../vids/5ft.mp4";
-        cv::VideoCapture cap(video_path);
-        if (!cap.isOpened()) {
+        cv::VideoCapture cap(0, cv::CAP_V4L2);
+        cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+        cap.set(cv::CAP_PROP_FPS, 15);
+        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+        if (!cap.isOpened())
+        {
             std::cerr << "Failed to open video: " << video_path << std::endl;
             rknn_destroy(ctx);
             return -1;
         }
+        std::thread camThread(captureThread, std::ref(cap));
 
         int frame_skip = 1;
         cv::Mat frame, blankFrame;
@@ -201,39 +253,44 @@ int run() {
 
         bool paused = false;
         int waitTime = 1;
-        static auto prev_frame_time = Clock::now();
+        auto prev_frame_time = Clock::now();
 
         startOCR();
 
-        while (true) {
+        while (true)
+        {
             auto frame_start = Clock::now();
+            prev_frame_time = frame_start;
 
             constexpr int INPUT_HEIGHT = 320;
             constexpr int INPUT_WIDTH = 320;
             constexpr float CONF_THRESHOLD = 0.3;
             constexpr float NMS_THRESHOLD = 0.45;
-
-            if (!cap.read(frame)) {
-                break;
+            auto preprocess_start = std::chrono::high_resolution_clock::now();
+            {
+                std::lock_guard<std::mutex> lock(frameMutex);
+                if (latestFrame.empty())
+                    continue;
+                frame = latestFrame.clone();
             }
-            if (frame.empty()) continue;
 
             frame_count++;
 
-            if (frame_count % frame_skip != 0) {
-                if (cv::waitKey(1) == 27) break;
+            if (frame_count % frame_skip != 0)
+            {
+                if (cv::waitKey(1) == 27)
+                    break;
                 continue;
             }
             processed_count++;
-	        auto preprocess_start = std::chrono::high_resolution_clock::now();
+
             blankFrame = frame.clone();
 
             // Preprocess
-            
+
             cv::Mat resized;
             cv::resize(frame, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
             cv::cvtColor(resized, resized, cv::COLOR_BGR2RGB);
-
 
             rknn_input inputs[1];
             memset(inputs, 0, sizeof(inputs));
@@ -246,7 +303,8 @@ int run() {
             rknn_inputs_set(ctx, 1, inputs);
             auto preprocess_end = std::chrono::high_resolution_clock::now();
             total_preprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                preprocess_end - preprocess_start).count();
+                                         preprocess_end - preprocess_start)
+                                         .count();
             // Inference
             auto inference_start = std::chrono::high_resolution_clock::now();
             rknn_run(ctx, nullptr);
@@ -258,7 +316,8 @@ int run() {
 
             auto inference_end = std::chrono::high_resolution_clock::now();
             total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                inference_end - inference_start).count();
+                                        inference_end - inference_start)
+                                        .count();
 
             // Post-process
             auto postprocess_start = std::chrono::high_resolution_clock::now();
@@ -270,12 +329,16 @@ int run() {
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs, frame.cols, frame.rows,
                 INPUT_WIDTH, INPUT_HEIGHT,
-                CONF_THRESHOLD, NMS_THRESHOLD
-            );
+                CONF_THRESHOLD, NMS_THRESHOLD);
 
             rknn_outputs_release(ctx, 1, outputs_rknn);
 
             detection_count += static_cast<int>(detections.size());
+
+            for (auto &det : detections)
+            {
+                cv::rectangle(frame, det.bounding_box, cv::FILLED);
+            }
 
             auto frame_end = Clock::now();
             using FrameDuration = std::chrono::duration<double>;
@@ -286,38 +349,46 @@ int run() {
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            if(!detections.empty()) detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
+            detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
             int key = cv::waitKey(waitTime);
-            
+
             auto postprocess_end = std::chrono::high_resolution_clock::now();
             total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                postprocess_end - postprocess_start).count();
+                                          postprocess_end - postprocess_start)
+                                          .count();
 
-            if (key == 27) break;
-            if (key == 112) paused = !paused;
-            if (paused) waitTime = -1;
-            else waitTime = 1;
-
-            prev_frame_time = frame_start;
+            if (key == 27)
+                break;
+            if (key == 112)
+                paused = !paused;
+            if (paused)
+                waitTime = -1;
+            else
+                waitTime = 1;
         }
 
         rknn_destroy(ctx);
+        capturing = false;
+        camThread.join();
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         std::cout << "Processing time: " << std::fixed << std::setprecision(2)
-                << static_cast<double>(duration.count()) / 1000.0 << " seconds" << std::endl;
+                  << static_cast<double>(duration.count()) / 1000.0 << " seconds" << std::endl;
         std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
-                << processed_count / (static_cast<double>(duration.count()) / 1000.0) << std::endl;
+                  << processed_count / (static_cast<double>(duration.count()) / 1000.0) << std::endl;
         std::cout << "\nTiming Breakdown (per frame):" << std::endl;
         std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
-
-    } catch (const cv::Exception &e) {
+    }
+    catch (const cv::Exception &e)
+    {
         std::cerr << "OpenCV error: " << e.what() << std::endl;
         return -1;
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         std::cerr << "Error: " << e.what() << std::endl;
         return -1;
     }
