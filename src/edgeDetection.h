@@ -9,9 +9,7 @@ struct Detection {
     cv::Rect bounding_box;
     std::string class_name;
     std::string label;
-    std::vector<std::vector<cv::Point>>::value_type largestContour {};
-    int largestContourSize {};
-    cv::Scalar largestContourColor {};
+    std::string color;
 };
 
 

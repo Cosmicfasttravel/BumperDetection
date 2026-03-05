@@ -16,30 +16,23 @@
 #include "kalmanFilter.h"
 #include "topDownView.h"
 
-struct BumperMeasurements {
-    double w{};
-    double h{};
-    cv::Rect rect;
-    cv::RotatedRect rotated_rect;
-};
-
 struct Position3D {
     double z_cm;
 };
 
-void logTimes(const std::vector<std::chrono::system_clock::time_point>& durations) {
+void logTimes(const std::vector<std::chrono::system_clock::time_point> &durations) {
     std::stringstream ss;
     if (durations.size() < 1) {
         return;
     }
     ss << "Timings:\n";
-    for (size_t i = 1; i < durations.size(); i++ ) {
-        if (i!=1) {
+    for (size_t i = 1; i < durations.size(); i++) {
+        if (i != 1) {
             ss << '\n';
         }
-        ss << "\tt" << i << "-t" << i-1 << "\t"
-        << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i-1)).count()
-        << "ms";
+        ss << "\tt" << i << "-t" << i - 1 << "\t"
+                << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i - 1)).count()
+                << "ms";
     }
     std::cout << ss.str() << std::endl;
 }
@@ -110,33 +103,20 @@ T findMode(const std::vector<T> &data) {
     return mostFrequentVal;
 }
 
-BumperMeasurements getMeasurementsFromContour(const std::vector<cv::Point> &contour) {
-    BumperMeasurements m;
-    m.rect = boundingRect(contour);
-    m.rotated_rect = cv::minAreaRect(contour);
-
-    m.w = std::min(static_cast<int>(m.rotated_rect.size.width), m.rect.width);
-    m.h = std::min(static_cast<int>(m.rotated_rect.size.height), m.rect.height);
-
-    return m;
-}
-
 Position3D getPosition3D(
-    const BumperMeasurements &m,
+    const double height,
     const double focal_length_cm = 0.36,
     const double known_height_cm = 10.6,
     const double pixel_height_cm = 0.0003
 ) {
     Position3D pos{};
-    pos.z_cm = (known_height_cm * focal_length_cm) / (m.h * pixel_height_cm);
+    pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
     return pos;
 }
 
 void drawMeasurements(
-    const BumperMeasurements &m,
     const Position3D &pos,
-    const Detection &detection,
-    const cv::Scalar &robot_color
+    const Detection &detection
 ) {
     static int tick;
 
@@ -148,14 +128,13 @@ void drawMeasurements(
     constexpr double X_FOV = 70;
     constexpr double Y_FOV = 43;
 
-    cv::Point robot_center = cv::Point(static_cast<int>(m.rotated_rect.center.x - SCREEN_WIDTH / 2),
-                                       static_cast<int>(m.rotated_rect.center.y - SCREEN_HEIGHT / 2));
-
     constexpr double max_cord_x = SCREEN_WIDTH / 2;
     constexpr double max_cord_y = SCREEN_HEIGHT / 2;
 
-    const double x_angle = (X_FOV / 2 * (robot_center.x / max_cord_x)) * CV_PI / 180.0;
-    const double y_angle = (Y_FOV / 2 * (robot_center.y / max_cord_y)) * CV_PI / 180.0;
+    const double x_angle = (X_FOV / 2 * ((detection.bounding_box.x + (0.5 * detection.bounding_box.width)) /
+                                         max_cord_x)) * CV_PI / 180.0;
+    const double y_angle = (Y_FOV / 2 * ((detection.bounding_box.y + (0.5 * detection.bounding_box.height)) /
+                                         max_cord_y)) * CV_PI / 180.0;
 
     const double x_coordinate = pos.z_cm * cos(x_angle) / 100;
     const double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
@@ -170,7 +149,7 @@ void drawMeasurements(
         kalmanFilter &filter = filters[label];
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
     }
-    g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, robot_color);
+    g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(255));
 
     if (tick >= 20) {
         filters.erase(filters.begin(), filters.end());
@@ -193,7 +172,7 @@ void endOCR() {
 }
 
 void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
-                                     const std::string teamNumbers[5]) {
+                 const std::string teamNumbers[5]) {
     for (auto &det: detections) {
         cv::Mat img = blankFrame(det.bounding_box).clone();
         cv::GaussianBlur(img, img, cv::Size(7, 7), 0);
@@ -265,108 +244,77 @@ void detectEdgesBumper(
     cv::Mat &frame,
     std::vector<Detection> &detections
 ) {
-    auto t1 = std::chrono::high_resolution_clock::now();
-    static cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(30, 10));
-    std::vector<std::vector<cv::Point>> contours, overlappingContoursRed, overlappingContoursBlue;
-    cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
+    cv::Mat hsv;
 
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
-
-    cv::inRange(hsv, cv::Scalar(100, 120, 70), cv::Scalar(130, 255, 255), bMask);
-    cv::inRange(hsv, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), rMask);
-    cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
-
-    rMask = rMask | rMask1;
-    
-    auto t2 = std::chrono::high_resolution_clock::now();
-    cv::Canny(rMask, edgesRed, 120, 255);
-    cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    auto t3 = std::chrono::high_resolution_clock::now();
-    for (const auto &contour: contours) {
-        cv::Rect contourRect = cv::boundingRect(contour);
-        for (const auto &det: detections) {
-            if ((contourRect & det.bounding_box) == contourRect) {
-                overlappingContoursRed.emplace_back(contour);
-                break;
-            }
-        }
-    }
-    auto t4 = std::chrono::high_resolution_clock::now();
-    cv::Canny(bMask, edgesBlue, 120, 255);
-    cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    auto t5 = std::chrono::high_resolution_clock::now();
-    for (const auto &contour: contours) {
-        cv::Rect contourRect = cv::boundingRect(contour);
-        for (const auto &det: detections) {
-            if ((contourRect & det.bounding_box) == contourRect) {
-                overlappingContoursBlue.emplace_back(contour);
-                break;
-            }
-        }
-    }
-    
-    auto t6 = std::chrono::high_resolution_clock::now();
-    //NEEDS OPTIMIZATION ~30ms boost (guess)
-    cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
-    cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
-
-    cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
-    cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
-    cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-     
-    cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
-    cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
-    cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    auto t7 = std::chrono::high_resolution_clock::now();
 
     // Clear previous robot positions
     g_tracker.clearRobots();
 
     findNumbers(detections, blankFrame, teamNumbers);
 
-    std::vector<std::vector<cv::Point>>::value_type largestContour = {cv::Point(0, 0)};
-    auto t8 = std::chrono::high_resolution_clock::now();
-    
-    // Process red robots
-    for (const auto &contour: overlappingContoursRed) {
-        for (auto &det: detections) {
-            if (((boundingRect(contour) & det.bounding_box).area()) > 0) {
-                if (contourArea(contour) < det.largestContourSize) continue;
-                det.largestContourSize = static_cast<int>(contourArea(contour));
-                det.largestContour = contour;
-                det.largestContourColor = cv::Scalar(0, 0, 255);
-            }
-        }
-    }
-    // Process blue robots
-    for (const auto &contour: overlappingContoursBlue) {
-        for (auto &det: detections) {
-            if (((boundingRect(contour) & det.bounding_box).area()) > 0) {
-                if (contourArea(contour) < det.largestContourSize) continue;
-                det.largestContourSize = static_cast<int>(contourArea(contour));
-                det.largestContour = contour;
-                det.largestContourColor = cv::Scalar(255, 0, 0);
-            }
-        }
-    }
+    auto t1 = std::chrono::high_resolution_clock::now();
     for (auto &det: detections) {
-        if (!det.largestContour.empty()) {
-            BumperMeasurements m = getMeasurementsFromContour(det.largestContour);
-            Position3D pos = getPosition3D(m);
-            drawMeasurements(m, pos, det, det.largestContourColor);
-            det.largestContourSize = 0;
+        double height = 0;
+        double startHeight = 0;
+
+        auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
+        auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
+        auto startTY = det.bounding_box.y;
+        auto maxY = det.bounding_box.y + det.bounding_box.height;
+        auto maxX = det.bounding_box.x + 0.5 * det.bounding_box.width;
+
+        //red = 0-15 hue, 100-255 saturation, 130-255 value | 170-179 = hue, same s and v
+        //blue = 80-120 hue, also same s and v
+
+        //walks right finding red or blue pixels
+        for (auto i = centerX; i < maxX; i++) {
+            cv::Vec3b color = frame.at<cv::Vec3b>(startCY, i);
+            double h = color[0];
+            double s = color[1];
+            double v = color[2];
+
+            if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) {
+                det.color = "red";
+                break;
+            }
+            if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) {
+                det.color = "blue";
+                break;
+            }
+            std::cout << det.color << std::endl;
         }
-        else {
-            std::cout << "No detections found!" << std::endl;
+        //walks down from top
+        for (auto i = startTY; i < maxY; i++) {
+            cv::Vec3b color = frame.at<cv::Vec3b>(i, centerX);
+            double h = color[0];
+            double s = color[1];
+            double v = color[2];
+
+            if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255) && det.color == "blue") {
+                height++;
+                if (startHeight == 0) {
+                    startHeight = startTY + i;
+                }
+            }
+            else if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                    ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color == "red") {
+                height++;
+                if (startHeight == 0) {
+                    startHeight = startTY + i;
+                }
+            }
         }
+
+        Position3D pos = getPosition3D(height);
+        drawMeasurements(pos, det);
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
 
     // Render top-down view
     g_tracker.render();
-    auto t9 = std::chrono::high_resolution_clock::now();
     cv::imshow("detectEdgesBumper", frame);
-    auto t10 = std::chrono::high_resolution_clock::now();
 
-    logTimes({t1,t2,t3,t4,t5,t6,t7,t8,t9,t10});
+    logTimes({t1, t2});
 }
