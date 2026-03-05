@@ -1,13 +1,15 @@
-﻿#include <iostream>
+#include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
-#include <opencv2/dnn.hpp>
 #include <vector>
 #include <string>
 #include <chrono>
 #include <iomanip>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include "rknn_api.h"
 #include "edgeDetection.h"
-#include "GPU.h"
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -118,7 +120,14 @@ std::vector<Detection> ProcessYoloOutput(
     }
 
     std::vector<int> nms_result;
-    cv::dnn::NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, nms_result);
+    cv::dnn::NMSBoxesBatched(
+        boxes,
+        confidences,
+        class_ids,
+        conf_threshold,
+        nms_threshold,
+        nms_result
+    );
 
     for (int idx: nms_result) {
         Detection result;
@@ -134,49 +143,51 @@ std::vector<Detection> ProcessYoloOutput(
 }
 
 
-int main() {
+int run() {
     std::string teamNumbers[5] = {"1306", "5324", "4613", "4959", "118"};
-    //for robot cropped "3928", "2560", "2457", "4959", "118"
-
-    // std::cout << "Input team numbers (5): " << std::endl;
-    // std::cout << "1: ";
-    // std::cin >> teamNumbers[0];
-    // std::cout << std::endl << "2: ";
-    // std::cin >> teamNumbers[1];
-    // std::cout << std::endl << "3: ";
-    // std::cin >> teamNumbers[2];
-    // std::cout << std::endl << "4: ";
-    // std::cin >> teamNumbers[3];
-    // std::cout << std::endl << "5: ";
-    // std::cin >> teamNumbers[4];
 
     for (auto &teamNumber: teamNumbers) {
         if (teamNumbers->length() >= 5 || teamNumbers->length() <= 1) {
             teamNumber = "";
         }
     }
+
     try {
-
-        std::string model_path = "bumper_yolov9.onnx";
-
-        cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
-
-        if (net.empty()) {
+        // Load RKNN model
+        std::string model_path = "../bumper_yolov9_320x.rknn";
+        FILE* fp = fopen(model_path.c_str(), "rb");
+        if (!fp) {
+            std::cerr << "Failed to open model: " << model_path << std::endl;
             return -1;
         }
+        fseek(fp, 0, SEEK_END);
+        long model_size = ftell(fp);
+        rewind(fp);
+        void* model_data = malloc(model_size);
+        fread(model_data, 1, model_size, fp);
+        fclose(fp);
 
-        // Setup best available backend
-        std::string backend = gpu::setupGPUBackend(net);
+        rknn_context ctx;
+        int ret = rknn_init(&ctx, model_data, model_size, 0, nullptr);
+    
+        free(model_data);
+        if (ret != 0) {
+            std::cerr << "Failed to init RKNN: " << ret << std::endl;
+            return -1;
+        }
+        rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
+	    rknn_set_core_mask(ctx, core_mask);
+        std::cout << "RKNN model loaded successfully" << std::endl;
 
-        std::string video_path = "C:/Users/marcu/CLionProjects/robotvisiontest/vids/5ft.MP4";
-
+        std::string video_path = "../vids/5ft.mp4";
         cv::VideoCapture cap(video_path);
         if (!cap.isOpened()) {
+            std::cerr << "Failed to open video: " << video_path << std::endl;
+            rknn_destroy(ctx);
             return -1;
         }
 
-        // Adjust frame skip based on backend
-        int frame_skip = 2;
+        int frame_skip = 1;
         cv::Mat frame, blankFrame;
         int frame_count = 0;
         int processed_count = 0;
@@ -184,8 +195,7 @@ int main() {
 
         auto start_time = std::chrono::high_resolution_clock::now();
 
-        // Timing variables
-        long long total_blob_time = 0;
+        long long total_preprocess_time = 0;
         long long total_inference_time = 0;
         long long total_postprocess_time = 0;
 
@@ -194,13 +204,15 @@ int main() {
         static auto prev_frame_time = Clock::now();
 
         startOCR();
+
         while (true) {
             auto frame_start = Clock::now();
 
-            constexpr int INPUT_HEIGHT = 640;
-            constexpr int INPUT_WIDTH = 640;
-            constexpr float CONF_THRESHOLD = 0.75;
+            constexpr int INPUT_HEIGHT = 320;
+            constexpr int INPUT_WIDTH = 320;
+            constexpr float CONF_THRESHOLD = 0.3;
             constexpr float NMS_THRESHOLD = 0.45;
+
             if (!cap.read(frame)) {
                 break;
             }
@@ -208,53 +220,52 @@ int main() {
 
             frame_count++;
 
-            // Process based on frame_skip
             if (frame_count % frame_skip != 0) {
                 if (cv::waitKey(1) == 27) break;
                 continue;
             }
             processed_count++;
-
-            //Create a blank frame that doesn't contain the rectangles
+	        auto preprocess_start = std::chrono::high_resolution_clock::now();
             blankFrame = frame.clone();
 
-            auto blob_start = std::chrono::high_resolution_clock::now();
+            // Preprocess
+            
+            cv::Mat resized;
+            cv::resize(frame, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
+            cv::cvtColor(resized, resized, cv::COLOR_BGR2RGB);
 
-            cv::Mat blob;
-            if (backend == "OpenCL" || backend == "OpenCL_FP16") {
-                cv::UMat frameUMat;
-                frame.copyTo(frameUMat);
 
-                cv::dnn::blobFromImage(
-                    frameUMat,
-                    blob,
-                    1.0 / 255.0,
-                    cv::Size(INPUT_WIDTH, INPUT_HEIGHT),
-                    cv::Scalar(0, 0, 0),
-                    true,
-                    false
-                );
-            }
-            else {
-                cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0,
-                                   cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
-            }
-
-            auto blob_end = std::chrono::high_resolution_clock::now();
-            total_blob_time += std::chrono::duration_cast<std::chrono::milliseconds>(blob_end - blob_start).count();
-
+            rknn_input inputs[1];
+            memset(inputs, 0, sizeof(inputs));
+            inputs[0].index = 0;
+            inputs[0].type = RKNN_TENSOR_UINT8;
+            inputs[0].size = INPUT_WIDTH * INPUT_HEIGHT * 3;
+            inputs[0].fmt = RKNN_TENSOR_NHWC;
+            inputs[0].pass_through = 0;
+            inputs[0].buf = resized.data;
+            rknn_inputs_set(ctx, 1, inputs);
+            auto preprocess_end = std::chrono::high_resolution_clock::now();
+            total_preprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                preprocess_end - preprocess_start).count();
+            // Inference
             auto inference_start = std::chrono::high_resolution_clock::now();
+            rknn_run(ctx, nullptr);
 
-            net.setInput(blob);
-            std::vector<cv::Mat> outputs;
-            net.forward(outputs, net.getUnconnectedOutLayersNames());
+            rknn_output outputs_rknn[1];
+            memset(outputs_rknn, 0, sizeof(outputs_rknn));
+            outputs_rknn[0].want_float = 1;
+            rknn_outputs_get(ctx, 1, outputs_rknn, nullptr);
 
             auto inference_end = std::chrono::high_resolution_clock::now();
             total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
                 inference_end - inference_start).count();
 
-
+            // Post-process
             auto postprocess_start = std::chrono::high_resolution_clock::now();
+
+            int sizes[3] = {1, 5, 2100};
+            cv::Mat output_mat(3, sizes, CV_32F, outputs_rknn[0].buf);
+            std::vector<cv::Mat> outputs = {output_mat};
 
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs, frame.cols, frame.rows,
@@ -262,33 +273,35 @@ int main() {
                 CONF_THRESHOLD, NMS_THRESHOLD
             );
 
-            auto postprocess_end = std::chrono::high_resolution_clock::now();
-            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                postprocess_end - postprocess_start).count();
+            rknn_outputs_release(ctx, 1, outputs_rknn);
 
             detection_count += static_cast<int>(detections.size());
 
             auto frame_end = Clock::now();
             using FrameDuration = std::chrono::duration<double>;
-            auto delta = FrameDuration(frame_end - prev_frame_time).count(); // seconds
+            auto delta = FrameDuration(frame_end - prev_frame_time).count();
             std::stringstream ss;
             ss << std::fixed << std::setprecision(2) << "FPS: " << (1.0 / delta);
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
+            if(!detections.empty()) detectEdgesBumper(blankFrame, teamNumbers, frame, detections);
             int key = cv::waitKey(waitTime);
+            
+            auto postprocess_end = std::chrono::high_resolution_clock::now();
+            total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                postprocess_end - postprocess_start).count();
 
-            if (key == 27) {
-                break;
-            }
+            if (key == 27) break;
             if (key == 112) paused = !paused;
             if (paused) waitTime = -1;
             else waitTime = 1;
 
             prev_frame_time = frame_start;
         }
+
+        rknn_destroy(ctx);
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -297,16 +310,18 @@ int main() {
         std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
                 << processed_count / (static_cast<double>(duration.count()) / 1000.0) << std::endl;
         std::cout << "\nTiming Breakdown (per frame):" << std::endl;
-        std::cout << "  Blob creation: " << (total_blob_time / processed_count) << "ms" << std::endl;
+        std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
+
     } catch (const cv::Exception &e) {
+        std::cerr << "OpenCV error: " << e.what() << std::endl;
         return -1;
     } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
         return -1;
     }
 
     endOCR();
-
     return 0;
 }

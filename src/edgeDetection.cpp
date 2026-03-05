@@ -6,6 +6,8 @@
 #include <opencv2/core/mat.hpp>
 #include <sstream>
 #include <tesseract/baseapi.h>
+#include <chrono>
+#include <vector>
 #include <leptonica/allheaders.h>
 #include <filesystem>
 #include <iostream>
@@ -24,6 +26,23 @@ struct BumperMeasurements {
 struct Position3D {
     double z_cm;
 };
+
+void logTimes(const std::vector<std::chrono::system_clock::time_point>& durations) {
+    std::stringstream ss;
+    if (durations.size() < 1) {
+        return;
+    }
+    ss << "Timings:\n";
+    for (size_t i = 1; i < durations.size(); i++ ) {
+        if (i!=1) {
+            ss << '\n';
+        }
+        ss << "\tt" << i << "-t" << i-1 << "\t"
+        << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i-1)).count()
+        << "ms";
+    }
+    std::cout << ss.str() << std::endl;
+}
 
 // Global tracker instance
 static RobotTracker g_tracker;
@@ -162,7 +181,7 @@ void drawMeasurements(
 
 void startOCR() {
     api = new tesseract::TessBaseAPI();
-    api->Init("C:/Program Files/Tesseract-OCR/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+    api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
 
     api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
     api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -193,7 +212,7 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
         }
 
         cv::Mat denoised;
-        cv::bilateralFilter(gray, denoised, 9, 75, 75);
+        cv::GaussianBlur(gray, denoised, cv::Size(5, 5), 0);
 
         cv::Mat binary;
         cv::adaptiveThreshold(denoised, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -246,6 +265,7 @@ void detectEdgesBumper(
     cv::Mat &frame,
     std::vector<Detection> &detections
 ) {
+    auto t1 = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<cv::Point>> contours, overlappingContoursRed, overlappingContoursBlue;
     cv::Mat gray, edgesBlue, edgesRed, bMask, rMask, rMask1, hsv;
 
@@ -256,10 +276,10 @@ void detectEdgesBumper(
     cv::inRange(hsv, cv::Scalar(160, 100, 100), cv::Scalar(179, 255, 255), rMask1);
 
     rMask = rMask | rMask1;
-
+    auto t2 = std::chrono::high_resolution_clock::now();
     cv::Canny(rMask, edgesRed, 120, 255);
     cv::findContours(edgesRed, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
+    auto t3 = std::chrono::high_resolution_clock::now();
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
         for (const auto &det: detections) {
@@ -269,9 +289,10 @@ void detectEdgesBumper(
             }
         }
     }
-
+    auto t4 = std::chrono::high_resolution_clock::now();
     cv::Canny(bMask, edgesBlue, 120, 255);
     cv::findContours(edgesBlue, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    auto t5 = std::chrono::high_resolution_clock::now();
     for (const auto &contour: contours) {
         cv::Rect contourRect = cv::boundingRect(contour);
         for (const auto &det: detections) {
@@ -281,10 +302,11 @@ void detectEdgesBumper(
             }
         }
     }
-
+    
+    auto t6 = std::chrono::high_resolution_clock::now();
     cv::Mat overlapMaskRed = cv::Mat::zeros(edgesRed.size(), CV_8UC1);
     cv::Mat overlapMaskBlue = cv::Mat::zeros(edgesBlue.size(), CV_8UC1);
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
+    static cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 25));
 
     cv::GaussianBlur(overlapMaskRed, overlapMaskRed, cv::Size(15, 5), 1);
     cv::GaussianBlur(overlapMaskBlue, overlapMaskBlue, cv::Size(15, 5), 1);
@@ -292,10 +314,11 @@ void detectEdgesBumper(
     cv::drawContours(overlapMaskRed, overlappingContoursRed, -1, cv::Scalar(255), cv::FILLED);
     cv::morphologyEx(overlapMaskRed, overlapMaskRed, cv::MORPH_CLOSE, kernel);
     cv::findContours(overlapMaskRed, overlappingContoursRed, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
+     
     cv::drawContours(overlapMaskBlue, overlappingContoursBlue, -1, cv::Scalar(255), cv::FILLED);
     cv::morphologyEx(overlapMaskBlue, overlapMaskBlue, cv::MORPH_CLOSE, kernel);
     cv::findContours(overlapMaskBlue, overlappingContoursBlue, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    auto t7 = std::chrono::high_resolution_clock::now();
 
     // Clear previous robot positions
     g_tracker.clearRobots();
@@ -303,7 +326,8 @@ void detectEdgesBumper(
     findNumbers(detections, blankFrame, teamNumbers);
 
     std::vector<std::vector<cv::Point>>::value_type largestContour = {cv::Point(0, 0)};
-
+    auto t8 = std::chrono::high_resolution_clock::now();
+    
     // Process red robots
     for (const auto &contour: overlappingContoursRed) {
         for (auto &det: detections) {
@@ -340,6 +364,11 @@ void detectEdgesBumper(
 
     // Render top-down view
     g_tracker.render();
-
+    auto t9 = std::chrono::high_resolution_clock::now();
     cv::imshow("detectEdgesBumper", frame);
+    auto t10 = std::chrono::high_resolution_clock::now();
+    
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t7-t6).count() << std::endl;
+
+    logTimes({t1,t2,t3,t4,t5,t6,t7,t8,t9,t10});
 }
