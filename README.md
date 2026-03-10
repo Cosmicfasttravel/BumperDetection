@@ -1,6 +1,52 @@
 # Bumper Detection
-The goal of this project is to
-Detect bumpers -> Find height -> get distance -> get other cordinates -> get numbers -> and finally have the location and different team numbers of each robot inside our FOV
 
-# How it works
-This workflow functions with a YoloV9 model that detects the bumpers it then finds the contours and gets the height of the smallest rectangle that can fit the contour, after that it compares it to the pixel height and the real height which allows us to get the distance away from the camera, after that we can get the other 2 cordinates by comparing the FOV of the camera with the percent of FOV taken up, with the cordinates, I plot them onto a top down view and use Tesseract OCR to find the numbers on the bumpers which are then filtered down with a Levenshtein distance to find the most likely, after that it is assigned into a Kalman filter to smooth out the distance
+The goal of this project is to detect robot bumpers and estimate the position and team number of each robot within the camera's field of view.
+
+The pipeline performs the following steps:
+
+1. Detect bumpers in the image
+2. Measure bumper height in pixels
+3. Estimate distance from the camera
+4. Compute 3D position coordinates
+5. Extract team numbers from the bumpers
+6. Track each robot and output its location and team number
+
+---
+
+# How It Works
+
+This system uses a **YOLOv9 object detection model** to identify bumpers in each frame.
+
+Once bumpers are detected:
+
+1. **Contour Extraction**  
+   Contours are extracted from the detected region.
+
+2. **Bounding Rectangle Measurement**  
+   The minimum-area rectangle enclosing the contour is computed, and its pixel height is measured.
+
+3. **Distance Estimation**  
+   The pixel height is compared with the known real-world bumper height using camera calibration parameters to estimate the distance from the camera.
+
+4. **Coordinate Calculation**  
+   Using the camera's field of view (FOV) and the bumper's relative position within the frame, the system computes the robot's spatial coordinates.
+
+5. **Top-Down Projection**  
+   The calculated coordinates are projected onto a top-down field map for visualization.
+
+6. **Team Number Recognition**  
+   **Tesseract OCR** is applied to the detected bumper region to read the team number.  
+   Results are refined using **Levenshtein distance** to select the most likely valid team number.
+
+7. **Tracking and Smoothing**  
+   The final robot position is passed through a **Kalman filter** to reduce noise and produce smoother position estimates.
+
+---
+
+# Output
+
+For every robot detected within the camera's field of view, the system outputs:
+
+- Estimated position
+- Estimated distance from the camera
+- Recognized team number
