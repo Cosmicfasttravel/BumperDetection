@@ -50,3 +50,13 @@ For every robot detected within the camera's field of view, the system outputs:
 - Estimated position
 - Estimated distance from the camera
 - Recognized team number
+
+---
+
+# Branch Information
+**Main**
+- This branch is for information purposes
+**OrangePi5**
+- This branch is for development on the Orange PI 5, this branch will **NOT** work with other devices
+**GPU**
+- This branch **requires NVIDIA GPU**
