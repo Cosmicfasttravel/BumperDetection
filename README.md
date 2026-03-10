@@ -41,22 +41,22 @@ Once bumpers are detected:
 7. **Tracking and Smoothing**  
    The final robot position is passed through a **Kalman filter** to reduce noise and produce smoother position estimates.
 
----
-
 # Output
 
 For every robot detected within the camera's field of view, the system outputs:
 
 - Estimated position
-- Estimated distance from the camera
 - Recognized team number
 
 ---
 
 # Branch Information
-**Main**
+## **Main**
 - This branch is for information purposes
-**OrangePi5**
+
+## **OrangePi5**
 - This branch is for development on the Orange PI 5, this branch will **NOT** work with other devices
-**GPU**
+
+## **GPU**
 - This branch **requires NVIDIA GPU**
+  
