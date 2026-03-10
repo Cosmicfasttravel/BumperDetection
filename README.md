@@ -55,7 +55,9 @@ For every robot detected within the camera's field of view, the system outputs:
 
 ## **OrangePi5**
 - This branch is for development on the Orange PI 5, this branch will **NOT** work with other devices
+- This branch **may** have issues but is ***more stable*** than the **GPU** branch
 
 ## **GPU**
 - This branch **requires NVIDIA GPU**
+- Currently this branch is **NOT** ready for deployment or any usage
   
