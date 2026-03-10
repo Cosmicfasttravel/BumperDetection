@@ -42,7 +42,6 @@ Once bumpers are detected:
    The final robot position is passed through a **Kalman filter** to reduce noise and produce smoother position estimates.
 
 # Output
-
 For every robot detected within the camera's field of view, the system outputs:
 
 - Estimated position
