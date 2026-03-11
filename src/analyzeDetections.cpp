@@ -45,25 +45,6 @@ void logTimes(const std::vector<std::chrono::system_clock::time_point> &duration
 // Global tracker instance
 static RobotTracker g_tracker;
 
-int hammingDistance(const std::string &str1, const std::string &str2)
-{
-    if (str1.length() != str2.length())
-    {
-        return 4;
-    }
-
-    int count = 0;
-    for (size_t i = 0; i < str1.length(); ++i)
-    {
-        if (str1[i] != str2[i])
-        {
-            count++;
-        }
-    }
-
-    return count;
-}
-
 int levenshteinDist(const std::string &word1, const std::string &word2)
 {
     const int size1 = static_cast<int>(word1.size());
@@ -245,10 +226,7 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
             for (int i = 0; i < teamNumbers->size(); i++)
             {
                 int d;
-                if (teamNumbers[i].length() == result.length())
-                    d = hammingDistance(result, teamNumbers[i]);
-                else
-                    d = levenshteinDist(result, teamNumbers[i]);
+                d = levenshteinDist(result, teamNumbers[i]);
                 if (d < minDist)
                 {
                     minDist = d;
@@ -268,7 +246,7 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
     }
 }
 
-void detectEdgesBumper(
+void analyzeDetections(
     cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
