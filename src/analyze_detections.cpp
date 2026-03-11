@@ -1,4 +1,4 @@
-﻿#include "edgeDetection.h"
+﻿#include "analyze_detections.h"
 
 #include <deque>
 #include <opencv2/highgui.hpp>
@@ -13,8 +13,8 @@
 #include <iostream>
 #include <unordered_set>
 #include <opencv2/video/tracking.hpp>
-#include "kalmanFilter.h"
-#include "topDownView.h"
+#include "kalman_filter.h"
+#include "top_down_view.h"
 
 struct Position3D
 {
