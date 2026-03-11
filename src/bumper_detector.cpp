@@ -223,7 +223,7 @@ int run()
         rknn_set_core_mask(ctx, core_mask);
         std::cout << "RKNN model loaded successfully" << std::endl;
 
-        std::string video_path = "../vids/5ft.mp4";
+        
         cv::VideoCapture cap(0, cv::CAP_V4L2);
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
         cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
@@ -233,7 +233,6 @@ int run()
 
         if (!cap.isOpened())
         {
-            std::cerr << "Failed to open video: " << video_path << std::endl;
             rknn_destroy(ctx);
             return -1;
         }

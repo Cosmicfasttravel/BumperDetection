@@ -106,7 +106,11 @@ Position3D getPosition3D(
     const double pixel_height_cm = 0.0003)
 {
     Position3D pos{};
-    pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
+    if (height > 0)
+    {
+        pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
+        return pos;
+    }
     return pos;
 }
 
@@ -119,10 +123,10 @@ void drawMeasurements(
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
-    constexpr double SCREEN_WIDTH = 640; //1280
-    constexpr double SCREEN_HEIGHT = 480; //720
-    constexpr double X_FOV = 70; //70
-    constexpr double Y_FOV = 43; //43
+    constexpr double SCREEN_WIDTH = 640;  // 1280
+    constexpr double SCREEN_HEIGHT = 480; // 720
+    constexpr double X_FOV = 70;          // 70
+    constexpr double Y_FOV = 43;          // 43
 
     constexpr double max_cord_x = SCREEN_WIDTH / 2;
     constexpr double max_cord_y = SCREEN_HEIGHT / 2;
@@ -155,6 +159,7 @@ void drawMeasurements(
     if (tick >= 20)
     {
         filters.erase(filters.begin(), filters.end());
+        tick = 0;
     }
 
     tick++;
@@ -261,8 +266,10 @@ void analyzeDetections(
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
         findNumbers(detections, blankFrame, teamNumbers);
-        for (int i = 0; i < detections.size(); i++){
-            if(detections[i].label.empty()){
+        for (int i = 0; i < detections.size(); i++)
+        {
+            if (detections[i].label.empty())
+            {
                 detections[i].label = "robot_" + i;
             }
         }

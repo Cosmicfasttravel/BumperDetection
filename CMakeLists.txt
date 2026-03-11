@@ -16,10 +16,10 @@ include_directories(
 	${TESS_INCLUDE_DIRS})
 
 add_library(BumperDetection SHARED
-        src/yolomodelgpu.cpp
-        src/edgeDetection.cpp
-        src/kalmanFilter.cpp
-        src/topDownView.cpp
+        src/bumper_detector.cpp
+        src/analyze_detections.cpp
+        src/kalman_filter.cpp
+        src/top_down_view.cpp
 )
 
 target_link_libraries(BumperDetection
