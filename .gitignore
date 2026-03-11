@@ -1,0 +1,5 @@
+*.rknn
+*.onnx
+
+build/
+vids/
