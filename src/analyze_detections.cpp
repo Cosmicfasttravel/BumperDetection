@@ -119,10 +119,10 @@ void drawMeasurements(
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
-    constexpr double SCREEN_WIDTH = 1280;
-    constexpr double SCREEN_HEIGHT = 720;
-    constexpr double X_FOV = 70;
-    constexpr double Y_FOV = 43;
+    constexpr double SCREEN_WIDTH = 640; //1280
+    constexpr double SCREEN_HEIGHT = 480; //720
+    constexpr double X_FOV = 70; //70
+    constexpr double Y_FOV = 43; //43
 
     constexpr double max_cord_x = SCREEN_WIDTH / 2;
     constexpr double max_cord_y = SCREEN_HEIGHT / 2;
@@ -252,17 +252,20 @@ void analyzeDetections(
     cv::Mat &frame,
     std::vector<Detection> &detections)
 {
+    // Clear previous robot positions
+    g_tracker.clearRobots();
     if (!detections.empty())
     {
         cv::Mat hsv;
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-        // Clear previous robot positions
-        g_tracker.clearRobots();
-
-        // findNumbers(detections, blankFrame, teamNumbers);
-
+        findNumbers(detections, blankFrame, teamNumbers);
+        for (int i = 0; i < detections.size(); i++){
+            if(detections[i].label.empty()){
+                detections[i].label = "robot_" + i;
+            }
+        }
         auto t1 = std::chrono::high_resolution_clock::now();
         for (auto &det : detections)
         {
