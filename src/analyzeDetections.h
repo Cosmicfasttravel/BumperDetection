@@ -15,7 +15,7 @@ struct Detection {
 
 
 
-void detectEdgesBumper(
+void analyzeDetections(
     cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
