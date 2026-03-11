@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/badgerbots/BumperDetection/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
