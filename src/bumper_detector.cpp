@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "rknn_api.h"
-#include "analyzeDetections.h"
+#include "analyze_detections.h"
 #include <thread>
 #include <atomic>
 #include <mutex>
