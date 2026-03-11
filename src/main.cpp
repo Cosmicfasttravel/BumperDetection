@@ -1,4 +1,4 @@
-﻿#include "yolomodelgpu.h"
+﻿#include "bumper_detector.h"
 
 int main(){
 return run();
