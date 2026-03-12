@@ -1,1 +1,26 @@
 #include "networktables/NetworkTableInstance.h"
+#include <networktables/DoubleTopic.h>
+#include <networktables/StringTopic.h>
+
+void setupNT(){
+auto nt = nt::NetworkTableInstance::GetDefault();
+    nt.StartClient4("bumper_detection");
+    nt.SetServer("", NT_DEFAULT_PORT4);
+}
+
+void publishRobotPos(const std::string& label, double x, double y, double z, int teamNumber) {
+    static auto nt = nt::NetworkTableInstance::GetDefault();
+    auto table = nt.GetTable("bumper_detection/" + label);
+
+    static std::unordered_map<std::string, nt::DoublePublisher> xPubs, yPubs, zPubs;
+
+    if (!xPubs.count(label)) {
+        xPubs[label] = table->GetDoubleTopic("x").Publish();
+        yPubs[label] = table->GetDoubleTopic("y").Publish();
+        zPubs[label] = table->GetDoubleTopic("z").Publish();
+    }
+
+    xPubs[label].Set(x);
+    yPubs[label].Set(y);
+    zPubs[label].Set(z);
+}
