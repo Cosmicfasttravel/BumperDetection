@@ -8,7 +8,7 @@ auto nt = nt::NetworkTableInstance::GetDefault();
     nt.SetServer("", NT_DEFAULT_PORT4);
 }
 
-void publishRobotPos(const std::string& label, double x, double y, double z, int teamNumber) {
+void publishRobotPos(const std::string& label, double x, double y, double z) {
     static auto nt = nt::NetworkTableInstance::GetDefault();
     auto table = nt.GetTable("bumper_detection/" + label);
 
