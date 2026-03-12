@@ -1,4 +1,0 @@
-/home/badgerbots/BumperDetection/build/CMakeFiles/BumperDetection.dir
-/home/badgerbots/BumperDetection/build/CMakeFiles/run_yolo.dir
-/home/badgerbots/BumperDetection/build/CMakeFiles/edit_cache.dir
-/home/badgerbots/BumperDetection/build/CMakeFiles/rebuild_cache.dir
