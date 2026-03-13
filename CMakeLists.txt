@@ -21,6 +21,10 @@ add_library(BumperDetection SHARED
         src/kalman_filter.cpp
         src/top_down_view.cpp
         src/send_data.cpp
+		src/receive_data.cpp
+		src/receive_data.h
+		src/config_extraction.cpp
+		src/config_extraction.h
 )
 
 target_link_libraries(BumperDetection

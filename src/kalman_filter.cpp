@@ -1,11 +1,12 @@
 ﻿#include "kalman_filter.h"
+#include "config_extraction.h"
 #include <opencv2/core/mat.hpp>
 
 kalmanFilter::kalmanFilter()
 {
     kf.init(6, 3, 0, CV_64F);
 
-    double dt = 1.0 / 5.0; // change to 1/ AVG fps
+    static const double dt = 1.0 / std::stoi(extractByTag("<avg_fps>"));
 
     kf.transitionMatrix = (cv::Mat_<double>(6,6) <<
         1, 0, 0, dt, 0,  0,
@@ -22,9 +23,12 @@ kalmanFilter::kalmanFilter()
         0,0,1,0,0,0
     );
 
-    cv::setIdentity(kf.processNoiseCov, cv::Scalar(100));//motion
-    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(100));//noise
-    cv::setIdentity(kf.errorCovPost, cv::Scalar(200));//measurement variance
+    static const double processNoise = std::stoi(extractByTag("<process_noise>"));
+    static const double measurementNoise = std::stoi(extractByTag("<measurement_noise>"));
+    static const double error = std::stoi(extractByTag("<error>"));
+    cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise));//motion
+    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise));//noise
+    cv::setIdentity(kf.errorCovPost, cv::Scalar(error));//measurement variance
 }
 
 cv::Vec3d kalmanFilter::update(double x, double y, double z, double dt)

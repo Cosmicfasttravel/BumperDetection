@@ -1,11 +1,14 @@
 #include "networktables/NetworkTableInstance.h"
 #include <networktables/DoubleTopic.h>
 #include <networktables/StringTopic.h>
+#include <string>
+
+#include "config_extraction.h"
 
 void setupNT(){
 auto nt = nt::NetworkTableInstance::GetDefault();
     nt.StartClient4("bumper_detection");
-    nt.SetServer("", NT_DEFAULT_PORT4);
+    nt.SetServer(std::stoi(extractByTag("<ip>")), NT_DEFAULT_PORT4); // need ip
 }
 
 void publishRobotPos(const std::string& label, double x, double y, double z) {

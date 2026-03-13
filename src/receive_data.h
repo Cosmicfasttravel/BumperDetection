@@ -1,0 +1,9 @@
+﻿#ifndef BUMPERDETECTION_RECEIVE_DATA_H
+#define BUMPERDETECTION_RECEIVE_DATA_H
+
+
+class receive_data {
+};
+
+
+#endif //BUMPERDETECTION_RECEIVE_DATA_H

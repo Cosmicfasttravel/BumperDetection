@@ -14,6 +14,8 @@
 #include <atomic>
 #include <mutex>
 
+#include "config_extraction.h"
+
 cv::Mat latestFrame;
 std::mutex frameMutex;
 std::atomic<bool> capturing(true);
@@ -183,7 +185,8 @@ std::vector<Detection> ProcessYoloOutput(
 
 int run()
 {
-    std::string teamNumbers[5] = {"1306", "5324", "4613", "4959", "118"};
+    int rotatedDegrees = std::stoi(extractByTag("<rotation>"));
+    std::string teamNumbers[5] = {extractByTag("<t1>"), extractByTag("<t2>"), extractByTag("<t3>"), extractByTag("<t4>"), extractByTag("<t5>")};
 
     for (auto &teamNumber : teamNumbers)
     {
@@ -263,8 +266,8 @@ int run()
 
             constexpr int INPUT_HEIGHT = 320;
             constexpr int INPUT_WIDTH = 320;
-            constexpr float CONF_THRESHOLD = 0.3;
-            constexpr float NMS_THRESHOLD = 0.45;
+            static const float CONF_THRESHOLD = std::stoi(extractByTag("<conf_threshold>"));
+            static const float NMS_THRESHOLD = std::stoi(extractByTag("<nms_threshold>"));
             auto preprocess_start = std::chrono::high_resolution_clock::now();
             {
                 std::lock_guard<std::mutex> lock(frameMutex);
@@ -272,6 +275,12 @@ int run()
                     continue;
                 frame = latestFrame.clone();
             }
+            if (rotatedDegrees == 90)
+                cv::rotate(frame, frame, cv::ROTATE_90_CLOCKWISE);
+            if (rotatedDegrees == -90)
+                cv::rotate(frame, frame, cv::ROTATE_90_COUNTERCLOCKWISE);
+            if (rotatedDegrees == 180)
+                cv::rotate(frame, frame, cv::ROTATE_180);
 
             frame_count++;
 
