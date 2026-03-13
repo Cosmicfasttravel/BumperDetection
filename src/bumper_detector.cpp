@@ -261,13 +261,15 @@ int run()
 
         while (true)
         {
+            pollForChanges(); // check config
+
             auto frame_start = Clock::now();
             prev_frame_time = frame_start;
 
             constexpr int INPUT_HEIGHT = 320;
             constexpr int INPUT_WIDTH = 320;
-            static const float CONF_THRESHOLD = std::stoi(extractByTag("<conf_threshold>"));
-            static const float NMS_THRESHOLD = std::stoi(extractByTag("<nms_threshold>"));
+            float CONF_THRESHOLD = std::stod(extractByTag("<conf_threshold>"));
+            float NMS_THRESHOLD = std::stod(extractByTag("<nms_threshold>"));
             auto preprocess_start = std::chrono::high_resolution_clock::now();
             {
                 std::lock_guard<std::mutex> lock(frameMutex);

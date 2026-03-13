@@ -23,9 +23,9 @@ kalmanFilter::kalmanFilter()
         0,0,1,0,0,0
     );
 
-    static const double processNoise = std::stoi(extractByTag("<process_noise>"));
-    static const double measurementNoise = std::stoi(extractByTag("<measurement_noise>"));
-    static const double error = std::stoi(extractByTag("<error>"));
+    double processNoise = std::stod(extractByTag("<process_noise>"));
+    double measurementNoise = std::stod(extractByTag("<measurement_noise>"));
+    double error = std::stod(extractByTag("<error>"));
     cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise));//motion
     cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise));//noise
     cv::setIdentity(kf.errorCovPost, cv::Scalar(error));//measurement variance

@@ -90,9 +90,9 @@ T findMode(const std::vector<T> &data) {
 
 Position3D getPosition3D(
     const double height,
-    const double focal_length_cm = std::stoi(extractByTag("<focal_length>")),
-    const double known_height_cm = std::stoi(extractByTag("<bumper_height>")),
-    const double pixel_height_cm = std::stoi(extractByTag("<pixel_height>")))  {
+    double focal_length_cm = std::stod(extractByTag("<focal_length>")),
+    double known_height_cm = std::stod(extractByTag("<bumper_height>")),
+    double pixel_height_cm = std::stod(extractByTag("<pixel_height>")))  {
     Position3D pos{};
     if (height > 0) {
         pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
@@ -109,10 +109,10 @@ void drawMeasurements(
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
-    static const double SCREEN_WIDTH = std::stoi(extractByTag("<screen_width>"));
-    static const double SCREEN_HEIGHT = std::stoi(extractByTag("<screen_height>"));
-    static const double X_FOV = std::stoi(extractByTag("<x_fov>"));
-    static const double Y_FOV = std::stoi(extractByTag("<y_fov>"));
+    double SCREEN_WIDTH = std::stod(extractByTag("<screen_width>"));
+    double SCREEN_HEIGHT = std::stod(extractByTag("<screen_height>"));
+    double X_FOV = std::stod(extractByTag("<x_fov>"));
+    double Y_FOV = std::stod(extractByTag("<y_fov>"));
 
     static const double max_cord_x = SCREEN_WIDTH / 2;
     static const double max_cord_y = SCREEN_HEIGHT / 2;
@@ -216,7 +216,7 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
             }
         }
 
-        static const double distance = std::stoi(extractByTag("<lev_distance>"));
+        double distance = std::stod(extractByTag("<lev_distance>"));
         if (minDist > distance) {
             continue;
         }
