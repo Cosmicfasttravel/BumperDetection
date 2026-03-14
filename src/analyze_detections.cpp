@@ -169,7 +169,8 @@ void drawMeasurements(
         tick = 0;
     }
 
-    if(config.loggingMode == 1){
+    if (config.loggingMode == 1)
+    {
         std::ofstream outFile("../log.txt", std::ios_base::app);
         outFile << "x: " << filtered[0] << "\n";
         outFile << "y: " << filtered[1] << "\n";
@@ -183,9 +184,9 @@ void drawMeasurements(
 void startOCR()
 {
     api = new tesseract::TessBaseAPI();
-    api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
+    api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
 
-    api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+    api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
     api->SetVariable("tessedit_char_whitelist", "0123456789");
 }
 
@@ -201,10 +202,9 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
     for (auto &det : detections)
     {
         cv::Mat img = hsvFrame(det.bounding_box).clone();
-        cv::GaussianBlur(img, img, cv::Size(7, 7), 0);
 
         cv::Mat colorMask;
-        cv::inRange(img, cv::Scalar(0, 0, 100), cv::Scalar(179, 50, 255), colorMask);
+        cv::inRange(img, cv::Scalar(0, 0, 200), cv::Scalar(179, 30, 255), colorMask);
 
         cv::Mat gray;
         cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
@@ -217,18 +217,12 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
             cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
         }
 
-        cv::Mat denoised;
-        cv::GaussianBlur(gray, denoised, cv::Size(5, 5), 0);
-
-        cv::Mat binary;
-        cv::adaptiveThreshold(denoised, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C,
-                              cv::THRESH_BINARY, 11, 2);
-
         cv::Mat final;
-        cv::bitwise_and(binary, colorMask, final);
+        cv::bitwise_not(colorMask, final);
 
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
         cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
+        cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
         api->SetImage(final.data, final.cols, final.rows, 1, final.step);
 
@@ -243,10 +237,11 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
         int minDist = INT_MAX;
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
             {
                 int d;
                 d = levenshteinDist(result, teamNumbers[i]);
+                std::cout << teamNumbers[i] << std::endl;
                 if (d < minDist)
                 {
                     minDist = d;
@@ -284,6 +279,7 @@ void analyzeDetections(
         findNumbers(detections, hsv, teamNumbers, config);
         for (int i = 0; i < detections.size(); i++)
         {
+
             if (detections[i].label.empty())
             {
                 detections[i].label = "robot_";

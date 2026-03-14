@@ -1,39 +1,49 @@
 ﻿#Bumper
-<bumper_height> 10.6
+<bumper_height> 16.5
 <focal_length> 0.36
-<pixel_height> 0.0003
+<pixel_height> 0.00105
 
 #Screen properties
-<screen_width> 640
-<screen_height> 480
-<x_fov> 70
-<y_fov> 43
+<screen_width> 1920
+<screen_height> 1080
+<x_fov> 135
+<y_fov> 108
 
 #Kalman Filter
-<avg_fps> 20
-<process_noise> 100
-<measurement_noise> 100
-<error> 200
+<avg_fps> 30
+<process_noise> 1000
+<measurement_noise> 100000
+<error> 2000
 
 #Levenshtein distance
-<lev_distance> 3
+<lev_distance> 100
 
 #Network Tables
 <ip> 1
 
 #Yolo
-<conf_threshold> 0.3
+<conf_threshold> 0.25
 <nms_threshold> 0.45
 
 #Frame Properties
 <rotation> 0
 
 #Teams
-<t1> 1306
-<t2> 1
-<t3> 1
-<t4> 1
-<t5> 1
+<t1>1306
+<t2>1306
+<t3>1306
+<t4>1306
+<t5>1306
 
 #Modes
-<logging_mode> 1
+<logging_mode> 0
+<tuning_mode> 0
+
+#Camera Properties
+<brightness> 140
+<contrast> 70
+<hue> 0
+<saturation> 50
+<gain> -1
+<exposure> 0
+

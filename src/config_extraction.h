@@ -42,10 +42,18 @@ struct Config {
 
     // Modes
     int loggingMode;
+
+    // Camera
+    int brightness;
+    int exposure;
+    int gain;
+    int hue;
+    int saturation;
+    int contrast;
 };
 
 std::string extractByTag(const std::string& tag);
-void pollForChanges();
+bool pollForChanges();
 void extractAll();
 const Config& getConfig();
 

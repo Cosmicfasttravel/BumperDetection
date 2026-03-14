@@ -182,7 +182,6 @@ std::vector<Detection> ProcessYoloOutput(
 
     return detections;
 }
-
 int run()
 {
     extractAll();
@@ -190,14 +189,6 @@ int run()
     const auto &config = getConfig();
 
     std::string teamNumbers[5] = {config.teams[0], config.teams[1], config.teams[2], config.teams[3], config.teams[4]};
-
-    for (auto &teamNumber : teamNumbers)
-    {
-        if (teamNumbers->length() >= 5 || teamNumbers->length() <= 1)
-        {
-            teamNumber = "";
-        }
-    }
 
     try
     {
@@ -231,10 +222,29 @@ int run()
 
         cv::VideoCapture cap(0, cv::CAP_V4L2);
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-        cap.set(cv::CAP_PROP_FPS, 30);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 1920);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+        cap.set(cv::CAP_PROP_FPS, 60);
         cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+        cap.set(cv::CAP_PROP_BRIGHTNESS, config.brightness);
+        cap.set(cv::CAP_PROP_CONTRAST, config.contrast);
+        cap.set(cv::CAP_PROP_HUE, config.hue);
+        cap.set(cv::CAP_PROP_SATURATION, config.saturation);
+        cap.set(cv::CAP_PROP_GAIN, config.gain);
+        cap.set(cv::CAP_PROP_EXPOSURE, config.exposure);
+
+        if (config.loggingMode == 1)
+        {
+            std::ofstream outFile("../log.txt", std::ios_base::app);
+            outFile << "Brightness: " << cap.get(cv::CAP_PROP_BRIGHTNESS) << "\n";
+            outFile << "Contrast: " << cap.get(cv::CAP_PROP_CONTRAST) << "\n";
+            outFile << "Hue: " << cap.get(cv::CAP_PROP_HUE) << "\n";
+            outFile << "Saturation: " << cap.get(cv::CAP_PROP_SATURATION) << "\n";
+            outFile << "Gain: " << cap.get(cv::CAP_PROP_GAIN) << "\n";
+            outFile << "Exposure: " << cap.get(cv::CAP_PROP_EXPOSURE) << "\n\n";
+            outFile.close();
+        }
 
         if (!cap.isOpened())
         {
@@ -264,7 +274,15 @@ int run()
         while (true)
         {
             std::stringstream ss;
-            pollForChanges(); // check config
+            if (pollForChanges())
+            {
+                cap.set(cv::CAP_PROP_BRIGHTNESS, config.brightness);
+                cap.set(cv::CAP_PROP_CONTRAST, config.contrast);
+                cap.set(cv::CAP_PROP_HUE, config.hue);
+                cap.set(cv::CAP_PROP_SATURATION, config.saturation);
+                cap.set(cv::CAP_PROP_GAIN, config.gain);
+                cap.set(cv::CAP_PROP_EXPOSURE, config.exposure);
+            } // check config
 
             auto frame_start = Clock::now();
             prev_frame_time = frame_start;

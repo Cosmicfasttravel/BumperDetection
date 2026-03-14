@@ -9,11 +9,13 @@ std::filesystem::file_time_type prevTime = {};
 
 static Config r_config;
 
-void extractAll() {
+void extractAll()
+{
     fileContents.clear();
     std::ifstream config(CONFIG_PATH);
     std::string s;
-    while (std::getline(config, s)) {
+    while (std::getline(config, s))
+    {
         fileContents.emplace_back(s);
     }
 
@@ -47,24 +49,41 @@ void extractAll() {
     r_config.teams[4] = extractByTag("<t5>");
 
     r_config.loggingMode = std::stoi(extractByTag("<logging_mode>"));
+
+    r_config.brightness = std::stoi(extractByTag("<brightness>"));
+    r_config.contrast = std::stoi(extractByTag("<contrast>"));
+    r_config.hue = std::stoi(extractByTag("<hue>"));
+    r_config.saturation = std::stoi(extractByTag("<saturation>"));
+    r_config.gain = stoi(extractByTag("<gain>"));
+    r_config.exposure = std::stoi(extractByTag("<exposure>"));
+
 }
 
-void pollForChanges() {
-    if (auto curTime = std::filesystem::last_write_time(CONFIG_PATH); prevTime != curTime) {
+bool pollForChanges()
+{
+    if (auto curTime = std::filesystem::last_write_time(CONFIG_PATH); prevTime != curTime)
+    {
         prevTime = curTime;
-        extractAll();        
+        extractAll();
+
+        return true;
     }
+    return false;
 }
 
-std::string extractByTag(const std::string& tag) {
-    for (const auto& line : fileContents) {
-        if (auto pos = line.find(tag); pos != std::string::npos) {
+std::string extractByTag(const std::string &tag)
+{
+    for (const auto &line : fileContents)
+    {
+        if (auto pos = line.find(tag); pos != std::string::npos)
+        {
             return line.substr(pos + tag.length());
         }
     }
     return "";
 }
 
-const Config& getConfig(){
+const Config &getConfig()
+{
     return r_config;
 }
