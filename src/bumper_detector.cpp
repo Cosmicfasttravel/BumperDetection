@@ -222,8 +222,8 @@ int run()
 
         cv::VideoCapture cap(0, cv::CAP_V4L2);
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen_width);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen_height);
         cap.set(cv::CAP_PROP_FPS, 60);
         cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
 
