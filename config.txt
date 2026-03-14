@@ -19,7 +19,7 @@
 <lev_distance> 3
 
 #Network Tables
-<ip> 10.TE.AM.2
+<ip> 1
 
 #Yolo
 <conf_threshold> 0.3
@@ -30,8 +30,8 @@
 
 #Teams
 <t1> 1306
-<t2>
-<t3>
-<t4>
-<t5>
+<t2> 1
+<t3> 1
+<t4> 1
+<t5> 1
 

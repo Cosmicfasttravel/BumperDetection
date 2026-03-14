@@ -2,11 +2,11 @@
 #include "config_extraction.h"
 #include <opencv2/core/mat.hpp>
 
-kalmanFilter::kalmanFilter()
+kalmanFilter::kalmanFilter(const Config& config)
 {
     kf.init(6, 3, 0, CV_64F);
 
-    static const double dt = 1.0 / std::stoi(extractByTag("<avg_fps>"));
+    static const double dt = 1.0 / config.avg_fps;
 
     kf.transitionMatrix = (cv::Mat_<double>(6,6) <<
         1, 0, 0, dt, 0,  0,
@@ -23,9 +23,9 @@ kalmanFilter::kalmanFilter()
         0,0,1,0,0,0
     );
 
-    double processNoise = std::stod(extractByTag("<process_noise>"));
-    double measurementNoise = std::stod(extractByTag("<measurement_noise>"));
-    double error = std::stod(extractByTag("<error>"));
+    double processNoise = config.process_noise;
+    double measurementNoise = config.measurement_noise;
+    double error = config.error;
     cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise));//motion
     cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise));//noise
     cv::setIdentity(kf.errorCovPost, cv::Scalar(error));//measurement variance

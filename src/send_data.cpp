@@ -8,7 +8,7 @@
 void setupNT(){
 auto nt = nt::NetworkTableInstance::GetDefault();
     nt.StartClient4("bumper_detection");
-    nt.SetServer(std::stoi(extractByTag("<ip>")), NT_DEFAULT_PORT4); // need ip
+    nt.SetServer("det", 0);
 }
 
 void publishRobotPos(const std::string& label, double x, double y, double z) {

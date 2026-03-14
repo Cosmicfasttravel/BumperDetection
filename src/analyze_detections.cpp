@@ -17,23 +17,28 @@
 #include "kalman_filter.h"
 #include "top_down_view.h"
 
-struct Position3D {
+struct Position3D
+{
     double z_cm;
 };
 
-void logTimes(const std::vector<std::chrono::system_clock::time_point> &durations) {
+void logTimes(const std::vector<std::chrono::system_clock::time_point> &durations)
+{
     std::stringstream ss;
-    if (durations.size() < 1) {
+    if (durations.size() < 1)
+    {
         return;
     }
     ss << "Timings:\n";
-    for (size_t i = 1; i < durations.size(); i++) {
-        if (i != 1) {
+    for (size_t i = 1; i < durations.size(); i++)
+    {
+        if (i != 1)
+        {
             ss << '\n';
         }
         ss << "\tt" << i << "-t" << i - 1 << "\t"
-                << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i - 1)).count()
-                << "ms";
+           << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i - 1)).count()
+           << "ms";
     }
     std::cout << ss.str() << std::endl;
 }
@@ -41,7 +46,8 @@ void logTimes(const std::vector<std::chrono::system_clock::time_point> &duration
 // Global tracker instance
 static RobotTracker g_tracker;
 
-int levenshteinDist(const std::string &word1, const std::string &word2) {
+int levenshteinDist(const std::string &word1, const std::string &word2)
+{
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
     std::vector verif(size1 + 1, std::vector<int>(size2 + 1));
@@ -56,8 +62,10 @@ int levenshteinDist(const std::string &word1, const std::string &word2) {
     for (int j = 0; j <= size2; j++)
         verif[0][j] = j;
 
-    for (int i = 1; i <= size1; i++) {
-        for (int j = 1; j <= size2; j++) {
+    for (int i = 1; i <= size1; i++)
+    {
+        for (int j = 1; j <= size2; j++)
+        {
             int cost = (word2[j - 1] == word1[i - 1]) ? 0 : 1;
             verif[i][j] = std::min(
                 std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
@@ -68,18 +76,22 @@ int levenshteinDist(const std::string &word1, const std::string &word2) {
     return verif[size1][size2];
 }
 
-template<typename T>
-T findMode(const std::vector<T> &data) {
+template <typename T>
+T findMode(const std::vector<T> &data)
+{
     std::unordered_map<T, int> counts;
-    for (const T &value: data) {
+    for (const T &value : data)
+    {
         ++counts[value];
     }
 
     int maxCount = 0;
     T mostFrequentVal = T();
 
-    for (const auto &pair: counts) {
-        if (pair.second > maxCount) {
+    for (const auto &pair : counts)
+    {
+        if (pair.second > maxCount)
+        {
             maxCount = pair.second;
             mostFrequentVal = pair.first;
         }
@@ -89,12 +101,15 @@ T findMode(const std::vector<T> &data) {
 }
 
 Position3D getPosition3D(
-    const double height,
-    double focal_length_cm = std::stod(extractByTag("<focal_length>")),
-    double known_height_cm = std::stod(extractByTag("<bumper_height>")),
-    double pixel_height_cm = std::stod(extractByTag("<pixel_height>")))  {
+    const double height, const Config &config)
+{
+    double focal_length_cm = config.focal_length;
+    double known_height_cm = config.bumper_height;
+    double pixel_height_cm = config.pixel_height;
+
     Position3D pos{};
-    if (height > 0) {
+    if (height > 0)
+    {
         pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
         return pos;
     }
@@ -103,16 +118,17 @@ Position3D getPosition3D(
 
 void drawMeasurements(
     const Position3D &pos,
-    const Detection &detection) {
+    const Detection &detection, const Config &config)
+{
     static int tick;
 
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
-    double SCREEN_WIDTH = std::stod(extractByTag("<screen_width>"));
-    double SCREEN_HEIGHT = std::stod(extractByTag("<screen_height>"));
-    double X_FOV = std::stod(extractByTag("<x_fov>"));
-    double Y_FOV = std::stod(extractByTag("<y_fov>"));
+    double SCREEN_WIDTH = config.screen_width;
+    double SCREEN_HEIGHT = config.screen_height;
+    double X_FOV = config.x_fov;
+    double Y_FOV = config.y_fov;
 
     static const double max_cord_x = SCREEN_WIDTH / 2;
     static const double max_cord_y = SCREEN_HEIGHT / 2;
@@ -135,13 +151,20 @@ void drawMeasurements(
     filtered[2] = z_coordinate;
 
     // Update tracker with robot position
-    if (!label.empty()) {
-        kalmanFilter &filter = filters[label];
+    if (!label.empty())
+    {
+        auto it = filters.find(label);
+        if (it == filters.end())
+        {
+            it = filters.emplace(label, config).first;
+        }
+        kalmanFilter &filter = it->second;
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
     }
     g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(255));
 
-    if (tick >= 20) {
+    if (tick >= 20)
+    {
         filters.erase(filters.begin(), filters.end());
         tick = 0;
     }
@@ -149,7 +172,8 @@ void drawMeasurements(
     tick++;
 }
 
-void startOCR() {
+void startOCR()
+{
     api = new tesseract::TessBaseAPI();
     api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
 
@@ -157,14 +181,17 @@ void startOCR() {
     api->SetVariable("tessedit_char_whitelist", "0123456789");
 }
 
-void endOCR() {
+void endOCR()
+{
     api->End();
     delete api;
 }
 
 void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
-                 const std::string teamNumbers[5]) {
-    for (auto &det: detections) {
+                 const std::string teamNumbers[5], const Config &config)
+{
+    for (auto &det : detections)
+    {
         cv::Mat img = blankFrame(det.bounding_box).clone();
         cv::GaussianBlur(img, img, cv::Size(7, 7), 0);
 
@@ -175,7 +202,8 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
         cv::Mat gray;
         cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
-        if (gray.cols < 300) {
+        if (gray.cols < 300)
+        {
             double scale = 300.0 / gray.cols;
             cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
             cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
@@ -205,19 +233,23 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
         int minIndex = 0;
 
         int minDist = INT_MAX;
-        if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
-            for (int i = 0; i < teamNumbers->size(); i++) {
+        if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
+        {
+            for (int i = 0; i < teamNumbers->size(); i++)
+            {
                 int d;
                 d = levenshteinDist(result, teamNumbers[i]);
-                if (d < minDist) {
+                if (d < minDist)
+                {
                     minDist = d;
                     minIndex = i;
                 }
             }
         }
 
-        double distance = std::stod(extractByTag("<lev_distance>"));
-        if (minDist > distance) {
+        double distance = config.lev_distance;
+        if (minDist > distance)
+        {
             continue;
         }
 
@@ -231,23 +263,29 @@ void analyzeDetections(
     cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
-    std::vector<Detection> &detections) {
+    std::vector<Detection> &detections,
+    const Config &config)
+{
     // Clear previous robot positions
     g_tracker.clearRobots();
-    if (!detections.empty()) {
+    if (!detections.empty())
+    {
         cv::Mat hsv;
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-        findNumbers(detections, blankFrame, teamNumbers);
-        for (int i = 0; i < detections.size(); i++) {
-            if (detections[i].label.empty()) {
+        findNumbers(detections, blankFrame, teamNumbers, config);
+        for (int i = 0; i < detections.size(); i++)
+        {
+            if (detections[i].label.empty())
+            {
                 detections[i].label = "robot_";
                 detections[i].label += i;
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        for (auto &det: detections) {
+        for (auto &det : detections)
+        {
             double height = 0;
             double startHeight = 0;
 
@@ -262,57 +300,59 @@ void analyzeDetections(
             // blue = 80-120 hue, also same s and v
 
             // walks right finding red or blue pixels
-            for (auto i = centerX; i < maxX; i++) {
-                if (det.color != "red" && det.color != "blue") {
+            for (auto i = centerX; i < maxX; i++)
+            {
+                if (det.color != "red" && det.color != "blue")
+                {
                     cv::Vec3b color = hsv.at<cv::Vec3b>(startCY, i);
                     double h = color[0];
                     double s = color[1];
                     double v = color[2];
 
                     if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) {
+                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
+                    {
                         det.color = "red";
                         break;
                     }
-                    if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) {
+                    if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))
+                    {
                         det.color = "blue";
                         break;
                     }
                 }
             }
 
-            int sum = 0;
-            int counter = 0;
-            for (auto x = startX; x < maxX; x++) {
-                for (auto y = startTY; y < maxY; y++) {
-                    const cv::Vec3b *row = hsv.ptr<cv::Vec3b>(y);
-                    cv::Vec3b color = row[x];
-                    double h = color[0];
-                    double s = color[1];
-                    double v = color[2];
+            for (auto y = startTY; y < maxY; y++)
+            {
+                cv::Vec3b color = hsv.at<cv::Vec3b>(y, centerX);
+                double h = color[0];
+                double s = color[1];
+                double v = color[2];
 
-                    if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
-                        "blue") {
-                        height++;
-                        if (startHeight == 0) {
-                            startHeight = y;
-                        }
-                    } else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                                ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
-                               det.color == "red") {
-                        height++;
-                        if (startHeight == 0) {
-                            startHeight = y;
-                        }
+                if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
+                                                                                                       "blue")
+                {
+                    height++;
+                    if (startHeight == 0)
+                    {
+                        startHeight = y;
                     }
                 }
-                sum += height;
-                counter++;
+                else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                          ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
+                         det.color == "red")
+                {
+                    height++;
+                    if (startHeight == 0)
+                    {
+                        startHeight = y;
+                    }
+                }
             }
-            height = sum / counter;
 
-            Position3D pos = getPosition3D(height);
-            drawMeasurements(pos, det);
+            Position3D pos = getPosition3D(height, config);
+            drawMeasurements(pos, det, config);
         }
 
         auto t2 = std::chrono::high_resolution_clock::now();

@@ -2,6 +2,7 @@
 #define BUMPERDETECTION_EDGEDETECTION_H
 #include <opencv2/core/mat.hpp>
 #include <tesseract/baseapi.h>
+#include "config_extraction.h"
 
 struct Detection {
     int class_id;
@@ -19,7 +20,8 @@ void analyzeDetections(
     cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
-    std::vector<Detection> &detections
+    std::vector<Detection> &detections, 
+    const Config& config
 );
 
 inline tesseract::TessBaseAPI *api;

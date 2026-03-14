@@ -185,8 +185,11 @@ std::vector<Detection> ProcessYoloOutput(
 
 int run()
 {
-    int rotatedDegrees = std::stoi(extractByTag("<rotation>"));
-    std::string teamNumbers[5] = {extractByTag("<t1>"), extractByTag("<t2>"), extractByTag("<t3>"), extractByTag("<t4>"), extractByTag("<t5>")};
+    extractAll();
+
+    const auto& config = getConfig();
+
+    std::string teamNumbers[5] = {config.teams[0], config.teams[1], config.teams[2], config.teams[3], config.teams[4]};
 
     for (auto &teamNumber : teamNumbers)
     {
@@ -268,8 +271,8 @@ int run()
 
             constexpr int INPUT_HEIGHT = 320;
             constexpr int INPUT_WIDTH = 320;
-            float CONF_THRESHOLD = std::stod(extractByTag("<conf_threshold>"));
-            float NMS_THRESHOLD = std::stod(extractByTag("<nms_threshold>"));
+            float CONF_THRESHOLD = config.conf_threshold;
+            float NMS_THRESHOLD = config.nms_threshold;
             auto preprocess_start = std::chrono::high_resolution_clock::now();
             {
                 std::lock_guard<std::mutex> lock(frameMutex);
@@ -277,6 +280,7 @@ int run()
                     continue;
                 frame = latestFrame.clone();
             }
+            int rotatedDegrees = config.rotation;
             if (rotatedDegrees == 90)
                 cv::rotate(frame, frame, cv::ROTATE_90_CLOCKWISE);
             if (rotatedDegrees == -90)
@@ -359,7 +363,7 @@ int run()
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            analyzeDetections(blankFrame, teamNumbers, frame, detections);
+            analyzeDetections(blankFrame, teamNumbers, frame, detections, config);
             int key = cv::waitKey(waitTime);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
