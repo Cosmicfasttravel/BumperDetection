@@ -45,6 +45,8 @@ void extractAll() {
     r_config.teams[2] = extractByTag("<t3>");
     r_config.teams[3] = extractByTag("<t4>");
     r_config.teams[4] = extractByTag("<t5>");
+
+    r_config.loggingMode = std::stoi(extractByTag("<logging_mode>"));
 }
 
 void pollForChanges() {

@@ -39,6 +39,9 @@ struct Config {
 
     // Teams
     std::string teams[5];
+
+    // Modes
+    int loggingMode;
 };
 
 std::string extractByTag(const std::string& tag);

@@ -165,8 +165,16 @@ void drawMeasurements(
 
     if (tick >= 20)
     {
-        filters.erase(filters.begin(), filters.end());
+        filters.clear();
         tick = 0;
+    }
+
+    if(config.loggingMode == 1){
+        std::ofstream outFile("../log.txt", std::ios_base::app);
+        outFile << "x: " << filtered[0] << "\n";
+        outFile << "y: " << filtered[1] << "\n";
+        outFile << "z: " << filtered[2] << "\n\n";
+        outFile.close();
     }
 
     tick++;

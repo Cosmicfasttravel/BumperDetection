@@ -35,3 +35,5 @@
 <t4> 1
 <t5> 1
 
+#Modes
+<logging_mode> 1
