@@ -175,7 +175,7 @@ void drawMeasurements(
 void startOCR()
 {
     api = new tesseract::TessBaseAPI();
-    api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+    api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
 
     api->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
     api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -187,20 +187,20 @@ void endOCR()
     delete api;
 }
 
-void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
+void findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
                  const std::string teamNumbers[5], const Config &config)
 {
     for (auto &det : detections)
     {
-        cv::Mat img = blankFrame(det.bounding_box).clone();
+        cv::Mat img = hsvFrame(det.bounding_box).clone();
         cv::GaussianBlur(img, img, cv::Size(7, 7), 0);
 
-        cv::Mat hsv, colorMask;
-        cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
-        cv::inRange(hsv, cv::Scalar(0, 0, 100), cv::Scalar(179, 50, 255), colorMask);
+        cv::Mat colorMask;
+        cv::inRange(img, cv::Scalar(0, 0, 100), cv::Scalar(179, 50, 255), colorMask);
 
         cv::Mat gray;
-        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
+        cv::cvtColor(gray, gray, cv::COLOR_BGR2GRAY);
 
         if (gray.cols < 300)
         {
@@ -235,7 +235,7 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
         int minDist = INT_MAX;
         if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
         {
-            for (int i = 0; i < teamNumbers->size(); i++)
+            for (int i = 0; i < 4; i++)
             {
                 int d;
                 d = levenshteinDist(result, teamNumbers[i]);
@@ -260,7 +260,6 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &blankFrame,
 }
 
 void analyzeDetections(
-    cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
     std::vector<Detection> &detections,
@@ -274,13 +273,13 @@ void analyzeDetections(
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-        findNumbers(detections, blankFrame, teamNumbers, config);
+        findNumbers(detections, hsv, teamNumbers, config);
         for (int i = 0; i < detections.size(); i++)
         {
             if (detections[i].label.empty())
             {
                 detections[i].label = "robot_";
-                detections[i].label += i;
+                detections[i].label += std::to_string(i);
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();

@@ -17,7 +17,6 @@ struct Detection {
 
 
 void analyzeDetections(
-    cv::Mat &blankFrame,
     const std::string teamNumbers[5],
     cv::Mat &frame,
     std::vector<Detection> &detections, 

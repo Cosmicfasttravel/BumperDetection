@@ -298,8 +298,6 @@ int run()
             }
             processed_count++;
 
-            blankFrame = frame.clone();
-
             // Preprocess
 
             cv::Mat resized;
@@ -363,7 +361,7 @@ int run()
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            analyzeDetections(blankFrame, teamNumbers, frame, detections, config);
+            analyzeDetections(teamNumbers, frame, detections, config);
             int key = cv::waitKey(waitTime);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
