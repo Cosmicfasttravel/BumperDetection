@@ -19,7 +19,7 @@
 <lev_distance> 100
 
 #Network Tables
-<ip> 1
+<ip>1
 
 #Yolo
 <conf_threshold> 0.25
@@ -36,14 +36,14 @@
 <t5>1306
 
 #Modes
-<logging_mode> 0
+<logging_mode> 1
 <tuning_mode> 0
 
 #Camera Properties
-<brightness> -50
-<contrast> 10
-<hue> 0
+<brightness> -100
+<contrast> 1
+<hue> 20
 <saturation> 100
-<gain> -1
+<gain> -100
 <exposure> 0
 

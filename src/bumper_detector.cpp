@@ -271,6 +271,8 @@ int run()
 
         startOCR();
 
+        std::vector<double> fps;
+
         while (true)
         {
             std::stringstream ss;
@@ -350,8 +352,6 @@ int run()
                                         inference_end - inference_start)
                                         .count();
 
-            ss << std::fixed << std::setprecision(2) << "inference time: " << (inference_end - inference_start) / 1000000.f << " ";
-
             // Post-process
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
@@ -378,8 +378,14 @@ int run()
             auto delta = FrameDuration(frame_end - prev_frame_time).count();
 
             ss.clear();
-            ss << std::fixed << std::setprecision(2) << "FPS: " << (1.0 / delta);
+            double sum = 0;
+            for(int i = 0; i < fps.size(); i++){
+                sum += fps[i];
+            }
 
+            ss << std::fixed << std::setprecision(2) << "FPS: " << sum/fps.size();
+            fps.emplace_back((1.f/delta));
+        
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
@@ -390,6 +396,10 @@ int run()
             total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
                                           postprocess_end - postprocess_start)
                                           .count();
+
+            if(fps.size() >= 10){
+                fps.erase(fps.begin());
+            }
 
             if (key == 27)
                 break;

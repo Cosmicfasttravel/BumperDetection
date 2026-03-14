@@ -161,7 +161,18 @@ void drawMeasurements(
         kalmanFilter &filter = it->second;
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
     }
-    g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(255));
+    if (detection.color == "red")
+    {
+        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 255));
+    }
+    else if (detection.color == "blue")
+    {
+        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(255, 0, 0));
+    }
+    else
+    {
+        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 0));
+    }
 
     if (tick >= 20)
     {
@@ -171,11 +182,11 @@ void drawMeasurements(
 
     if (config.loggingMode == 1)
     {
-        std::ofstream outFile("../log.txt", std::ios_base::app);
-        outFile << "x: " << filtered[0] << "\n";
-        outFile << "y: " << filtered[1] << "\n";
-        outFile << "z: " << filtered[2] << "\n\n";
-        outFile.close();
+            std::ofstream outFile("../log.txt", std::ios_base::app);
+            outFile << "x: " << filtered[0] << "\n";
+            outFile << "y: " << filtered[1] << "\n";
+            outFile << "z: " << filtered[2] << "\n\n";
+            outFile.close();
     }
 
     tick++;
