@@ -187,7 +187,7 @@ int run()
 {
     extractAll();
 
-    const auto& config = getConfig();
+    const auto &config = getConfig();
 
     std::string teamNumbers[5] = {config.teams[0], config.teams[1], config.teams[2], config.teams[3], config.teams[4]};
 
@@ -229,12 +229,11 @@ int run()
         rknn_set_core_mask(ctx, core_mask);
         std::cout << "RKNN model loaded successfully" << std::endl;
 
-        
         cv::VideoCapture cap(0, cv::CAP_V4L2);
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
         cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-        cap.set(cv::CAP_PROP_FPS, 15);
+        cap.set(cv::CAP_PROP_FPS, 30);
         cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
 
         if (!cap.isOpened())
@@ -264,6 +263,7 @@ int run()
 
         while (true)
         {
+            std::stringstream ss;
             pollForChanges(); // check config
 
             auto frame_start = Clock::now();
@@ -327,9 +327,12 @@ int run()
             rknn_outputs_get(ctx, 1, outputs_rknn, nullptr);
 
             auto inference_end = std::chrono::high_resolution_clock::now();
+
             total_inference_time += std::chrono::duration_cast<std::chrono::milliseconds>(
                                         inference_end - inference_start)
                                         .count();
+
+            ss << std::fixed << std::setprecision(2) << "inference time: " << (inference_end - inference_start) / 1000000.f << " ";
 
             // Post-process
             auto postprocess_start = std::chrono::high_resolution_clock::now();
@@ -355,7 +358,8 @@ int run()
             auto frame_end = Clock::now();
             using FrameDuration = std::chrono::duration<double>;
             auto delta = FrameDuration(frame_end - prev_frame_time).count();
-            std::stringstream ss;
+
+            ss.clear();
             ss << std::fixed << std::setprecision(2) << "FPS: " << (1.0 / delta);
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),

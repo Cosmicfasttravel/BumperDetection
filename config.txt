@@ -10,7 +10,7 @@
 <y_fov> 43
 
 #Kalman Filter
-<avg_fps> 24
+<avg_fps> 20
 <process_noise> 100
 <measurement_noise> 100
 <error> 200
