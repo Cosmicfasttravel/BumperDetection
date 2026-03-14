@@ -142,9 +142,9 @@ void drawMeasurements(
     const double x_angle = (X_FOV / 2.0 * offset_x) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2.0 * offset_y) * CV_PI / 180.0;
 
-    const double x_coordinate = pos.z_cm * cos(x_angle) / 100;
-    const double y_coordinate = pos.z_cm * sin(x_angle) * cos(y_angle) / 100;
-    const double z_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
+    const double x_coordinate = pos.z_cm / 100;
+    const double y_coordinate = pos.z_cm * tan(x_angle) / 100;
+    const double z_coordinate = pos.z_cm * cos(x_angle) * sin(x_angle) * sin(y_angle) / 100;
     cv::Vec3d filtered;
     filtered[0] = x_coordinate;
     filtered[1] = y_coordinate;

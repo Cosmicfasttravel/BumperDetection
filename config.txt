@@ -1,13 +1,13 @@
 ﻿#Bumper
 <bumper_height> 16.5
 <focal_length> 0.36
-<pixel_height> 0.00105
+<pixel_height> 0.00035
 
 #Screen properties
-<screen_width> 1920
-<screen_height> 1080
-<x_fov> 135
-<y_fov> 108
+<screen_width> 1280
+<screen_height> 720
+<x_fov> 60
+<y_fov> 43
 
 #Kalman Filter
 <avg_fps> 30
@@ -40,10 +40,10 @@
 <tuning_mode> 0
 
 #Camera Properties
-<brightness> 140
-<contrast> 70
+<brightness> -50
+<contrast> 10
 <hue> 0
-<saturation> 50
+<saturation> 100
 <gain> -1
 <exposure> 0
 
