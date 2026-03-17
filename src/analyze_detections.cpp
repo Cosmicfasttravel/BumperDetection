@@ -118,10 +118,8 @@ Position3D getPosition3D(
 
 void drawMeasurements(
     const Position3D &pos,
-    const Detection &detection, const Config &config)
+    const Detection &detection, const Config &config, const std::vector<std::string> &visibleNumbers)
 {
-    static int tick;
-
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
@@ -171,13 +169,21 @@ void drawMeasurements(
     }
     else
     {
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 0));
+
     }
 
-    if (tick >= 20)
-    {
-        filters.clear();
-        tick = 0;
+    for (auto it = filters.begin(); it != filters.end();) {
+        bool found = false;
+        for (auto &num: visibleNumbers) {
+            if (it->first == num) {
+                found = true;
+            }
+        }
+        if (!found) {
+            it = filters.erase(it);
+        } else {
+            ++it;
+        }
     }
 
     if (config.loggingMode == 1)
@@ -188,8 +194,6 @@ void drawMeasurements(
             outFile << "z: " << filtered[2] << "\n\n";
             outFile.close();
     }
-
-    tick++;
 }
 
 void startOCR()
@@ -207,9 +211,10 @@ void endOCR()
     delete api;
 }
 
-void findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
+std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
                  const std::string teamNumbers[5], const Config &config)
 {
+    std::vector<std::string> visibleNumbers;
     for (auto &det : detections)
     {
         cv::Mat img = hsvFrame(det.bounding_box).clone();
@@ -270,7 +275,9 @@ void findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
         result = teamNumbers[minIndex];
 
         det.label = result;
+        visibleNumbers.emplace_back(result);
     }
+    return visibleNumbers;
 }
 
 void analyzeDetections(
@@ -287,7 +294,7 @@ void analyzeDetections(
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-        findNumbers(detections, hsv, teamNumbers, config);
+        const std::vector<std::string> visibleNumbers = findNumbers(detections, hsv, teamNumbers, config);
         for (int i = 0; i < detections.size(); i++)
         {
 
@@ -310,18 +317,15 @@ void analyzeDetections(
             auto maxY = det.bounding_box.y + det.bounding_box.height;
             auto maxX = det.bounding_box.x + det.bounding_box.width;
 
-            // red = 0-15 hue, 100-255 saturation, 130-255 value | 170-179 = hue, same s and v
-            // blue = 80-120 hue, also same s and v
-
             // walks right finding red or blue pixels
-            for (auto i = centerX; i < maxX; i++)
+            for (auto x = centerX; x < maxX; x++)
             {
                 if (det.color != "red" && det.color != "blue")
                 {
-                    cv::Vec3b color = hsv.at<cv::Vec3b>(startCY, i);
-                    double h = color[0];
-                    double s = color[1];
-                    double v = color[2];
+                    auto color = hsv.at<cv::Vec3b>(startCY, x);
+                    const double h = color[0];
+                    const double s = color[1];
+                    const double v = color[2];
 
                     if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
                         ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
@@ -337,36 +341,38 @@ void analyzeDetections(
                 }
             }
 
-            for (auto y = startTY; y < maxY; y++)
-            {
-                cv::Vec3b color = hsv.at<cv::Vec3b>(y, centerX);
-                double h = color[0];
-                double s = color[1];
-                double v = color[2];
+            for (auto x = startX; x < maxX; x++) {
+                for (auto y = startTY; y < maxY; y++)
+                {
+                    auto color = hsv.at<cv::Vec3b>(y, x);
+                    const double h = color[0];
+                    const double s = color[1];
+                    const double v = color[2];
 
-                if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
-                                                                                                       "blue")
-                {
-                    height++;
-                    if (startHeight == 0)
+                    if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
+                                                                                                           "blue")
                     {
-                        startHeight = y;
+                        height++;
+                        if (startHeight == 0)
+                        {
+                            startHeight = y;
+                        }
                     }
-                }
-                else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                          ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
-                         det.color == "red")
-                {
-                    height++;
-                    if (startHeight == 0)
+                    else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                              ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
+                             det.color == "red")
                     {
-                        startHeight = y;
+                        height++;
+                        if (startHeight == 0)
+                        {
+                            startHeight = y;
+                        }
                     }
                 }
             }
 
             Position3D pos = getPosition3D(height, config);
-            drawMeasurements(pos, det, config);
+            drawMeasurements(pos, det, config, visibleNumbers);
         }
 
         auto t2 = std::chrono::high_resolution_clock::now();

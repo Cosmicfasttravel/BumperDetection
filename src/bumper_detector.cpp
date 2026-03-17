@@ -397,7 +397,7 @@ int run()
                                           postprocess_end - postprocess_start)
                                           .count();
 
-            if(fps.size() >= 10){
+            if(fps.size() >= 20){
                 fps.erase(fps.begin());
             }
 
@@ -415,13 +415,6 @@ int run()
         capturing = false;
         camThread.join();
 
-        auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-        std::cout << "Processing time: " << std::fixed << std::setprecision(2)
-                  << static_cast<double>(duration.count()) / 1000.0 << " seconds" << std::endl;
-        std::cout << "Average FPS: " << std::fixed << std::setprecision(2)
-                  << processed_count / (static_cast<double>(duration.count()) / 1000.0) << std::endl;
-        std::cout << "\nTiming Breakdown (per frame):" << std::endl;
         std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;

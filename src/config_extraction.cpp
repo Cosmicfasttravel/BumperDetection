@@ -1,6 +1,7 @@
 ﻿#include "config_extraction.h"
 
 #include <filesystem>
+#include <functional>
 #include <iostream>
 
 static const std::filesystem::path CONFIG_PATH = "../config.txt";
@@ -13,6 +14,11 @@ void extractAll()
 {
     fileContents.clear();
     std::ifstream config(CONFIG_PATH);
+    if (!config.is_open()) {
+        std::cerr << "Could not open " << CONFIG_PATH << std::endl;
+        throw std::runtime_error("Could not open config file");
+    }
+
     std::string s;
     while (std::getline(config, s))
     {
@@ -77,9 +83,11 @@ std::string extractByTag(const std::string &tag)
     {
         if (auto pos = line.find(tag); pos != std::string::npos)
         {
+            std::cout << "Found tag '" << tag << "'.At line " << pos << std::endl;
             return line.substr(pos + tag.length());
         }
     }
+    std::cerr << "WARNING: Could not find tag " << tag << std::endl;
     return "";
 }
 
