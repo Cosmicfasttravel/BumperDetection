@@ -55,6 +55,8 @@ void extractAll()
     r_config.teams[4] = extractByTag("<t5>");
 
     r_config.loggingMode = std::stoi(extractByTag("<logging_mode>"));
+    r_config.write_image_mode = std::stoi(extractByTag("<write_image_mode>"));
+
 
     r_config.brightness = std::stoi(extractByTag("<brightness>"));
     r_config.contrast = std::stoi(extractByTag("<contrast>"));

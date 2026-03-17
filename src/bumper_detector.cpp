@@ -234,6 +234,16 @@ int run()
         cap.set(cv::CAP_PROP_GAIN, config.gain);
         cap.set(cv::CAP_PROP_EXPOSURE, config.exposure);
 
+        int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
+        int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+        double fps = cap.get(cv::CAP_PROP_FPS);
+        if (fps <= 0) fps = 30.0;
+        int codec = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+        std::string filename = "./output.avi";
+
+        cv::VideoWriter writer;
+        writer.open(filename, codec, fps, cv::Size(frame_width, frame_height), true);
+
         if (config.loggingMode == 1)
         {
             std::ofstream outFile("../log.txt", std::ios_base::app);
@@ -317,6 +327,10 @@ int run()
                 continue;
             }
             processed_count++;
+
+            if (config.write_image_mode) {
+                writer.write(frame);
+            }
 
             // Preprocess
 
@@ -414,6 +428,10 @@ int run()
         rknn_destroy(ctx);
         capturing = false;
         camThread.join();
+
+        cap.release();
+        writer.release();
+        cv::destroyAllWindows();
 
         std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;

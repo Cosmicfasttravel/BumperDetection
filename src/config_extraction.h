@@ -1,10 +1,7 @@
 ﻿#ifndef BUMPERDETECTION_CONFIG_EXTRACTION_H
 #define BUMPERDETECTION_CONFIG_EXTRACTION_H
 #include <filesystem>
-#include <sstream>
-#include <fstream>
 #include <string>
-#include <vector>
 
 struct Config {
     // Bumper
@@ -42,6 +39,7 @@ struct Config {
 
     // Modes
     int loggingMode;
+    int writeImageMode;
 
     // Camera
     int brightness;

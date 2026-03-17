@@ -38,6 +38,7 @@
 #Modes
 <logging_mode> 1
 <tuning_mode> 0
+<write_frame_mode> 1
 
 #Camera Properties
 <brightness> -100
