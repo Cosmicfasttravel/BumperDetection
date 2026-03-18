@@ -2,12 +2,14 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <vector>
+#include <ostream>
 #include <string>
 #include <chrono>
 #include <iomanip>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include "rknn_api.h"
 #include "analyze_detections.h"
 #include <thread>
@@ -236,13 +238,13 @@ int run()
 
         int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
         int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
-        double fps = cap.get(cv::CAP_PROP_FPS);
-        if (fps <= 0) fps = 30.0;
-        int codec = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
-        std::string filename = "./output.avi";
+        double fpsVideo = cap.get(cv::CAP_PROP_FPS);
+        if (fpsVideo <= 0) fpsVideo = 15.0;
+        int codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+        std::string filename = "./output.mp4";
 
         cv::VideoWriter writer;
-        writer.open(filename, codec, fps, cv::Size(frame_width, frame_height), true);
+        writer.open(filename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
 
         if (config.loggingMode == 1)
         {
@@ -328,7 +330,7 @@ int run()
             }
             processed_count++;
 
-            if (config.write_image_mode) {
+            if (config.writeFrameMode) {
                 writer.write(frame);
             }
 

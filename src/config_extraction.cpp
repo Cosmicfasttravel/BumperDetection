@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <functional>
+#include <ostream>
+#include <fstream>
 #include <iostream>
 
 static const std::filesystem::path CONFIG_PATH = "../config.txt";
@@ -55,7 +57,7 @@ void extractAll()
     r_config.teams[4] = extractByTag("<t5>");
 
     r_config.loggingMode = std::stoi(extractByTag("<logging_mode>"));
-    r_config.write_image_mode = std::stoi(extractByTag("<write_image_mode>"));
+    r_config.writeFrameMode = std::stoi(extractByTag("<write_frame_mode>"));
 
 
     r_config.brightness = std::stoi(extractByTag("<brightness>"));
@@ -85,7 +87,6 @@ std::string extractByTag(const std::string &tag)
     {
         if (auto pos = line.find(tag); pos != std::string::npos)
         {
-            std::cout << "Found tag '" << tag << "'.At line " << pos << std::endl;
             return line.substr(pos + tag.length());
         }
     }

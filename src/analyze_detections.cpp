@@ -6,6 +6,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/mat.hpp>
 #include <sstream>
+#include <fstream>
+#include <ostream>
 #include <tesseract/baseapi.h>
 #include <chrono>
 #include <vector>
@@ -117,7 +119,7 @@ Position3D getPosition3D(
 }
 
 void drawMeasurements(
-    const Position3D &pos,
+    Position3D &pos,
     const Detection &detection, const Config &config, const std::vector<std::string> &visibleNumbers)
 {
     static std::unordered_map<std::string, kalmanFilter> filters;
@@ -140,9 +142,11 @@ void drawMeasurements(
     const double x_angle = (X_FOV / 2.0 * offset_x) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2.0 * offset_y) * CV_PI / 180.0;
 
-    const double x_coordinate = pos.z_cm / 100;
-    const double y_coordinate = pos.z_cm * tan(x_angle) / 100;
-    const double z_coordinate = pos.z_cm * cos(x_angle) * sin(x_angle) * sin(y_angle) / 100;
+    double forward = pos.z_cm / cos(x_angle);
+    const double x_coordinate = forward / 100;
+    const double y_coordinate = forward * tan(x_angle) / 100;
+    const double z_coordinate = pos.z_cm * tan(y_angle) / 100;
+
     cv::Vec3d filtered;
     filtered[0] = x_coordinate;
     filtered[1] = y_coordinate;
@@ -169,30 +173,36 @@ void drawMeasurements(
     }
     else
     {
-
+        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 0));
     }
 
-    for (auto it = filters.begin(); it != filters.end();) {
+    for (auto it = filters.begin(); it != filters.end();)
+    {
         bool found = false;
-        for (auto &num: visibleNumbers) {
-            if (it->first == num) {
+        for (auto &num : visibleNumbers)
+        {
+            if (it->first == num)
+            {
                 found = true;
             }
         }
-        if (!found) {
+        if (!found)
+        {
             it = filters.erase(it);
-        } else {
+        }
+        else
+        {
             ++it;
         }
     }
 
     if (config.loggingMode == 1)
     {
-            std::ofstream outFile("../log.txt", std::ios_base::app);
-            outFile << "x: " << filtered[0] << "\n";
-            outFile << "y: " << filtered[1] << "\n";
-            outFile << "z: " << filtered[2] << "\n\n";
-            outFile.close();
+        std::ofstream outFile("../log.txt", std::ios_base::app);
+        outFile << "x: " << filtered[0] << "\n";
+        outFile << "y: " << filtered[1] << "\n";
+        outFile << "z: " << filtered[2] << "\n\n";
+        outFile.close();
     }
 }
 
@@ -212,7 +222,7 @@ void endOCR()
 }
 
 std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
-                 const std::string teamNumbers[5], const Config &config)
+                                     const std::string teamNumbers[5], const Config &config)
 {
     std::vector<std::string> visibleNumbers;
     for (auto &det : detections)
@@ -220,7 +230,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         cv::Mat img = hsvFrame(det.bounding_box).clone();
 
         cv::Mat colorMask;
-        cv::inRange(img, cv::Scalar(0, 0, 200), cv::Scalar(179, 30, 255), colorMask);
+        cv::inRange(img, cv::Scalar(0, 0, 200), cv::Scalar(179, 70, 255), colorMask);
 
         cv::Mat gray;
         cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
@@ -341,7 +351,10 @@ void analyzeDetections(
                 }
             }
 
-            for (auto x = startX; x < maxX; x++) {
+            int maxColHeight = 0;
+            for (auto x = startX; x < maxX; x++)
+            {
+                int colHeight = 0;
                 for (auto y = startTY; y < maxY; y++)
                 {
                     auto color = hsv.at<cv::Vec3b>(y, x);
@@ -349,36 +362,28 @@ void analyzeDetections(
                     const double s = color[1];
                     const double v = color[2];
 
-                    if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
-                                                                                                           "blue")
+                    if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color == "blue")
                     {
-                        height++;
-                        if (startHeight == 0)
-                        {
-                            startHeight = y;
-                        }
+                        colHeight++;
                     }
                     else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
                               ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
                              det.color == "red")
                     {
-                        height++;
-                        if (startHeight == 0)
-                        {
-                            startHeight = y;
-                        }
+                        colHeight++;
                     }
                 }
+                maxColHeight = std::max(maxColHeight, colHeight);
             }
-
+            height = maxColHeight;
             Position3D pos = getPosition3D(height, config);
             drawMeasurements(pos, det, config, visibleNumbers);
         }
-
-        auto t2 = std::chrono::high_resolution_clock::now();
-
-        // Render top-down view
-        g_tracker.render();
     }
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    // Render top-down view
+    g_tracker.render();
     cv::imshow("detectEdgesBumper", frame);
 }
