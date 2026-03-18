@@ -351,31 +351,33 @@ void analyzeDetections(
                 }
             }
 
-            int maxColHeight = 0;
-            for (auto x = startX; x < maxX; x++)
+            for (auto y = startTY; y < maxY; y++)
             {
-                int colHeight = 0;
-                for (auto y = startTY; y < maxY; y++)
-                {
-                    auto color = hsv.at<cv::Vec3b>(y, x);
-                    const double h = color[0];
-                    const double s = color[1];
-                    const double v = color[2];
+                auto color = hsv.at<cv::Vec3b>(y, centerX);
+                const double h = color[0];
+                const double s = color[1];
+                const double v = color[2];
 
-                    if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color == "blue")
+                if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
+                                                                                                       "blue")
+                {
+                    height++;
+                    if (startHeight == 0)
                     {
-                        colHeight++;
-                    }
-                    else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                              ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
-                             det.color == "red")
-                    {
-                        colHeight++;
+                        startHeight = y;
                     }
                 }
-                maxColHeight = std::max(maxColHeight, colHeight);
+                else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                          ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
+                         det.color == "red")
+                {
+                    height++;
+                    if (startHeight == 0)
+                    {
+                        startHeight = y;
+                    }
+                }
             }
-            height = maxColHeight;
             Position3D pos = getPosition3D(height, config);
             drawMeasurements(pos, det, config, visibleNumbers);
         }
