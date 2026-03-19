@@ -19,11 +19,8 @@ This system uses a **YOLOv9 object detection model** to identify bumpers in each
 
 Once bumpers are detected:
 
-1. **Contour Extraction**  
-   Contours are extracted from the detected region.
-
-2. **Bounding Rectangle Measurement**  
-   The minimum-area rectangle enclosing the contour is computed, and its pixel height is measured.
+1. **Pixel Heigth Measurement**
+   The pixel height is obtained by counting the number of redish pixels in the obtained bounding box
 
 3. **Distance Estimation**  
    The pixel height is compared with the known real-world bumper height using camera calibration parameters to estimate the distance from the camera.
