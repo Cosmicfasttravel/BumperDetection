@@ -66,6 +66,8 @@ void extractAll()
     r_config.saturation = std::stoi(extractByTag("<saturation>"));
     r_config.gain = stoi(extractByTag("<gain>"));
     r_config.exposure = std::stoi(extractByTag("<exposure>"));
+    r_config.temperature = stoi(extractByTag("<temperature>"));
+    r_config.autoWhiteBalance = std::stoi(extractByTag("<auto_white_balance>"));
 
 }
 

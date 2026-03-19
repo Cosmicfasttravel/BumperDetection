@@ -235,6 +235,8 @@ int run()
         cap.set(cv::CAP_PROP_SATURATION, config.saturation);
         cap.set(cv::CAP_PROP_GAIN, config.gain);
         cap.set(cv::CAP_PROP_EXPOSURE, config.exposure);
+        cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.temperature);
+        cap.set(cv::CAP_PROP_AUTO_WB, config.autoWhiteBalance);
 
         int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
         int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));

@@ -48,6 +48,8 @@ struct Config {
     int hue;
     int saturation;
     int contrast;
+    int temperature;
+    int autoWhiteBalance;
 };
 
 std::string extractByTag(const std::string& tag);
