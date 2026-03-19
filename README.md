@@ -54,7 +54,7 @@ For every robot detected within the camera's field of view, the system outputs:
 - This branch is for information purposes
 
 ## **OrangePi5**
-- This branch is for development on the Orange PI 5, this branch will **NOT** work with other devices
+- This branch is for development on the Orange PI 5 RK3588, this branch will **NOT** work with other devices
 - This branch **may** have issues but is ***more stable*** than the **GPU** branch
 
 ## **GPU**
