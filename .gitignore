@@ -1,5 +1,6 @@
 *.rknn
 *.onnx
+log.txt
 
 build/
 vids/
