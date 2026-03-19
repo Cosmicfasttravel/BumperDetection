@@ -1,6 +1,6 @@
-﻿#Bumper
-<bumper_height> 16.5
-<focal_length> 0.3
+﻿#Bumper (honeybadger = 15.4cm, badgerbot = 16.5cm)
+<bumper_height> 15.4
+<focal_length> 0.26
 <pixel_height> 0.0003
 
 #Screen properties
@@ -10,10 +10,10 @@
 <y_fov> 43
 
 #Kalman Filter
-<avg_fps> 30
+<avg_fps> 15
 <process_noise> 1000
-<measurement_noise> 100000
-<error> 2000
+<measurement_noise> 100
+<error> 20
 
 #Levenshtein distance
 <lev_distance> 100
@@ -41,10 +41,10 @@
 <write_frame_mode> 0
 
 #Camera Properties
-<brightness> -100
-<contrast> 1
-<hue> 20
-<saturation> 100
-<gain> -100
+<brightness> -50
+<contrast> 0
+<hue> 10
+<saturation> 200
+<gain> 100
 <exposure> 0
 

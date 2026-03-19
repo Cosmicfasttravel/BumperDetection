@@ -130,11 +130,11 @@ void drawMeasurements(
     double X_FOV = config.x_fov;
     double Y_FOV = config.y_fov;
 
-    static const double max_cord_x = SCREEN_WIDTH / 2;
-    static const double max_cord_y = SCREEN_HEIGHT / 2;
+    double max_cord_x = SCREEN_WIDTH / 2;
+    double max_cord_y = SCREEN_HEIGHT / 2;
 
-    double abs_bounding_x = detection.bounding_box.x + (0.5 * detection.bounding_box.width);
-    double abs_bounding_y = detection.bounding_box.y + (0.5 * detection.bounding_box.height);
+    double abs_bounding_x = detection.bounding_box.x + (0.5 * detection.bounding_box.width); // middle x
+    double abs_bounding_y = detection.bounding_box.y + (detection.bounding_box.height); // bottom y
 
     double offset_x = (abs_bounding_x - max_cord_x) / max_cord_x;
     double offset_y = (abs_bounding_y - max_cord_y) / max_cord_y;
@@ -142,10 +142,10 @@ void drawMeasurements(
     const double x_angle = (X_FOV / 2.0 * offset_x) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2.0 * offset_y) * CV_PI / 180.0;
 
-    const double x_coordinate = pos.z_cm * cos(x_angle) * cos(y_angle) / 100;
-    const double y_coordinate = pos.z_cm * sin(x_angle) * sin(y_angle) / 100;
-    const double z_coordinate = pos.z_cm * sin(y_angle) / 100;
-
+    const double x_coordinate = (pos.z_cm / 100.0) * cos(y_angle) * cos(x_angle);
+    const double y_coordinate = (pos.z_cm / 100.0) * sin(x_angle);
+    const double z_coordinate = (pos.z_cm / 100.0) * sin(y_angle) * cos(x_angle);
+    
     cv::Vec3d filtered;
     filtered[0] = x_coordinate;
     filtered[1] = y_coordinate;
