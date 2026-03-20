@@ -1,1 +1,5 @@
-# Installation guide:
+# Required Dependencies:
+- Tesseract
+- Leptonica
+- Opencv
+- 
