@@ -59,7 +59,6 @@ void extractAll()
     r_config.loggingMode = std::stoi(extractByTag("<logging_mode>"));
     r_config.writeFrameMode = std::stoi(extractByTag("<write_frame_mode>"));
 
-
     r_config.brightness = std::stoi(extractByTag("<brightness>"));
     r_config.contrast = std::stoi(extractByTag("<contrast>"));
     r_config.hue = std::stoi(extractByTag("<hue>"));
@@ -77,6 +76,8 @@ bool pollForChanges()
     {
         prevTime = curTime;
         extractAll();
+
+        std::cout << "File reread" << std::endl;
 
         return true;
     }

@@ -1,6 +1,7 @@
 ﻿#include "analyze_detections.h"
 
 #include <deque>
+#include "log_to_file.h"
 #include "config_extraction.h"
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -19,28 +20,23 @@
 #include "kalman_filter.h"
 #include "top_down_view.h"
 
-struct Position3D
-{
+struct Position3D {
     double z_cm;
 };
 
-void logTimes(const std::vector<std::chrono::system_clock::time_point> &durations)
-{
+void logTimes(const std::vector<std::chrono::system_clock::time_point> &durations) {
     std::stringstream ss;
-    if (durations.size() < 1)
-    {
+    if (durations.size() < 1) {
         return;
     }
     ss << "Timings:\n";
-    for (size_t i = 1; i < durations.size(); i++)
-    {
-        if (i != 1)
-        {
+    for (size_t i = 1; i < durations.size(); i++) {
+        if (i != 1) {
             ss << '\n';
         }
         ss << "\tt" << i << "-t" << i - 1 << "\t"
-           << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i - 1)).count()
-           << "ms";
+                << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i - 1)).count()
+                << "ms";
     }
     std::cout << ss.str() << std::endl;
 }
@@ -48,8 +44,7 @@ void logTimes(const std::vector<std::chrono::system_clock::time_point> &duration
 // Global tracker instance
 static RobotTracker g_tracker;
 
-int levenshteinDist(const std::string &word1, const std::string &word2)
-{
+int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
     std::vector verif(size1 + 1, std::vector<int>(size2 + 1));
@@ -64,10 +59,8 @@ int levenshteinDist(const std::string &word1, const std::string &word2)
     for (int j = 0; j <= size2; j++)
         verif[0][j] = j;
 
-    for (int i = 1; i <= size1; i++)
-    {
-        for (int j = 1; j <= size2; j++)
-        {
+    for (int i = 1; i <= size1; i++) {
+        for (int j = 1; j <= size2; j++) {
             int cost = (word2[j - 1] == word1[i - 1]) ? 0 : 1;
             verif[i][j] = std::min(
                 std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
@@ -78,22 +71,18 @@ int levenshteinDist(const std::string &word1, const std::string &word2)
     return verif[size1][size2];
 }
 
-template <typename T>
-T findMode(const std::vector<T> &data)
-{
+template<typename T>
+T findMode(const std::vector<T> &data) {
     std::unordered_map<T, int> counts;
-    for (const T &value : data)
-    {
+    for (const T &value: data) {
         ++counts[value];
     }
 
     int maxCount = 0;
     T mostFrequentVal = T();
 
-    for (const auto &pair : counts)
-    {
-        if (pair.second > maxCount)
-        {
+    for (const auto &pair: counts) {
+        if (pair.second > maxCount) {
             maxCount = pair.second;
             mostFrequentVal = pair.first;
         }
@@ -103,15 +92,13 @@ T findMode(const std::vector<T> &data)
 }
 
 Position3D getPosition3D(
-    const double height, const Config &config)
-{
+    const double height, const Config &config) {
     double focal_length_cm = config.focal_length;
     double known_height_cm = config.bumper_height;
     double pixel_height_cm = config.pixel_height;
 
     Position3D pos{};
-    if (height > 0)
-    {
+    if (height > 0) {
         pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
         return pos;
     }
@@ -120,10 +107,11 @@ Position3D getPosition3D(
 
 void drawMeasurements(
     Position3D &pos,
-    const Detection &detection, const Config &config, const std::vector<std::string> &visibleNumbers)
-{
+    const Detection &detection, const Config &config, const std::vector<std::string> &visibleNumbers) {
     static std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
+
+    logToFile("Team num", detection.label);
 
     double SCREEN_WIDTH = config.screen_width;
     double SCREEN_HEIGHT = config.screen_height;
@@ -142,71 +130,61 @@ void drawMeasurements(
     const double x_angle = (X_FOV / 2.0 * offset_x) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2.0 * offset_y) * CV_PI / 180.0;
 
+    logToFile("X angle", x_angle);
+    logToFile("Y Angle", y_angle);
+
     const double x_coordinate = (pos.z_cm / 100.0) * cos(y_angle) * cos(x_angle);
     const double y_coordinate = (pos.z_cm / 100.0) * sin(x_angle);
     const double z_coordinate = (pos.z_cm / 100.0) * sin(y_angle) * cos(x_angle);
-    
+
     cv::Vec3d filtered;
     filtered[0] = x_coordinate;
     filtered[1] = y_coordinate;
     filtered[2] = z_coordinate;
 
     // Update tracker with robot position
-    if (!label.empty())
-    {
+    if (!label.empty()) {
         auto it = filters.find(label);
-        if (it == filters.end())
-        {
+        if (it == filters.end()) {
             it = filters.emplace(label, config).first;
         }
         kalmanFilter &filter = it->second;
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
     }
-    if (detection.color == "red")
-    {
+    if (detection.color == "red") {
         g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 255));
-    }
-    else if (detection.color == "blue")
-    {
+    } else if (detection.color == "blue") {
         g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(255, 0, 0));
-    }
-    else
-    {
+    } else {
         g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 0));
     }
 
-    for (auto it = filters.begin(); it != filters.end();)
-    {
+    for (auto it = filters.begin(); it != filters.end();) {
         bool found = false;
-        for (auto &num : visibleNumbers)
-        {
-            if (it->first == num)
-            {
+        for (auto &num: visibleNumbers) {
+            if (it->first == num) {
                 found = true;
             }
         }
-        if (!found)
-        {
+        if (!found) {
             it = filters.erase(it);
-        }
-        else
-        {
+        } else {
             ++it;
         }
     }
 
-    if (config.loggingMode == 1)
-    {
-        std::ofstream outFile("../log.txt", std::ios_base::app);
-        outFile << "x: " << filtered[0] << "\n";
-        outFile << "y: " << filtered[1] << "\n";
-        outFile << "z: " << filtered[2] << "\n\n";
-        outFile.close();
+    logToFile("x", filtered[0]);
+    logToFile("y", filtered[1]);
+    logToFile("z", filtered[2]);
+
+    int count = 0;
+    for (int i = 0; i < visibleNumbers.size(); i++) {
+        count++;
     }
+    logToFile("Robots visible", count);
 }
 
-void startOCR()
-{
+void startOCR() {
     api = new tesseract::TessBaseAPI();
     api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
 
@@ -214,18 +192,15 @@ void startOCR()
     api->SetVariable("tessedit_char_whitelist", "0123456789");
 }
 
-void endOCR()
-{
+void endOCR() {
     api->End();
     delete api;
 }
 
 std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
-                                     const std::string teamNumbers[5], const Config &config)
-{
+                                     const std::string teamNumbers[5], const Config &config) {
     std::vector<std::string> visibleNumbers;
-    for (auto &det : detections)
-    {
+    for (auto &det: detections) {
         cv::Mat img = hsvFrame(det.bounding_box).clone();
 
         cv::Mat colorMask;
@@ -235,8 +210,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
         cv::cvtColor(gray, gray, cv::COLOR_BGR2GRAY);
 
-        if (gray.cols < 300)
-        {
+        if (gray.cols < 300) {
             double scale = 300.0 / gray.cols;
             cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
             cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
@@ -260,15 +234,12 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         int minIndex = 0;
 
         int minDist = INT_MAX;
-        if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
-        {
-            for (int i = 0; i < 5; i++)
-            {
+        if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
+            for (int i = 0; i < 5; i++) {
                 int d;
                 d = levenshteinDist(result, teamNumbers[i]);
                 std::cout << teamNumbers[i] << std::endl;
-                if (d < minDist)
-                {
+                if (d < minDist) {
                     minDist = d;
                     minIndex = i;
                 }
@@ -276,8 +247,7 @@ std::vector<std::string> findNumbers(std::vector<Detection> &detections, const c
         }
 
         double distance = config.lev_distance;
-        if (minDist > distance)
-        {
+        if (minDist > distance) {
             continue;
         }
 
@@ -293,86 +263,69 @@ void analyzeDetections(
     const std::string teamNumbers[5],
     cv::Mat &frame,
     std::vector<Detection> &detections,
-    const Config &config)
-{
+    const Config &config) {
     // Clear previous robot positions
     g_tracker.clearRobots();
-    if (!detections.empty())
-    {
+    if (!detections.empty()) {
         cv::Mat hsv;
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
         const std::vector<std::string> visibleNumbers = findNumbers(detections, hsv, teamNumbers, config);
-        for (int i = 0; i < detections.size(); i++)
-        {
-
-            if (detections[i].label.empty())
-            {
+        for (int i = 0; i < detections.size(); i++) {
+            if (detections[i].label.empty()) {
                 detections[i].label = "robot_";
                 detections[i].label += std::to_string(i);
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        for (auto &det : detections)
-        {
+        for (auto &det: detections) {
             double height = 0;
             double startHeight = 0;
 
             auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
             auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
             auto startTY = det.bounding_box.y;
-            auto startX = det.bounding_box.x;
             auto maxY = det.bounding_box.y + det.bounding_box.height;
             auto maxX = det.bounding_box.x + det.bounding_box.width;
 
             // walks right finding red or blue pixels
-            for (auto x = centerX; x < maxX; x++)
-            {
-                if (det.color != "red" && det.color != "blue")
-                {
+            for (auto x = centerX; x < maxX; x++) {
+                if (det.color != "red" && det.color != "blue") {
                     auto color = hsv.at<cv::Vec3b>(startCY, x);
                     const double h = color[0];
                     const double s = color[1];
                     const double v = color[2];
 
                     if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
-                    {
+                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) {
                         det.color = "red";
                         break;
                     }
-                    if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))
-                    {
+                    if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) {
                         det.color = "blue";
                         break;
                     }
                 }
             }
 
-            for (auto y = startTY; y < maxY; y++)
-            {
+            for (auto y = startTY; y < maxY; y++) {
                 auto color = hsv.at<cv::Vec3b>(y, centerX);
                 const double h = color[0];
                 const double s = color[1];
                 const double v = color[2];
 
                 if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
-                                                                                                       "blue")
-                {
+                    "blue") {
                     height++;
-                    if (startHeight == 0)
-                    {
+                    if (startHeight == 0) {
                         startHeight = y;
                     }
-                }
-                else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                          ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
-                         det.color == "red")
-                {
+                } else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                            ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
+                           det.color == "red") {
                     height++;
-                    if (startHeight == 0)
-                    {
+                    if (startHeight == 0) {
                         startHeight = y;
                     }
                 }
