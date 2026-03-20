@@ -346,7 +346,7 @@ int run() {
 
             int sizes[3] = {1, 5, 2100};
             cv::Mat output_mat(3, sizes, CV_32F, outputs_rknn[0].buf);
-            std::vector<cv::Mat> outputs = {output_mat};
+            std::vector outputs = {output_mat};
 
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs, frame.cols, frame.rows,
