@@ -22,11 +22,8 @@ add_library(BumperDetection SHARED
         src/top_down_view.cpp
         src/send_data.cpp
 		src/receive_data.cpp
-		src/receive_data.h
 		src/config_extraction.cpp
-		src/config_extraction.h
 		src/log_to_file.cpp
-		src/log_to_file.h
 )
 
 target_link_libraries(BumperDetection

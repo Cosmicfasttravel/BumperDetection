@@ -50,6 +50,7 @@ struct Config {
     int contrast;
     int temperature;
     int autoWhiteBalance;
+    int initialBlur;
 };
 
 std::string extractByTag(const std::string& tag);

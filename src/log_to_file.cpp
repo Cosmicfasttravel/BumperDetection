@@ -1,20 +1,18 @@
 ﻿#include "log_to_file.h"
-#include <fstream>
-#include <ios>
 
-std::ofstream logFile;
-Config config;
-
-void initLogFile(const std::string &fileName, Config &r_config) {
-    config = r_config;
-    logFile = std::ofstream("../" + fileName + ".txt", std::ios_base::app);
+namespace Logger
+{
+    Config config;
+    std::ofstream logFile;
 }
 
-template <typename type>
-void logToFile(const std::string& tag, const type& value) {
-    if (config.loggingMode) logFile << tag << ": " << value << "\n";
+void initLogFile(const std::string &fileName, const Config &r_config)
+{
+    Logger::config = r_config;
+    Logger::logFile = std::ofstream("../" + fileName + ".txt", std::ios_base::app);
 }
 
-void closeLogFile() {
-    logFile.close();
+void closeLogFile()
+{
+    Logger::logFile.close();
 }

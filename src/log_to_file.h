@@ -1,14 +1,23 @@
 ﻿#ifndef BUMPERDETECTION_LOG_TO_FILE_H
 #define BUMPERDETECTION_LOG_TO_FILE_H
 #include <string>
-
+#include <fstream>
+#include <ios>
 #include "config_extraction.h"
 
-void initLogFile(const std::string& fileName, Config& r_config);
+namespace Logger
+{
+    extern Config config;
+    extern std::ofstream logFile;
+}
 
-template <typename type>
-void logToFile(const std::string& tag, const type& value);
+void initLogFile(const std::string &fileName, const Config &r_config);
+
+template <typename T>
+void logToFile(const std::string& tag, const T& value) {
+    if (Logger::config.loggingMode) Logger::logFile << tag << ": " << value << "\n";
+}
 
 void closeLogFile();
 
-#endif //BUMPERDETECTION_LOG_TO_FILE_H
+#endif // BUMPERDETECTION_LOG_TO_FILE_H

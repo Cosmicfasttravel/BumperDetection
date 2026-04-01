@@ -8,13 +8,14 @@ struct Detection {
     int class_id;
     float confidence;
     cv::Rect bounding_box;
+    
     std::string class_name;
-    std::string label;
+    std::string id;
     std::string color;
+    std::string label;
+
+    bool tracked;
 };
-
-
-
 
 void analyzeDetections(
     const std::string teamNumbers[5],

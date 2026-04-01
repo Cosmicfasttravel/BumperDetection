@@ -47,6 +47,7 @@
 <saturation> 200
 <gain> 100
 <exposure> 0
-<temperature> 4000
-<auto_white_balance> 1
+<temperature> 3750
+<auto_white_balance> 0
+<initial_blur> 1
 
