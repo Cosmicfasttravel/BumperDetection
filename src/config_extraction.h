@@ -51,6 +51,10 @@ struct Config {
     int temperature;
     int autoWhiteBalance;
     int initialBlur;
+
+    // Max distances
+    int maxDistanceThresholdX;
+    int maxDistanceThresholdY;
 };
 
 std::string extractByTag(const std::string& tag);

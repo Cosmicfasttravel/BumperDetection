@@ -69,6 +69,9 @@ void extractAll()
     r_config.autoWhiteBalance = std::stoi(extractByTag("<auto_white_balance>"));
     r_config.initialBlur = std::stoi(extractByTag("<initial_blur>"));
 
+    r_config.maxDistanceThresholdX = std::stoi(extractByTag("<max_distance_threshold_x>"));
+    r_config.maxDistanceThresholdY = std::stoi(extractByTag("<max_distance_threshold_y>"));
+
 }
 
 bool pollForChanges()

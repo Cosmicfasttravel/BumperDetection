@@ -319,6 +319,9 @@ int run()
                 frame = latestFrame.clone();
             }
 
+            if (config.initialBlur != 0) {
+                cv::GaussianBlur(frame, frame, cv::Size(config.initialBlur, config.initialBlur), 0);
+            }
             int rotatedDegrees = config.rotation;
             if (rotatedDegrees == 90)
                 cv::rotate(frame, frame, cv::ROTATE_90_CLOCKWISE);

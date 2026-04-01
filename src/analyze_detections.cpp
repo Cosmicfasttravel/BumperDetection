@@ -324,8 +324,7 @@ void analyzeDetections(
         const std::vector<std::string> visibleNumbers = findNumbers(detections, hsv, teamNumbers, config);
 
         int id = 0;
-        for (auto &t : tracked)
-        {
+        for (auto &t : tracked) {
             if (t.x == -1 || t.y == -1)
             {
                 for (auto &det : detections)
@@ -346,14 +345,16 @@ void analyzeDetections(
 
             for (auto &det : detections)
             {
-                int maxDistanceThresholdX = 100;
-                int maxDistanceThresholdY = 25;
+                int maxDistanceThresholdX = config.maxDistanceThresholdX;
+                int maxDistanceThresholdY = config.maxDistanceThresholdY;
                 int centerX = det.bounding_box.x + det.bounding_box.width / 2;
                 int centerY = det.bounding_box.y + det.bounding_box.height / 2;
 
                 if (((centerX + maxDistanceThresholdX >= t.x) && (centerX - maxDistanceThresholdX <= t.x)) && ((centerY + maxDistanceThresholdY >= t.y) && (centerY - maxDistanceThresholdY <= t.y)))
                 {
                     det.id = t.robot_id;
+                    cv::line(frame, cv::Point(640, 720), cv::Point(det.bounding_box.x, det.bounding_box.y), cv::Scalar(255, 255, 255), 2);
+                    cv::putText(frame, det.id, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
                 }
             }
         }
