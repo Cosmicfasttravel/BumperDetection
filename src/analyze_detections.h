@@ -14,7 +14,7 @@ struct Detection {
     std::string color;
     std::string label;
 
-    bool tracked;
+    bool tracked = false;
 };
 
 void analyzeDetections(

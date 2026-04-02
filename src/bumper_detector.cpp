@@ -178,7 +178,11 @@ std::vector<Detection> ProcessYoloOutput(
         result.class_id = class_ids[idx];
         result.confidence = confidences[idx];
         result.bounding_box = boxes[idx];
+        if(result.bounding_box.width >= 450 || result.bounding_box.width <= 50){
+            continue;
+        }
         result.class_name = "bumper";
+        result.tracked = false;
 
         detections.emplace_back(result);
     }

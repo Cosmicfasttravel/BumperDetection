@@ -22,18 +22,18 @@
 <ip>1
 
 #Yolo
-<conf_threshold> 0.25
-<nms_threshold> 0.45
+<conf_threshold> 0.025
+<nms_threshold> 0.1
 
 #Frame Properties
 <rotation> 0
 
 #Teams
 <t1>1306
-<t2>1306
-<t3>1306
-<t4>1306
-<t5>1306
+<t2>930
+<t3>1792
+<t4>1732
+<t5>11258
 
 #Modes
 <logging_mode> 0
@@ -41,13 +41,16 @@
 <write_frame_mode> 0
 
 #Camera Properties
-<brightness> -50
-<contrast> 0
-<hue> 10
-<saturation> 200
-<gain> 100
-<exposure> 0
-<temperature> 3750
+<brightness> -1
+<contrast> -1
+<hue> 0
+<saturation> -1
+<gain> 0
+<exposure> -1
+<temperature> 4000
 <auto_white_balance> 0
-<initial_blur> 1
+<initial_blur> 0
 
+#Max distances
+<max_distance_threshold_x> 100
+<max_distance_threshold_y> 15

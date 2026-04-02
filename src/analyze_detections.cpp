@@ -303,7 +303,9 @@ struct TrackedRobot
 {
     int x = -1;
     int y = -1;
-    std::string robot_id;
+    std::string robot_id = "-1";
+    int lostCounter = 0;
+    std::string label;
 };
 std::vector<TrackedRobot> tracked;
 
@@ -317,47 +319,131 @@ void analyzeDetections(
     g_tracker.clearRobots();
     if (!detections.empty())
     {
+        static int frameCounter = 0;
+
         cv::Mat hsv;
 
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-        const std::vector<std::string> visibleNumbers = findNumbers(detections, hsv, teamNumbers, config);
-
-        int id = 0;
-        for (auto &t : tracked) {
-            if (t.x == -1 || t.y == -1)
+        static std::deque<int> availableIDs;
+        if (availableIDs.empty())
+        {
+            for (int i = 0; i < 5; i++)
             {
-                for (auto &det : detections)
+                availableIDs.emplace_back(i);
+            }
+        }
+        std::vector<std::string> visibleNumbers;
+        static std::vector<std::string> visibleNumbersCache;
+        if (frameCounter % 5 == 0)
+        {
+            visibleNumbersCache.erase(visibleNumbersCache.begin(), visibleNumbersCache.end());
+            visibleNumbers = findNumbers(detections, hsv, teamNumbers, config);
+            visibleNumbersCache = visibleNumbers;
+        }
+        else
+        {
+            visibleNumbers = visibleNumbersCache;
+        }
+        int id = 0;
+        if (tracked.empty())
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                TrackedRobot robot;
+                robot.x = -1;
+                robot.y = -1;
+                robot.robot_id = std::to_string(id);
+                id++;
+                robot.lostCounter = 0;
+                tracked.emplace_back(robot);
+            }
+            std::cout << "Filled vector" << std::endl;
+        }
+
+        for (auto &det : detections)
+        {
+            int centerX = det.bounding_box.x + det.bounding_box.width / 2;
+            int centerY = det.bounding_box.y + det.bounding_box.height / 2;
+
+            TrackedRobot *bestMatch = nullptr;
+            double minDist = std::numeric_limits<double>::max();
+
+            int bestMatchIndex = -1;
+            for (size_t i = 0; i < tracked.size(); i++)
+            {
+                double dx = centerX - tracked[i].x;
+                double dy = centerY - tracked[i].y;
+                double dist = std::sqrt(dx * dx + dy * dy);
+
+                if (dist < minDist && dist < config.maxDistanceThresholdX)
                 {
-                    if (!det.tracked)
-                    {
-                        t.x = det.bounding_box.x + det.bounding_box.width / 2;
-                        t.y = det.bounding_box.y + det.bounding_box.height / 2;
-
-                        t.robot_id = id;
-                        id++;
-
-                        det.tracked = true;
-                        break;
-                    }
+                    minDist = dist;
+                    bestMatchIndex = i;
                 }
             }
 
+            if (bestMatchIndex != -1)
+            {
+                tracked[bestMatchIndex].x = centerX;
+                tracked[bestMatchIndex].y = centerY;
+                tracked[bestMatchIndex].lostCounter = 0;
+                det.id = tracked[bestMatchIndex].robot_id;
+            }
+            else
+            {
+                if (availableIDs.empty())
+                {
+                    std::cout << "WARNING: No available IDs!" << std::endl;
+                    continue;
+                }
+
+                int newID = availableIDs.front();
+                availableIDs.pop_front();
+
+                TrackedRobot newRobot;
+                newRobot.x = centerX;
+                newRobot.y = centerY;
+                newRobot.robot_id = std::to_string(newID);
+                newRobot.lostCounter = 0;
+                tracked.emplace_back(newRobot);
+
+                det.id = newRobot.robot_id;
+            }
+
+            cv::line(frame, cv::Point(640, 720), cv::Point(centerX, centerY), cv::Scalar(255, 255, 255), 2);
+            cv::putText(frame, det.id, cv::Point(det.bounding_box.x, det.bounding_box.y),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+        }
+
+        for (size_t i = 0; i < tracked.size(); i++)
+        {
+            bool matched = false;
             for (auto &det : detections)
             {
-                int maxDistanceThresholdX = config.maxDistanceThresholdX;
-                int maxDistanceThresholdY = config.maxDistanceThresholdY;
-                int centerX = det.bounding_box.x + det.bounding_box.width / 2;
-                int centerY = det.bounding_box.y + det.bounding_box.height / 2;
-
-                if (((centerX + maxDistanceThresholdX >= t.x) && (centerX - maxDistanceThresholdX <= t.x)) && ((centerY + maxDistanceThresholdY >= t.y) && (centerY - maxDistanceThresholdY <= t.y)))
+                if (det.id == tracked[i].robot_id)
                 {
-                    det.id = t.robot_id;
-                    cv::line(frame, cv::Point(640, 720), cv::Point(det.bounding_box.x, det.bounding_box.y), cv::Scalar(255, 255, 255), 2);
-                    cv::putText(frame, det.id, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
+                    matched = true;
+                    if (!det.label.empty())
+                        tracked[i].label = det.label;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                tracked[i].lostCounter++;
+                if (tracked[i].lostCounter >= 100)
+                {
+                    tracked[i].x = -1;
+                    tracked[i].y = -1;
+                    tracked[i].lostCounter = 0;
+                    std::cout << "INFO: Lost ID: " << tracked[i].robot_id << std::endl;
+                    availableIDs.push_back(std::stoi(tracked[i].robot_id));
                 }
             }
         }
+
+        frameCounter++;
 
         auto t1 = std::chrono::high_resolution_clock::now();
         for (auto &det : detections)
