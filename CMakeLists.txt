@@ -13,6 +13,7 @@ if (UNIX)
 endif ()
 
 if (WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
     find_package(Tesseract CONFIG REQUIRED)
     find_package(Leptonica CONFIG REQUIRED)
 endif ()

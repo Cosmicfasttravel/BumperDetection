@@ -11,7 +11,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#ifndef WIN32
 #include "rknn_api.h"
+#endif
+
 #include "analyze_detections.h"
 #include <thread>
 #include <atomic>
@@ -200,7 +203,7 @@ int run()
 
     try
     {
-        // Load RKNN model
+#ifndef WIN32
         std::string model_path = "../bumper_yolov9_320x.rknn";
         FILE *fp = fopen(model_path.c_str(), "rb");
         if (!fp)
@@ -215,6 +218,7 @@ int run()
         fread(model_data, 1, model_size, fp);
         fclose(fp);
 
+
         rknn_context ctx;
         int ret = rknn_init(&ctx, model_data, model_size, 0, nullptr);
 
@@ -227,7 +231,21 @@ int run()
         rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
         rknn_set_core_mask(ctx, core_mask);
         std::cout << "RKNN model loaded successfully" << std::endl;
-        cv::VideoCapture cap(0, cv::CAP_V4L2);
+#else
+        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
+        cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
+        if (net.empty()) {
+            return -1;
+        }
+#endif
+
+        cv::VideoCapture cap;
+#ifdef WIN32
+        cap.open(0, cv::CAP_DSHOW);
+#else
+        cap.open(0, cv::CAP_V4L2);
+#endif
+
 
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
         cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen_width);
@@ -249,7 +267,12 @@ int run()
         double fpsVideo = cap.get(cv::CAP_PROP_FPS);
         if (fpsVideo <= 0)
             fpsVideo = 15.0;
-        int codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+        int codec = {};
+#ifndef WIN32
+        codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+#else
+        codec = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
+#endif
         std::string Nfilename = "./outputNOANNOTATIONS.mp4";
         std::string Afilename = "./outputANNOTATED.mp4";
 
@@ -272,7 +295,9 @@ int run()
 
         if (!cap.isOpened())
         {
+#ifndef WIN32
             rknn_destroy(ctx);
+#endif
             return -1;
         }
         std::thread camThread(captureThread, std::ref(cap));
@@ -315,8 +340,14 @@ int run()
             auto frame_start = Clock::now();
             prev_frame_time = frame_start;
 
+#ifndef WIN32
             constexpr int INPUT_HEIGHT = 320;
             constexpr int INPUT_WIDTH = 320;
+#else
+            constexpr int INPUT_HEIGHT = 640;
+            constexpr int INPUT_WIDTH = 640;
+#endif
+
             float CONF_THRESHOLD = config.conf_threshold;
             float NMS_THRESHOLD = config.nms_threshold;
             auto preprocess_start = std::chrono::high_resolution_clock::now();
@@ -359,6 +390,14 @@ int run()
             cv::resize(frame, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
             cv::cvtColor(resized, resized, cv::COLOR_BGR2RGB);
 
+            auto preprocess_end = std::chrono::high_resolution_clock::now();
+            total_preprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                                         preprocess_end - preprocess_start)
+                                         .count();
+
+            auto inference_start = std::chrono::high_resolution_clock::now();
+
+#ifndef WIN32
             rknn_input inputs[1];
             memset(inputs, 0, sizeof(inputs));
             inputs[0].index = 0;
@@ -368,18 +407,21 @@ int run()
             inputs[0].pass_through = 0;
             inputs[0].buf = resized.data;
             rknn_inputs_set(ctx, 1, inputs);
-            auto preprocess_end = std::chrono::high_resolution_clock::now();
-            total_preprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
-                                         preprocess_end - preprocess_start)
-                                         .count();
-            // Inference
-            auto inference_start = std::chrono::high_resolution_clock::now();
-            rknn_run(ctx, nullptr);
 
+            rknn_run(ctx, nullptr);
             rknn_output outputs_rknn[1];
             memset(outputs_rknn, 0, sizeof(outputs_rknn));
             outputs_rknn[0].want_float = 1;
             rknn_outputs_get(ctx, 1, outputs_rknn, nullptr);
+#else
+
+            cv::Mat blob;
+            cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0, cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
+
+            net.setInput(blob);
+            std::vector<cv::Mat> outputs;
+            net.forward(outputs, net.getUnconnectedOutLayersNames());
+#endif
 
             auto inference_end = std::chrono::high_resolution_clock::now();
 
@@ -391,15 +433,21 @@ int run()
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
             int sizes[3] = {1, 5, 2100};
-            cv::Mat output_mat(3, sizes, CV_32F, outputs_rknn[0].buf);
+            cv::Mat output_mat;
+#ifndef WIN32
+            cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
+            output_mat = output_mat_buf;
             std::vector outputs = {output_mat};
+#endif
 
             std::vector<Detection> detections = ProcessYoloOutput(
                 outputs, frame.cols, frame.rows,
                 INPUT_WIDTH, INPUT_HEIGHT,
                 CONF_THRESHOLD, NMS_THRESHOLD);
 
+#ifndef WIN32
             rknn_outputs_release(ctx, 1, outputs_rknn);
+#endif
 
             detection_count += static_cast<int>(detections.size());
 
@@ -456,8 +504,10 @@ int run()
                 annotatedWriter.write(frame);
             }
         }
-
+#ifndef WIN32
         rknn_destroy(ctx);
+#endif
+
         capturing = false;
         camThread.join();
 

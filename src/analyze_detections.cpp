@@ -216,7 +216,14 @@ void drawMeasurements(
 void startOCR()
 {
     api = new tesseract::TessBaseAPI();
+
+
+#ifndef WIN32
     api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+#else
+    api->Init("C:/dev/vcpkg/packages/tesseract_x64-windows/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+#endif
+
 
     api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
     api->SetVariable("tessedit_char_whitelist", "0123456789");
