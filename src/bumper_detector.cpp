@@ -250,10 +250,14 @@ int run()
         if (fpsVideo <= 0)
             fpsVideo = 15.0;
         int codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-        std::string filename = "./output.mp4";
+        std::string Nfilename = "./outputNOANNOTATIONS.mp4";
+        std::string Afilename = "./outputANNOTATED.mp4";
 
         cv::VideoWriter writer;
-        writer.open(filename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
+        cv::VideoWriter annotatedWriter;
+        writer.open(Nfilename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
+        annotatedWriter.open(Afilename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
+
 
         initLogFile("log", config);
 
@@ -446,6 +450,11 @@ int run()
                 waitTime = 1;
 
             cv::imshow("detectEdgesBumper", frame);
+
+            if (config.writeFrameMode)
+            {
+                annotatedWriter.write(frame);
+            }
         }
 
         rknn_destroy(ctx);
