@@ -439,7 +439,7 @@ void analyzeDetections(
             if (!matched)
             {
                 tracked[i].lostCounter++;
-                if (tracked[i].lostCounter >= 100)
+                if (tracked[i].lostCounter >= 10)
                 {
                     tracked[i].x = -1;
                     tracked[i].y = -1;
