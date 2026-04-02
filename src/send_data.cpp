@@ -1,7 +1,10 @@
+#include <string>
+#include <unordered_map>
+#ifndef WIN32
 #include "networktables/NetworkTableInstance.h"
 #include <networktables/DoubleTopic.h>
 #include <networktables/StringTopic.h>
-#include <string>
+
 
 #include "config_extraction.h"
 
@@ -27,3 +30,5 @@ void publishRobotPos(const std::string& label, double x, double y, double z) {
     yPubs[label].Set(y);
     zPubs[label].Set(z);
 }
+
+#endif
