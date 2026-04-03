@@ -498,7 +498,7 @@ int run()
 
             logToFile("FPS", sum / fps.size());
 
-            cap.set(cv::CAP_PROP_FPS, sum/fps.size());
+            cap.set(cv::CAP_PROP_FPS, sum / fps.size());
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
@@ -512,9 +512,14 @@ int run()
             else
                 waitTime = 1;
 
-            std::cout << "" << sum / fps.size() << std::endl;
-            logFPS(std::to_string(sum/fps.size()));
-            if(config.displayMode) cv::imshow("detectEdgesBumper", frame);
+            if (!config.displayMode)
+            {
+                std::cout << "" << sum / fps.size() << std::endl;
+                logFPS(std::to_string(sum / fps.size()));
+            }
+
+            if (config.displayMode)
+                cv::imshow("detectEdgesBumper", frame);
 
             if (config.writeFrameMode)
             {
