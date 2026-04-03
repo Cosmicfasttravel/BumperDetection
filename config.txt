@@ -39,7 +39,7 @@
 <logging_mode> 0
 <tuning_mode> 0
 <display_mode> 1
-<video_mode> 0
+<video_mode> 1
 <write_frame_mode> 0
 
 #Camera Properties

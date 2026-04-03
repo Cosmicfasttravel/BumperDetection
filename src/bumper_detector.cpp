@@ -309,7 +309,7 @@ int run()
         std::thread camThread(captureThread, std::ref(cap));
 
         int frame_skip = 1;
-        cv::Mat frame, blankFrame;
+        cv::Mat frame;
         int frame_count = 0;
         int processed_count = 0;
         int detection_count = 0;
@@ -491,7 +491,7 @@ int run()
             ss << std::fixed << std::setprecision(2) << "FPS: " << sum / fps.size();
             fps.emplace_back((1.f / delta));
 
-            if (fps.size() >= 1)
+            if (fps.size() >= 2)
             {
                 fps.erase(fps.begin());
             }

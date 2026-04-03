@@ -14,6 +14,7 @@
 #include <vector>
 #include <leptonica/allheaders.h>
 #include <filesystem>
+#include <future>
 #include <iostream>
 #include <unordered_set>
 #include <opencv2/video/tracking.hpp>
@@ -236,6 +237,8 @@ void endOCR()
 std::string findNumbers(Detection &det, const cv::Mat &hsvFrame,
                                      const std::string teamNumbers[5], const Config &config)
 {
+    if (det.color.empty()) return "";
+
     int ids = 0;
 
     cv::Mat img = hsvFrame(det.bounding_box).clone();
@@ -320,8 +323,40 @@ void analyzeDetections(
         static int frameCounter = 0;
 
         cv::Mat hsv;
-
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+
+        for (auto& det : detections) {
+
+            auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
+            auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
+            auto maxX = det.bounding_box.x + det.bounding_box.width;
+
+            for (auto x = centerX; x < maxX; x++)
+            {
+                if (det.color != "red" && det.color != "blue")
+                {
+                    auto color = hsv.at<cv::Vec3b>(startCY, x);
+                    const double h = color[0];
+                    const double s = color[1];
+                    const double v = color[2];
+
+                    if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
+                    {
+                        det.color = "red";
+                        break;
+                    }
+                    else if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))
+                    {
+                        det.color = "blue";
+                        break;
+                    }
+                    else {
+                        det.color = "";
+                    }
+                }
+            }
+        }
 
         static std::deque<int> availableIDs;
         if (availableIDs.empty())
@@ -452,34 +487,8 @@ void analyzeDetections(
             double startHeight = 0;
 
             auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
-            auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
             auto startTY = det.bounding_box.y;
             auto maxY = det.bounding_box.y + det.bounding_box.height;
-            auto maxX = det.bounding_box.x + det.bounding_box.width;
-
-            // walks right finding red or blue pixels
-            for (auto x = centerX; x < maxX; x++)
-            {
-                if (det.color != "red" && det.color != "blue")
-                {
-                    auto color = hsv.at<cv::Vec3b>(startCY, x);
-                    const double h = color[0];
-                    const double s = color[1];
-                    const double v = color[2];
-
-                    if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
-                    {
-                        det.color = "red";
-                        break;
-                    }
-                    if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))
-                    {
-                        det.color = "blue";
-                        break;
-                    }
-                }
-            }
 
             for (auto y = startTY; y < maxY; y++)
             {
