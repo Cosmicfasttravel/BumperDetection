@@ -491,7 +491,7 @@ int run()
             ss << std::fixed << std::setprecision(2) << "FPS: " << sum / fps.size();
             fps.emplace_back((1.f / delta));
 
-            if (fps.size() >= 20)
+            if (fps.size() >= 1)
             {
                 fps.erase(fps.begin());
             }
