@@ -217,13 +217,11 @@ void startOCR()
 {
     api = new tesseract::TessBaseAPI();
 
-
 #ifndef WIN32
     api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
 #else
     api->Init("C:/dev/vcpkg/packages/tesseract_x64-windows/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
 #endif
-
 
     api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
     api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -235,75 +233,68 @@ void endOCR()
     delete api;
 }
 
-std::vector<std::string> findNumbers(std::vector<Detection> &detections, const cv::Mat &hsvFrame,
+std::string findNumbers(Detection &det, const cv::Mat &hsvFrame,
                                      const std::string teamNumbers[5], const Config &config)
 {
-    std::vector<std::string> visibleNumbers;
     int ids = 0;
-    for (auto &det : detections)
+
+    cv::Mat img = hsvFrame(det.bounding_box).clone();
+
+    cv::Mat colorMask;
+    cv::inRange(img, cv::Scalar(0, 0, 200), cv::Scalar(179, 70, 255), colorMask);
+
+    cv::Mat gray;
+    cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
+    cv::cvtColor(gray, gray, cv::COLOR_BGR2GRAY);
+
+    if (gray.cols < 300)
     {
-        cv::Mat img = hsvFrame(det.bounding_box).clone();
+        double scale = 300.0 / gray.cols;
+        cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
+        cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
+    }
 
-        cv::Mat colorMask;
-        cv::inRange(img, cv::Scalar(0, 0, 200), cv::Scalar(179, 70, 255), colorMask);
+    cv::Mat final;
+    cv::bitwise_not(colorMask, final);
 
-        cv::Mat gray;
-        cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
-        cv::cvtColor(gray, gray, cv::COLOR_BGR2GRAY);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
+    cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
-        if (gray.cols < 300)
+    api->SetImage(final.data, final.cols, final.rows, 1, final.step);
+
+    char *outText = api->GetUTF8Text();
+    std::string result(outText);
+    delete[] outText;
+
+    result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
+
+    int minIndex = 0;
+
+    int minDist = INT_MAX;
+    if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
+    {
+        for (int i = 0; i < 5; i++)
         {
-            double scale = 300.0 / gray.cols;
-            cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
-            cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
-        }
-
-        cv::Mat final;
-        cv::bitwise_not(colorMask, final);
-
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
-        cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
-
-        api->SetImage(final.data, final.cols, final.rows, 1, final.step);
-
-        char *outText = api->GetUTF8Text();
-        std::string result(outText);
-        delete[] outText;
-
-        result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
-
-        int minIndex = 0;
-
-        int minDist = INT_MAX;
-        if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
-        {
-            for (int i = 0; i < 5; i++)
+            int d;
+            d = levenshteinDist(result, teamNumbers[i]);
+            if (d < minDist)
             {
-                int d;
-                d = levenshteinDist(result, teamNumbers[i]);
-                std::cout << teamNumbers[i] << std::endl;
-                if (d < minDist)
-                {
-                    minDist = d;
-                    minIndex = i;
-                }
+                minDist = d;
+                minIndex = i;
             }
         }
-
-        double distance = config.lev_distance;
-        if (minDist > distance)
-        {
-            continue;
-        }
-
-        result = teamNumbers[minIndex];
-
-        det.label = result;
-
-        visibleNumbers.emplace_back(det.label);
     }
-    return visibleNumbers;
+
+    double distance = config.lev_distance;
+    if (minDist > distance)
+    {
+        return {};
+    }
+
+    result = teamNumbers[minIndex];
+
+    return result;
 }
 
 struct TrackedRobot
@@ -341,17 +332,6 @@ void analyzeDetections(
             }
         }
         std::vector<std::string> visibleNumbers;
-        static std::vector<std::string> visibleNumbersCache;
-        if (frameCounter % 5 == 0)
-        {
-            visibleNumbersCache.erase(visibleNumbersCache.begin(), visibleNumbersCache.end());
-            visibleNumbers = findNumbers(detections, hsv, teamNumbers, config);
-            visibleNumbersCache = visibleNumbers;
-        }
-        else
-        {
-            visibleNumbers = visibleNumbersCache;
-        }
         int id = 0;
         if (tracked.empty())
         {
@@ -392,10 +372,22 @@ void analyzeDetections(
 
             if (bestMatchIndex != -1)
             {
+                if(tracked[bestMatchIndex].label.empty()){
+                    det.label = findNumbers(det, hsv, teamNumbers, config);
+                }
+
                 tracked[bestMatchIndex].x = centerX;
                 tracked[bestMatchIndex].y = centerY;
                 tracked[bestMatchIndex].lostCounter = 0;
                 det.id = tracked[bestMatchIndex].robot_id;
+
+                if(!det.label.empty()) tracked[bestMatchIndex].label = det.label;
+
+                cv::line(frame, cv::Point(640, 720), cv::Point(centerX, centerY), cv::Scalar(255, 255, 255), 2);
+                std::stringstream ss;
+                ss << "ID: " << det.id << "     " << "Label: " << tracked[bestMatchIndex].label;
+                cv::putText(frame, ss.str(), cv::Point(det.bounding_box.x, det.bounding_box.y),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
             }
             else
             {
@@ -417,10 +409,6 @@ void analyzeDetections(
 
                 det.id = newRobot.robot_id;
             }
-
-            cv::line(frame, cv::Point(640, 720), cv::Point(centerX, centerY), cv::Scalar(255, 255, 255), 2);
-            cv::putText(frame, det.id, cv::Point(det.bounding_box.x, det.bounding_box.y),
-                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
         }
 
         for (size_t i = 0; i < tracked.size(); i++)
@@ -444,9 +432,14 @@ void analyzeDetections(
                     tracked[i].x = -1;
                     tracked[i].y = -1;
                     tracked[i].lostCounter = 0;
-                    std::cout << "INFO: Lost ID: " << tracked[i].robot_id << std::endl;
                     availableIDs.push_back(std::stoi(tracked[i].robot_id));
                 }
+            }
+        }
+
+        for(const auto& t : tracked){
+            if(!t.label.empty()){
+                visibleNumbers.emplace_back(t.label);
             }
         }
 
@@ -523,5 +516,6 @@ void analyzeDetections(
     auto t2 = std::chrono::high_resolution_clock::now();
 
     // Render top-down view
-    g_tracker.render();
+    if(config.displayMode)
+        g_tracker.render();
 }

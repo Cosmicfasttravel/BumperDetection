@@ -45,8 +45,8 @@ target_link_libraries(BumperDetection
 if (UNIX)
     target_link_libraries(BumperDetection
             rknnrt
-            ${TESS_INCLUDE_DIRS}
-            ${LEPT_INCLUDE_DIRS}
+            ${TESS_LIBRARIES}
+            ${LEPT_LIBRARIES}
     )
 endif ()
 
@@ -63,14 +63,21 @@ add_executable(run_yolo src/main.cpp)
 
 target_link_libraries(run_yolo
         BumperDetection
-        Tesseract::libtesseract
         ${OpenCV_LIBS}
 )
+if(WIN32)
+        target_link_libraries(run_yolo
+        Tesseract::libtesseract
+        )
+endif()
 
 if (UNIX)
     target_link_libraries(run_yolo
+            ${TESS_LIBRARIES}
+            ${LEPT_LIBRARIES}
             ntcore
             wpiutil
             wpinet
+            rknnrt
     )
 endif ()

@@ -16,7 +16,8 @@ void extractAll()
 {
     fileContents.clear();
     std::ifstream config(CONFIG_PATH);
-    if (!config.is_open()) {
+    if (!config.is_open())
+    {
         std::cerr << "Could not open " << CONFIG_PATH << std::endl;
         throw std::runtime_error("Could not open config file");
     }
@@ -57,6 +58,8 @@ void extractAll()
     r_config.teams[4] = extractByTag("<t5>");
 
     r_config.loggingMode = std::stoi(extractByTag("<logging_mode>"));
+    r_config.videoMode = std::stoi(extractByTag("<video_mode>"));
+    r_config.displayMode = std::stoi(extractByTag("<display_mode>"));
     r_config.writeFrameMode = std::stoi(extractByTag("<write_frame_mode>"));
 
     r_config.brightness = std::stoi(extractByTag("<brightness>"));
@@ -71,7 +74,6 @@ void extractAll()
 
     r_config.maxDistanceThresholdX = std::stoi(extractByTag("<max_distance_threshold_x>"));
     r_config.maxDistanceThresholdY = std::stoi(extractByTag("<max_distance_threshold_y>"));
-
 }
 
 bool pollForChanges()

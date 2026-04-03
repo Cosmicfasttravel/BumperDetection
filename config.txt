@@ -38,6 +38,8 @@
 #Modes
 <logging_mode> 0
 <tuning_mode> 0
+<display_mode> 0
+<video_mode> 0
 <write_frame_mode> 0
 
 #Camera Properties
@@ -48,7 +50,7 @@
 <gain> 0
 <exposure> -1
 <temperature> 4000
-<auto_white_balance> 0
+<auto_white_balance> 1
 <initial_blur> 0
 
 #Max distances

@@ -40,6 +40,8 @@ struct Config {
     // Modes
     int loggingMode;
     int writeFrameMode;
+    int videoMode;
+    int displayMode;
 
     // Camera
     int brightness;

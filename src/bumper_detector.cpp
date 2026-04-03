@@ -181,7 +181,8 @@ std::vector<Detection> ProcessYoloOutput(
         result.class_id = class_ids[idx];
         result.confidence = confidences[idx];
         result.bounding_box = boxes[idx];
-        if(result.bounding_box.width >= 450 || result.bounding_box.width <= 50){
+        if (result.bounding_box.width >= 450 || result.bounding_box.width <= 50)
+        {
             continue;
         }
         result.class_name = "bumper";
@@ -218,7 +219,6 @@ int run()
         fread(model_data, 1, model_size, fp);
         fclose(fp);
 
-
         rknn_context ctx;
         int ret = rknn_init(&ctx, model_data, model_size, 0, nullptr);
 
@@ -234,20 +234,27 @@ int run()
 #else
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
-        if (net.empty()) {
+        if (net.empty())
+        {
             return -1;
         }
 #endif
 
         cv::VideoCapture cap;
+        std::string video_path = "../vids/5ft.mp4";
 #ifdef WIN32
-        cap.open(0, cv::CAP_DSHOW);
+        if (config.videoMode)
+            cap.open(video_path);
+        else
+            cap.open(0, cv::CAP_DSHOW);
 #else
-        cap.open(0, cv::CAP_V4L2);
+        if (config.videoMode)
+            cap.open(video_path);
+        else
+            cap.open(0, cv::CAP_V4L2);
 #endif
 
-
-        cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+        cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
         cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen_width);
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen_height);
         cap.set(cv::CAP_PROP_FPS, 60);
@@ -280,7 +287,6 @@ int run()
         cv::VideoWriter annotatedWriter;
         writer.open(Nfilename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
         annotatedWriter.open(Afilename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
-
 
         initLogFile("log", config);
 
@@ -351,14 +357,24 @@ int run()
             float CONF_THRESHOLD = config.conf_threshold;
             float NMS_THRESHOLD = config.nms_threshold;
             auto preprocess_start = std::chrono::high_resolution_clock::now();
+
+            if (!config.videoMode)
             {
-                std::lock_guard<std::mutex> lock(frameMutex);
-                if (latestFrame.empty())
-                    continue;
-                frame = latestFrame.clone();
+                {
+                    std::lock_guard<std::mutex> lock(frameMutex);
+                    if (latestFrame.empty())
+                        continue;
+                    frame = latestFrame.clone();
+                }
+            }
+            else
+            {
+                if (!cap.read(frame))
+                    return -1;
             }
 
-            if (config.initialBlur != 0) {
+            if (config.initialBlur != 0)
+            {
                 cv::GaussianBlur(frame, frame, cv::Size(config.initialBlur, config.initialBlur), 0);
             }
             int rotatedDegrees = config.rotation;
@@ -383,8 +399,6 @@ int run()
             {
                 writer.write(frame);
             }
-
-            // Preprocess
 
             cv::Mat resized;
             cv::resize(frame, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
@@ -429,7 +443,6 @@ int run()
                                         inference_end - inference_start)
                                         .count();
 
-            // Post-process
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
             int sizes[3] = {1, 5, 2100};
@@ -485,6 +498,8 @@ int run()
 
             logToFile("FPS", sum / fps.size());
 
+            cap.set(cv::CAP_PROP_FPS, sum/fps.size());
+
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
@@ -497,7 +512,9 @@ int run()
             else
                 waitTime = 1;
 
-            cv::imshow("detectEdgesBumper", frame);
+            std::cout << "" << sum / fps.size() << std::endl;
+            logFPS(std::to_string(sum/fps.size()));
+            if(config.displayMode) cv::imshow("detectEdgesBumper", frame);
 
             if (config.writeFrameMode)
             {
@@ -509,7 +526,8 @@ int run()
 #endif
 
         capturing = false;
-        camThread.join();
+        if (!config.videoMode)
+            camThread.join();
 
         cap.release();
         writer.release();

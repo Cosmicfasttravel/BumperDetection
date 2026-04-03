@@ -15,8 +15,10 @@ void initLogFile(const std::string &fileName, const Config &r_config);
 
 template <typename T>
 void logToFile(const std::string& tag, const T& value) {
-    if (Logger::config.loggingMode) Logger::logFile << tag << ": " << value << "\n";
+    // if (Logger::config.loggingMode) Logger::logFile << tag << ": " << value << "\n";
 }
+
+void logFPS(std::string fps);
 
 void closeLogFile();
 
