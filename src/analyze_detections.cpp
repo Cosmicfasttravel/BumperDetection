@@ -310,6 +310,8 @@ struct TrackedRobot
 };
 std::vector<TrackedRobot> tracked;
 
+
+// Thread into scheduler which gives to a queue in seperate threads
 void analyzeDetections(
     const std::string teamNumbers[5],
     cv::Mat &frame,
