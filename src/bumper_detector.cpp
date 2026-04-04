@@ -19,6 +19,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include "tesseract/baseapi.h"
 
 #include "config_extraction.h"
 
@@ -488,7 +489,7 @@ int run()
             ss << std::fixed << std::setprecision(2) << "FPS: " << sum / fps.size();
             fps.emplace_back((1.f / delta));
 
-            if (fps.size() >= 25)
+            if (fps.size() >= 20)
             {
                 fps.erase(fps.begin());
             }
@@ -534,6 +535,7 @@ int run()
         cap.release();
         writer.release();
         cv::destroyAllWindows();
+        cleanUp();
 
         std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;

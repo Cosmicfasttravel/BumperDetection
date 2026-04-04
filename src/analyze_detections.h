@@ -18,9 +18,10 @@ struct Detection {
 };
 
 void detectionScheduler(
-    const std::string teamNumbers[5],
+    std::string teamNumbers[5],
     cv::Mat &frame,
     std::vector<Detection> &detections, 
     const Config& config
 );
+void cleanUp();
 #endif //BUMPERDETECTION_EDGEDETECTION_H
