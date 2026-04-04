@@ -80,7 +80,7 @@ public:
         condition.notify_one();
     }
 
-    ~ThreadManager()
+    void shutdown()
     {
         {
             std::unique_lock<std::mutex> lock(Queue_Mutex);

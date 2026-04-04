@@ -386,7 +386,7 @@ std::vector<double> analyzeDetection(
             }
         }
     }
-    
+
     if (tracked.size() > 10) tracked.erase(tracked.begin());
 
     for (const auto &t : tracked)
@@ -440,7 +440,6 @@ std::vector<double> analyzeDetection(
     std::vector<double> data = {measurements[0], measurements[1], measurements[2], std::stod(tracked[bestMatchIndex].label.empty() ? "0" : tracked[bestMatchIndex].label), std::stod(tracked[bestMatchIndex].robot_id.empty() ? "0" : tracked[bestMatchIndex].robot_id)};
     auto t4 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "T1: " << t2 - t1 << " T2: " << t3 - t2 << " T3: " << t4 - t3 << std::endl;
     return data;
 }
 
@@ -460,7 +459,7 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
                                                 { try { return analyzeDetection(teamNumbers, hsv, det, config);
     } catch (const std::exception &e) {
         std::cerr << "Exception in thread: " << e.what() << std::endl;
-        return std::vector<double>{0,0,0,0,0}; // fallback
+        return std::vector<double>{0,0,0,0,0};
     } catch (...) {
         std::cerr << "Unknown exception in thread!" << std::endl;
         return std::vector<double>{0,0,0,0,0};
@@ -495,4 +494,5 @@ void cleanUp()
     {
         fut.get();
     }
+    threadManager.shutdown();
 }

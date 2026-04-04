@@ -501,15 +501,6 @@ int run()
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            if (key == 27)
-                break;
-            if (key == 112)
-                paused = !paused;
-            if (paused)
-                waitTime = -1;
-            else
-                waitTime = 1;
-
             if (!config.displayMode)
             {
                 std::cout << "" << sum / fps.size() << std::endl;
@@ -523,19 +514,31 @@ int run()
             {
                 annotatedWriter.write(frame);
             }
+
+            if (key == 27)
+            {
+                cv::waitKey(10);
+                capturing = false;
+                break;
+            }
+            if (key == 112)
+                paused = !paused;
+            if (paused)
+                waitTime = -1;
+            else
+                waitTime = 1;
         }
 #ifndef WIN32
         rknn_destroy(ctx);
 #endif
+        cleanUp();
 
-        capturing = false;
         if (!config.videoMode)
             camThread.join();
+        cv::waitKey(500);
 
         cap.release();
         writer.release();
-        cv::destroyAllWindows();
-        cleanUp();
 
         std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
@@ -544,6 +547,9 @@ int run()
         logToFile("Preprocessing (ms)", total_preprocess_time / processed_count);
         logToFile("Inference (ms)", total_inference_time / processed_count);
         logToFile("Post-processing (ms)", total_postprocess_time / processed_count);
+
+        cv::destroyAllWindows();
+        cv::waitKey(500);
     }
     catch (const cv::Exception &e)
     {
@@ -553,6 +559,11 @@ int run()
     catch (const std::exception &e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
+        return -1;
+    }
+    catch (...)
+    {
+        std::cerr << "Error" << std::endl;
         return -1;
     }
 
