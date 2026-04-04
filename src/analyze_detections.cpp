@@ -9,6 +9,7 @@
 #include <sstream>
 #include <fstream>
 #include <ostream>
+#include <string>
 #include <tesseract/baseapi.h>
 #include <chrono>
 #include <vector>
@@ -20,35 +21,7 @@
 #include <opencv2/video/tracking.hpp>
 #include "kalman_filter.h"
 #include "top_down_view.h"
-
-struct Position3D
-{
-    double z_cm;
-};
-
-void logTimes(const std::vector<std::chrono::system_clock::time_point> &durations)
-{
-    std::stringstream ss;
-    if (durations.size() < 1)
-    {
-        return;
-    }
-    ss << "Timings:\n";
-    for (size_t i = 1; i < durations.size(); i++)
-    {
-        if (i != 1)
-        {
-            ss << '\n';
-        }
-        ss << "\tt" << i << "-t" << i - 1 << "\t"
-           << std::chrono::duration_cast<std::chrono::milliseconds>(durations.at(i) - durations.at(i - 1)).count()
-           << "ms";
-    }
-    std::cout << ss.str() << std::endl;
-}
-
-// Global tracker instance
-static RobotTracker g_tracker;
+#include "thread_manager.h"
 
 int levenshteinDist(const std::string &word1, const std::string &word2)
 {
@@ -80,54 +53,25 @@ int levenshteinDist(const std::string &word1, const std::string &word2)
     return verif[size1][size2];
 }
 
-template <typename T>
-T findMode(const std::vector<T> &data)
-{
-    std::unordered_map<T, int> counts;
-    for (const T &value : data)
-    {
-        ++counts[value];
-    }
-
-    int maxCount = 0;
-    T mostFrequentVal = T();
-
-    for (const auto &pair : counts)
-    {
-        if (pair.second > maxCount)
-        {
-            maxCount = pair.second;
-            mostFrequentVal = pair.first;
-        }
-    }
-
-    return mostFrequentVal;
-}
-
-Position3D getPosition3D(
-    const double height, const Config &config)
+double getDistance(const double height, const Config &config)
 {
     double focal_length_cm = config.focal_length;
     double known_height_cm = config.bumper_height;
     double pixel_height_cm = config.pixel_height;
 
-    Position3D pos{};
+    double distance;
     if (height > 0)
     {
-        pos.z_cm = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
-        return pos;
+        distance = (known_height_cm * focal_length_cm) / (height * pixel_height_cm);
+        return distance;
     }
-    return pos;
+    return distance;
 }
 
-void drawMeasurements(
-    Position3D &pos,
-    const Detection &detection, const Config &config, const std::vector<std::string> &visibleNumbers)
+std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, const std::vector<std::string> &visibleNumbers)
 {
-    static std::unordered_map<std::string, kalmanFilter> filters;
+    thread_local std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
-
-    logToFile("Team num/id", detection.label);
 
     double SCREEN_WIDTH = config.screen_width;
     double SCREEN_HEIGHT = config.screen_height;
@@ -146,12 +90,9 @@ void drawMeasurements(
     const double x_angle = (X_FOV / 2.0 * offset_x) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2.0 * offset_y) * CV_PI / 180.0;
 
-    logToFile("X angle", x_angle);
-    logToFile("Y Angle", y_angle);
-
-    const double x_coordinate = (pos.z_cm / 100.0) * cos(y_angle) * cos(x_angle);
-    const double y_coordinate = (pos.z_cm / 100.0) * sin(x_angle);
-    const double z_coordinate = (pos.z_cm / 100.0) * sin(y_angle) * cos(x_angle);
+    const double x_coordinate = (distance / 100.0) * cos(y_angle) * cos(x_angle);
+    const double y_coordinate = (distance / 100.0) * sin(x_angle);
+    const double z_coordinate = (distance / 100.0) * sin(y_angle) * cos(x_angle);
 
     cv::Vec3d filtered;
     filtered[0] = x_coordinate;
@@ -168,18 +109,6 @@ void drawMeasurements(
         }
         kalmanFilter &filter = it->second;
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / 5);
-    }
-    if (detection.color == "red")
-    {
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 255));
-    }
-    else if (detection.color == "blue")
-    {
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(255, 0, 0));
-    }
-    else
-    {
-        g_tracker.updateRobotPosition(filtered[0], filtered[1], filtered[2], label, cv::Scalar(0, 0, 0));
     }
 
     for (auto it = filters.begin(); it != filters.end();)
@@ -202,46 +131,36 @@ void drawMeasurements(
         }
     }
 
-    logToFile("x", filtered[0]);
-    logToFile("y", filtered[1]);
-    logToFile("z", filtered[2]);
-
     int count = 0;
     for (int i = 0; i < visibleNumbers.size(); i++)
     {
         count++;
     }
-    logToFile("Robots visible", count);
+
+    return {filtered[0], filtered[1], filtered[2]};
 }
 
-void startOCR()
+std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string teamNumbers[5], const Config &config)
 {
-    api = new tesseract::TessBaseAPI();
+    static thread_local tesseract::TessBaseAPI api;
+    static thread_local bool init = false;
 
-#ifndef WIN32
-    api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
-#else
-    api->Init("C:/dev/vcpkg/packages/tesseract_x64-windows/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
-#endif
+    if (!init)
+    {
+        api.Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+        api.SetPageSegMode(tesseract::PSM_SINGLE_WORD);
+        api.SetVariable("tessedit_char_whitelist", "0123456789");
+        init = true;
 
-    api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
-    api->SetVariable("tessedit_char_whitelist", "0123456789");
-}
+        std::cout << "Tesseract initiated" << std::endl;
+    }
 
-void endOCR()
-{
-    api->End();
-    delete api;
-}
-
-std::string findNumbers(Detection &det, const cv::Mat &hsvFrame,
-                                     const std::string teamNumbers[5], const Config &config)
-{
-    if (det.color.empty()) return "";
+    if (det.color.empty())
+        return "";
 
     int ids = 0;
 
-    cv::Mat img = hsvFrame(det.bounding_box).clone();
+    cv::Mat img = hsv(det.bounding_box).clone();
 
     cv::Mat colorMask;
     cv::inRange(img, cv::Scalar(0, 0, 200), cv::Scalar(179, 70, 255), colorMask);
@@ -264,9 +183,9 @@ std::string findNumbers(Detection &det, const cv::Mat &hsvFrame,
     cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
     cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
-    api->SetImage(final.data, final.cols, final.rows, 1, final.step);
+    api.SetImage(final.data, final.cols, final.rows, 1, final.step);
 
-    char *outText = api->GetUTF8Text();
+    char *outText = api.GetUTF8Text();
     std::string result(outText);
     delete[] outText;
 
@@ -307,226 +226,222 @@ struct TrackedRobot
     std::string robot_id = "-1";
     int lostCounter = 0;
     std::string label;
+    bool used = false;
 };
-std::vector<TrackedRobot> tracked;
+std::vector<TrackedRobot> tracked(5);
+std::deque<int> availableIDs = {0, 1, 2, 3, 4};
+std::mutex trackingMutex;
 
-
-// Thread into scheduler which gives to a queue in seperate threads
-void analyzeDetections(
+std::vector<double> analyzeDetection(
     const std::string teamNumbers[5],
-    cv::Mat &frame,
-    std::vector<Detection> &detections,
+    cv::Mat frame,
+    Detection det,
     const Config &config)
 {
-    // Clear previous robot positions
-    g_tracker.clearRobots();
-    if (!detections.empty())
+    cv::Mat hsv;
+    cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+
+    auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
+    auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
+    auto maxX = det.bounding_box.x + det.bounding_box.width;
+
+    for (auto x = centerX; x < maxX; x++)
     {
-        static int frameCounter = 0;
-
-        cv::Mat hsv;
-        cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
-
-        for (auto& det : detections) {
-
-            auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
-            auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
-            auto maxX = det.bounding_box.x + det.bounding_box.width;
-
-            for (auto x = centerX; x < maxX; x++)
-            {
-                if (det.color != "red" && det.color != "blue")
-                {
-                    auto color = hsv.at<cv::Vec3b>(startCY, x);
-                    const double h = color[0];
-                    const double s = color[1];
-                    const double v = color[2];
-
-                    if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                        ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
-                    {
-                        det.color = "red";
-                        break;
-                    }
-                    else if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))
-                    {
-                        det.color = "blue";
-                        break;
-                    }
-                    else {
-                        det.color = "";
-                    }
-                }
-            }
-        }
-
-        static std::deque<int> availableIDs;
-        if (availableIDs.empty())
+        if (det.color != "red" && det.color != "blue")
         {
-            for (int i = 0; i < 5; i++)
+            auto color = hsv.at<cv::Vec3b>(startCY, x);
+            const double h = color[0];
+            const double s = color[1];
+            const double v = color[2];
+
+            if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)))
             {
-                availableIDs.emplace_back(i);
+                det.color = "red";
+                break;
             }
-        }
-        std::vector<std::string> visibleNumbers;
-        int id = 0;
-        if (tracked.empty())
-        {
-            for (int i = 0; i < 5; i++)
+            else if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))
             {
-                TrackedRobot robot;
-                robot.x = -1;
-                robot.y = -1;
-                robot.robot_id = std::to_string(id);
-                id++;
-                robot.lostCounter = 0;
-                tracked.emplace_back(robot);
-            }
-            std::cout << "Filled vector" << std::endl;
-        }
-
-        for (auto &det : detections)
-        {
-            int centerX = det.bounding_box.x + det.bounding_box.width / 2;
-            int centerY = det.bounding_box.y + det.bounding_box.height / 2;
-
-            TrackedRobot *bestMatch = nullptr;
-            double minDist = std::numeric_limits<double>::max();
-
-            int bestMatchIndex = -1;
-            for (size_t i = 0; i < tracked.size(); i++)
-            {
-                double dx = centerX - tracked[i].x;
-                double dy = centerY - tracked[i].y;
-                double dist = std::sqrt(dx * dx + dy * dy);
-
-                if (dist < minDist && dist < config.maxDistanceThresholdX)
-                {
-                    minDist = dist;
-                    bestMatchIndex = i;
-                }
-            }
-
-            if (bestMatchIndex != -1)
-            {
-                if(tracked[bestMatchIndex].label.empty()){
-                    det.label = findNumbers(det, hsv, teamNumbers, config);
-                }
-
-                tracked[bestMatchIndex].x = centerX;
-                tracked[bestMatchIndex].y = centerY;
-                tracked[bestMatchIndex].lostCounter = 0;
-                det.id = tracked[bestMatchIndex].robot_id;
-
-                if(!det.label.empty()) tracked[bestMatchIndex].label = det.label;
-
-                cv::line(frame, cv::Point(640, 720), cv::Point(centerX, centerY), cv::Scalar(255, 255, 255), 2);
-                std::stringstream ss;
-                ss << "ID: " << det.id << "     " << "Label: " << tracked[bestMatchIndex].label;
-                cv::putText(frame, ss.str(), cv::Point(det.bounding_box.x, det.bounding_box.y),
-                            cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+                det.color = "blue";
+                break;
             }
             else
             {
-                if (availableIDs.empty())
-                {
-                    std::cout << "WARNING: No available IDs!" << std::endl;
-                    continue;
-                }
-
-                int newID = availableIDs.front();
-                availableIDs.pop_front();
-
-                TrackedRobot newRobot;
-                newRobot.x = centerX;
-                newRobot.y = centerY;
-                newRobot.robot_id = std::to_string(newID);
-                newRobot.lostCounter = 0;
-                tracked.emplace_back(newRobot);
-
-                det.id = newRobot.robot_id;
+                det.color = "";
             }
-        }
-
-        for (size_t i = 0; i < tracked.size(); i++)
-        {
-            bool matched = false;
-            for (auto &det : detections)
-            {
-                if (det.id == tracked[i].robot_id)
-                {
-                    matched = true;
-                    if (!det.label.empty())
-                        tracked[i].label = det.label;
-                    break;
-                }
-            }
-            if (!matched)
-            {
-                tracked[i].lostCounter++;
-                if (tracked[i].lostCounter >= 10)
-                {
-                    tracked[i].x = -1;
-                    tracked[i].y = -1;
-                    tracked[i].lostCounter = 0;
-                    availableIDs.push_back(std::stoi(tracked[i].robot_id));
-                }
-            }
-        }
-
-        for(const auto& t : tracked){
-            if(!t.label.empty()){
-                visibleNumbers.emplace_back(t.label);
-            }
-        }
-
-        frameCounter++;
-
-        auto t1 = std::chrono::high_resolution_clock::now();
-        for (auto &det : detections)
-        {
-            double height = 0;
-            double startHeight = 0;
-
-            auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
-            auto startTY = det.bounding_box.y;
-            auto maxY = det.bounding_box.y + det.bounding_box.height;
-
-            for (auto y = startTY; y < maxY; y++)
-            {
-                auto color = hsv.at<cv::Vec3b>(y, centerX);
-                const double h = color[0];
-                const double s = color[1];
-                const double v = color[2];
-
-                if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
-                                                                                                       "blue")
-                {
-                    height++;
-                    if (startHeight == 0)
-                    {
-                        startHeight = y;
-                    }
-                }
-                else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
-                          ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
-                         det.color == "red")
-                {
-                    height++;
-                    if (startHeight == 0)
-                    {
-                        startHeight = y;
-                    }
-                }
-            }
-            Position3D pos = getPosition3D(height, config);
-            drawMeasurements(pos, det, config, visibleNumbers);
         }
     }
 
-    auto t2 = std::chrono::high_resolution_clock::now();
+    std::unique_lock<std::mutex> lock(trackingMutex);
+    if (availableIDs.empty())
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            availableIDs.emplace_back(i);
+        }
+    }
+    std::vector<std::string> visibleNumbers;
 
-    // Render top-down view
-    if(config.displayMode)
-        g_tracker.render();
+    int centerY = det.bounding_box.y + det.bounding_box.height / 2;
+
+    TrackedRobot *bestMatch = nullptr;
+    double minDist = std::numeric_limits<double>::max();
+
+    int bestMatchIndex = -1;
+    for (size_t i = 0; i < tracked.size(); i++)
+    {
+        if (tracked[i].used)
+            continue;
+        double dx = centerX - tracked[i].x;
+        double dy = centerY - tracked[i].y;
+        double dist = std::sqrt(dx * dx + dy * dy);
+
+        if (dist < minDist && dist < config.maxDistanceThresholdX)
+        {
+            minDist = dist;
+            bestMatchIndex = i;
+        }
+    }
+
+    if (bestMatchIndex != -1)
+    {
+        if (tracked[bestMatchIndex].label.empty())
+        {
+            tracked[bestMatchIndex].used = true;
+            lock.unlock();
+            det.label = getRobotLabel(det, hsv, teamNumbers, config);
+            lock.lock();
+        }
+
+        tracked[bestMatchIndex].x = centerX;
+        tracked[bestMatchIndex].y = centerY;
+        tracked[bestMatchIndex].lostCounter = 0;
+        det.id = tracked[bestMatchIndex].robot_id;
+
+        if (!det.label.empty())
+            tracked[bestMatchIndex].label = det.label;
+    }
+    else
+    {
+        if (availableIDs.empty())
+        {
+            std::cout << "WARNING: No available IDs!" << std::endl;
+        }
+
+        int newID = availableIDs.front();
+        availableIDs.pop_front();
+
+        TrackedRobot newRobot;
+        newRobot.x = centerX;
+        newRobot.y = centerY;
+        newRobot.robot_id = std::to_string(newID);
+        newRobot.lostCounter = 0;
+        tracked.emplace_back(newRobot);
+
+        det.id = newRobot.robot_id;
+    }
+
+    for (size_t i = 0; i < tracked.size(); i++)
+    {
+        bool matched = false;
+
+        if (det.id == tracked[i].robot_id)
+        {
+            matched = true;
+            if (!det.label.empty())
+                tracked[i].label = det.label;
+            break;
+        }
+
+        if (!matched)
+        {
+            tracked[i].lostCounter++;
+            if (tracked[i].lostCounter >= 10)
+            {
+                tracked[i].x = -1;
+                tracked[i].y = -1;
+                tracked[i].lostCounter = 0;
+                availableIDs.push_back(std::stoi(tracked[i].robot_id));
+            }
+        }
+    }
+
+    for (const auto &t : tracked)
+    {
+        if (!t.label.empty())
+        {
+            visibleNumbers.emplace_back(t.label);
+        }
+    }
+
+    double height = 0;
+    double startHeight = 0;
+
+    centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
+    auto startTY = det.bounding_box.y;
+    auto maxY = det.bounding_box.y + det.bounding_box.height;
+
+    for (auto y = startTY; y < maxY; y++)
+    {
+        auto color = hsv.at<cv::Vec3b>(y, centerX);
+        const double h = color[0];
+        const double s = color[1];
+        const double v = color[2];
+
+        if (((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) && det.color ==
+                                                                                               "blue")
+        {
+            height++;
+            if (startHeight == 0)
+            {
+                startHeight = y;
+            }
+        }
+        else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) ||
+                  ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) &&
+                 det.color == "red")
+        {
+            height++;
+            if (startHeight == 0)
+            {
+                startHeight = y;
+            }
+        }
+    }
+    std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, visibleNumbers);
+    if (bestMatchIndex == -1)
+    {
+        return {measurements[0], measurements[1], measurements[2], 0.0, 0.0};
+    }
+
+    std::vector<double> data = {measurements[0], measurements[1], measurements[2], std::stod(tracked[bestMatchIndex].label.empty() ? "0" : tracked[bestMatchIndex].label), std::stod(tracked[bestMatchIndex].robot_id.empty() ? "0" : tracked[bestMatchIndex].robot_id)};
+    return data;
+}
+
+ThreadManager threadManager;
+void detectionScheduler(const std::string teamNumbers[5], cv::Mat &frame, std::vector<Detection> &detections, const Config &config)
+{
+
+    std::vector<std::future<std::vector<double>>> futures;
+    for (auto det : detections)
+    {
+        cv::Mat clonedFrame = frame.clone();
+        futures.push_back(threadManager.enqueue([frame = std::move(clonedFrame), teamNumbers, config, det]() mutable
+                                                { try { return analyzeDetection(teamNumbers, frame, det, config);
+    } catch (const std::exception &e) {
+        std::cerr << "Exception in thread: " << e.what() << std::endl;
+        return std::vector<double>{0,0,0,0,0}; // fallback
+    } catch (...) {
+        std::cerr << "Unknown exception in thread!" << std::endl;
+        return std::vector<double>{0,0,0,0,0};
+    } }));
+    }
+
+    std::vector<std::vector<double>> results;
+    results.reserve(futures.size());
+
+    for (auto &fut : futures)
+    {
+        results.push_back(fut.get());
+    }
 }

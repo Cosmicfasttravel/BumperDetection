@@ -323,9 +323,6 @@ int run()
         bool paused = false;
         int waitTime = 1;
         auto prev_frame_time = Clock::now();
-
-        startOCR();
-
         std::vector<double> fps;
 
         while (true)
@@ -469,7 +466,7 @@ int run()
                 cv::rectangle(frame, det.bounding_box, cv::FILLED);
             }
 
-            analyzeDetections(teamNumbers, frame, detections, config);
+            detectionScheduler(teamNumbers, frame, detections, config);
             int key = cv::waitKey(waitTime);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
@@ -557,6 +554,5 @@ int run()
         return -1;
     }
 
-    endOCR();
     return 0;
 }

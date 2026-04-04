@@ -24,17 +24,6 @@ public:
 
     void workerLoop()
     {
-        thread_local tesseract::TessBaseAPI api;
-        thread_local bool init = false;
-
-        if (!init)
-        {
-            api.Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
-            api.SetPageSegMode(tesseract::PSM_SINGLE_WORD);
-            api.SetVariable("tessedit_char_whitelist", "0123456789");
-            init = true;
-        }
-
         while (true)
         {
             std::function<void()> Job;
@@ -51,7 +40,6 @@ public:
             }
             Job();
         }
-        api.End();
     }
 
     template <typename F>

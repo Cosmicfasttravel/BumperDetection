@@ -17,15 +17,10 @@ struct Detection {
     bool tracked = false;
 };
 
-void analyzeDetections(
+void detectionScheduler(
     const std::string teamNumbers[5],
     cv::Mat &frame,
     std::vector<Detection> &detections, 
     const Config& config
 );
-
-inline tesseract::TessBaseAPI *api;
-void startOCR();
-void endOCR();
-
 #endif //BUMPERDETECTION_EDGEDETECTION_H
