@@ -1,5 +1,5 @@
 ## Frame benchmarks
- Averaged at 20 frames, so it is smoother (this is running no displays)
+ Averaged at 20 frames, so it is smoother (this is running no displays and no ocr)
 
   ## 0 Bumpers  
 <img width="2919" height="2655" alt="0bumpers" src="https://github.com/user-attachments/assets/7495b3af-426c-4881-a3ed-fb1b582837fb" />
