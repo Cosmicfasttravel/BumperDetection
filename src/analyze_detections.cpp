@@ -149,10 +149,9 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     if (!init)
     {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+        api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
-        api->SetVariable("parallel_tess", "0");
         init = true;
 
         std::cout << "Tesseract initiated" << std::endl;
@@ -172,11 +171,11 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     cv::cvtColor(img, gray, cv::COLOR_HSV2BGR);
     cv::cvtColor(gray, gray, cv::COLOR_BGR2GRAY);
 
-    if (gray.cols < 300)
+    if (gray.cols < 150)
     {
-        double scale = 300.0 / gray.cols;
-        cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_CUBIC);
-        cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
+        double scale = 150.0 / gray.cols;
+        cv::resize(gray, gray, cv::Size(), scale, scale, cv::INTER_NEAREST);
+        cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_NEAREST);
     }
 
     cv::Mat final;
@@ -186,7 +185,6 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     cv::morphologyEx(final, final, cv::MORPH_CLOSE, kernel);
     cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
-    api->Clear();
     api->SetImage(final.data, final.cols, final.rows, 1, final.step);
 
     char *outText = api->GetUTF8Text();
@@ -236,7 +234,18 @@ std::vector<TrackedRobot> tracked(5);
 std::deque<int> availableIDs = {0, 1, 2, 3, 4};
 std::vector<std::string> visibleNumbers;
 
-std::vector<double> analyzeDetection(
+struct OutputData
+{
+    double x;
+    double y;
+    double z;
+    std::string label;
+    Detection det;
+    int id;
+};
+
+OutputData analyzeDetection(
+    int id,
     std::string teamNumbers[5],
     cv::Mat &hsv,
     Detection det,
@@ -254,8 +263,6 @@ std::vector<double> analyzeDetection(
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
     auto maxX = det.bounding_box.x + det.bounding_box.width;
-
-    det.label = getRobotLabel(det, hsv, teamNumbers, config);
 
     const cv::Vec3b *rowPtr = hsv.ptr<cv::Vec3b>(startCY);
     for (auto x = centerX; x < maxX; x++)
@@ -284,6 +291,8 @@ std::vector<double> analyzeDetection(
             }
         }
     }
+
+    det.label = getRobotLabel(det, hsv, teamNumbers, config);
 
     double height = 0;
     double startHeight = 0;
@@ -321,7 +330,8 @@ std::vector<double> analyzeDetection(
     }
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, visibleNumbers);
 
-    std::vector<double> data = {measurements[0], measurements[1], measurements[2], (det.label.empty()) ? 0 : std::stod(det.label)};
+    OutputData data;
+    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.label, data.det = det, data.id = id;
     auto t4 = std::chrono::high_resolution_clock::now();
 
     return data;
@@ -338,7 +348,6 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
     cv::Mat hsv;
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-    std::vector<std::future<std::vector<double>>> futures;
     for (auto &det : detections)
     {
         if (availableIDs.empty())
@@ -443,25 +452,42 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
             }
         }
     }
-    for (auto det : detections)
+
+    std::vector<std::future<OutputData>> futures;
+    for (size_t i = 0; i < detections.size(); i++)
     {
-        futures.push_back(threadManager.enqueue([&hsv, teamNumbers, config, det]() mutable
-                                                { try { return analyzeDetection(teamNumbers, hsv, det, config);
-    } catch (const std::exception &e) {
-        std::cerr << "Exception in thread: " << e.what() << std::endl;
-        return std::vector<double>{0,0,0,0,0};
-    } catch (...) {
-        std::cerr << "Unknown exception in thread!" << std::endl;
-        return std::vector<double>{0,0,0,0,0};
-    } }));
+        futures.push_back(threadManager.enqueue([&hsv, teamNumbers, config, i, &detections]()
+                                                {
+        try {
+            return analyzeDetection(i, teamNumbers, hsv, detections[i], config);
+        } catch (...) {
+            return OutputData{};
+        } }));
     }
 
-    std::vector<std::vector<double>> results;
+    std::vector<OutputData> results;
     results.reserve(futures.size());
 
     for (auto &fut : futures)
     {
         results.push_back(fut.get());
+    }
+
+    for (size_t i = 0; i < detections.size(); i++)
+    {
+        detections[i].label = results[i].label;
+    }
+
+    for (auto &det : detections)
+    {
+        for (auto &t : tracked)
+        {
+            if (det.id == t.robot_id && !det.label.empty())
+            {
+                t.label = det.label;
+                std::cout << det.label << std::endl;
+            }
+        }
     }
 }
 
