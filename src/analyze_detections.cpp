@@ -253,12 +253,11 @@ OutputData analyzeDetection(
                 ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255))) {
                 det.color = "red";
                 break;
-            } else if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) {
+            } if ((h >= 80 && h <= 120) && (s >= 100 && s <= 255) && (v >= 130 && v <= 255)) {
                 det.color = "blue";
                 break;
-            } else {
-                det.color = "";
             }
+            det.color = "";
         }
     }
 
