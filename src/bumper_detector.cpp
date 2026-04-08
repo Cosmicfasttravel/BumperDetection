@@ -503,7 +503,6 @@ int run()
 
             if (!config.displayMode)
             {
-                std::cout << "" << sum / fps.size() << std::endl;
                 logFPS(std::to_string(sum / fps.size()));
             }
 

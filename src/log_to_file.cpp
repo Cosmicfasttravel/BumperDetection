@@ -1,4 +1,5 @@
 ﻿#include "log_to_file.h"
+#include <iostream>
 
 namespace Logger
 {
@@ -13,8 +14,11 @@ void initLogFile(const std::string &fileName, const Config &r_config)
 }
 
 void logFPS(std::string fps){
-    static int counter = 1;
+    static size_t counter = 1;
+    if(counter >= 10000) std::exit(0);
+
     Logger::logFile << counter << " " << fps << std::endl;
+    std::cout << counter << " " << fps << std::endl;
     counter++;
 }
 

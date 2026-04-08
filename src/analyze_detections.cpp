@@ -131,12 +131,6 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
         }
     }
 
-    int count = 0;
-    for (int i = 0; i < visibleNumbers.size(); i++)
-    {
-        count++;
-    }
-
     return {filtered[0], filtered[1], filtered[2]};
 }
 
@@ -240,7 +234,6 @@ struct TrackedRobot
 };
 std::vector<TrackedRobot> tracked(5);
 std::deque<int> availableIDs = {0, 1, 2, 3, 4};
-std::mutex trackingMutex;
 std::vector<std::string> visibleNumbers;
 
 std::vector<double> analyzeDetection(
@@ -250,8 +243,6 @@ std::vector<double> analyzeDetection(
     const Config &config,
     bool cleanUp = false)
 {
-    visibleNumbers.clear();
-
     if (cleanUp)
     {
         getRobotLabel(det, {}, {}, {}, true);
@@ -263,6 +254,8 @@ std::vector<double> analyzeDetection(
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto startCY = det.bounding_box.y + (0.5 * det.bounding_box.height);
     auto maxX = det.bounding_box.x + det.bounding_box.width;
+
+    det.label = getRobotLabel(det, hsv, teamNumbers, config);
 
     const cv::Vec3b *rowPtr = hsv.ptr<cv::Vec3b>(startCY);
     for (auto x = centerX; x < maxX; x++)
@@ -289,111 +282,6 @@ std::vector<double> analyzeDetection(
             {
                 det.color = "";
             }
-        }
-    }
-
-    std::unique_lock<std::mutex> lock(trackingMutex);
-    if (availableIDs.empty())
-    {
-        for (int i = 0; i < 5; i++)
-        {
-            availableIDs.emplace_back(i);
-        }
-    }
-
-    int centerY = det.bounding_box.y + det.bounding_box.height / 2;
-
-    TrackedRobot *bestMatch = nullptr;
-    double minDist = std::numeric_limits<double>::max();
-
-    int bestMatchIndex = -1;
-    for (size_t i = 0; i < tracked.size(); i++)
-    {
-        if (tracked[i].used)
-            continue;
-        double dx = centerX - tracked[i].x;
-        double dy = centerY - tracked[i].y;
-        double dist = std::sqrt(dx * dx + dy * dy);
-
-        if (dist < minDist && dist < config.maxDistanceThresholdX)
-        {
-            minDist = dist;
-            bestMatchIndex = i;
-        }
-    }
-    auto t2 = std::chrono::high_resolution_clock::now();
-    if (bestMatchIndex != -1)
-    {
-        if (tracked[bestMatchIndex].label.empty())
-        {
-            tracked[bestMatchIndex].used = true;
-
-            lock.unlock();
-            det.label = getRobotLabel(det, hsv, teamNumbers, config);
-            lock.lock();
-        }
-
-        tracked[bestMatchIndex].x = centerX;
-        tracked[bestMatchIndex].y = centerY;
-        tracked[bestMatchIndex].lostCounter = 0;
-        det.id = tracked[bestMatchIndex].robot_id;
-
-        if (!det.label.empty())
-            tracked[bestMatchIndex].label = det.label;
-    }
-    else
-    {
-        if (availableIDs.empty())
-        {
-            std::cout << "WARNING: No available IDs!" << std::endl;
-        }
-
-        int newID = availableIDs.front();
-        availableIDs.pop_front();
-
-        TrackedRobot newRobot;
-        newRobot.x = centerX;
-        newRobot.y = centerY;
-        newRobot.robot_id = std::to_string(newID);
-        newRobot.lostCounter = 0;
-        tracked.emplace_back(newRobot);
-
-        det.id = newRobot.robot_id;
-    }
-    auto t3 = std::chrono::high_resolution_clock::now();
-
-    for (size_t i = 0; i < tracked.size(); i++)
-    {
-        bool matched = false;
-
-        if (det.id == tracked[i].robot_id)
-        {
-            matched = true;
-            if (!det.label.empty())
-                tracked[i].label = det.label;
-            break;
-        }
-
-        if (!matched)
-        {
-            tracked[i].lostCounter++;
-            if (tracked[i].lostCounter >= 10)
-            {
-                tracked[i].x = -1;
-                tracked[i].y = -1;
-                tracked[i].lostCounter = 0;
-                availableIDs.push_back(std::stoi(tracked[i].robot_id));
-            }
-        }
-    }
-
-    if (tracked.size() > 10) tracked.erase(tracked.begin());
-
-    for (const auto &t : tracked)
-    {
-        if (!t.label.empty())
-        {
-            visibleNumbers.emplace_back(t.label);
         }
     }
 
@@ -432,12 +320,8 @@ std::vector<double> analyzeDetection(
         }
     }
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, visibleNumbers);
-    if (bestMatchIndex == -1)
-    {
-        return {measurements[0], measurements[1], measurements[2], 0.0, 0.0};
-    }
 
-    std::vector<double> data = {measurements[0], measurements[1], measurements[2], std::stod(tracked[bestMatchIndex].label.empty() ? "0" : tracked[bestMatchIndex].label), std::stod(tracked[bestMatchIndex].robot_id.empty() ? "0" : tracked[bestMatchIndex].robot_id)};
+    std::vector<double> data = {measurements[0], measurements[1], measurements[2], (det.label.empty()) ? 0 : std::stod(det.label)};
     auto t4 = std::chrono::high_resolution_clock::now();
 
     return data;
@@ -449,10 +333,116 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
     if (detections.empty())
         return;
 
+    visibleNumbers.clear();
+
     cv::Mat hsv;
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
     std::vector<std::future<std::vector<double>>> futures;
+    for (auto &det : detections)
+    {
+        if (availableIDs.empty())
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                availableIDs.emplace_back(i);
+            }
+        }
+
+        int centerY = det.bounding_box.y + det.bounding_box.height / 2;
+
+        TrackedRobot *bestMatch = nullptr;
+        double minDist = std::numeric_limits<double>::max();
+
+        int bestMatchIndex = -1;
+        auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
+        for (size_t i = 0; i < tracked.size(); i++)
+        {
+            if (tracked[i].used)
+                continue;
+            double dx = centerX - tracked[i].x;
+            double dy = centerY - tracked[i].y;
+            double dist = std::sqrt(dx * dx + dy * dy);
+
+            if (dist < minDist && dist < config.maxDistanceThresholdX)
+            {
+                minDist = dist;
+                bestMatchIndex = i;
+            }
+        }
+        auto t2 = std::chrono::high_resolution_clock::now();
+        if (bestMatchIndex != -1)
+        {
+            if (tracked[bestMatchIndex].label.empty())
+            {
+                tracked[bestMatchIndex].used = true;
+            }
+
+            tracked[bestMatchIndex].x = centerX;
+            tracked[bestMatchIndex].y = centerY;
+            tracked[bestMatchIndex].lostCounter = 0;
+            det.id = tracked[bestMatchIndex].robot_id;
+
+            if (!det.label.empty())
+                tracked[bestMatchIndex].label = det.label;
+        }
+        else
+        {
+            if (availableIDs.empty())
+            {
+                std::cout << "WARNING: No available IDs!" << std::endl;
+            }
+
+            int newID = availableIDs.front();
+            availableIDs.pop_front();
+
+            TrackedRobot newRobot;
+            newRobot.x = centerX;
+            newRobot.y = centerY;
+            newRobot.robot_id = std::to_string(newID);
+            newRobot.lostCounter = 0;
+            tracked.emplace_back(newRobot);
+
+            det.id = newRobot.robot_id;
+        }
+        auto t3 = std::chrono::high_resolution_clock::now();
+
+        for (size_t i = 0; i < tracked.size(); i++)
+        {
+            bool matched = false;
+
+            if (det.id == tracked[i].robot_id)
+            {
+                matched = true;
+                if (!det.label.empty())
+                    tracked[i].label = det.label;
+                break;
+            }
+
+            if (!matched)
+            {
+                tracked[i].lostCounter++;
+                if (tracked[i].lostCounter >= 10)
+                {
+                    tracked[i].x = -1;
+                    tracked[i].y = -1;
+                    tracked[i].lostCounter = 0;
+                    availableIDs.push_back(std::stoi(tracked[i].robot_id));
+                }
+            }
+        }
+
+        if (tracked.size() > 10)
+            tracked.erase(tracked.begin());
+
+        for (const auto &t : tracked)
+        {
+            if (!t.label.empty())
+            {
+                visibleNumbers.emplace_back(t.label);
+            }
+        }
+    }
     for (auto det : detections)
     {
         futures.push_back(threadManager.enqueue([&hsv, teamNumbers, config, det]() mutable
