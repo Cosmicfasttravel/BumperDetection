@@ -20,7 +20,8 @@
 <img width="2919" height="2655" alt="5bumpers" src="https://github.com/user-attachments/assets/26602597-d271-4d0e-9ea0-8dbd56bd0945" />
 
   ## 6 Bumpers
+  (This scenario is extremely unlikely) 
 <img width="2919" height="2655" alt="6bumpers" src="https://github.com/user-attachments/assets/76687054-23bf-41da-b283-df8424761330" />
-  (This scenario is extremely unlikely but is just here) 
+  
 
   
