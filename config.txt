@@ -16,7 +16,7 @@
 <error> 20
 
 #Levenshtein distance
-<lev_distance> 100
+<lev_distance> 5
 
 #Network Tables
 <ip>1
