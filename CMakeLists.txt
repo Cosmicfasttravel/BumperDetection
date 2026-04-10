@@ -39,6 +39,7 @@ add_library(BumperDetection SHARED
         src/send_data.cpp
         src/config_extraction.cpp
         src/thread_manager.cpp
+        src/debug_log.h
 )
 
 target_link_libraries(BumperDetection

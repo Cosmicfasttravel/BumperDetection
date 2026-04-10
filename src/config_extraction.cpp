@@ -5,6 +5,7 @@
 #include <ostream>
 #include <fstream>
 #include <iostream>
+#include "debug_log.h"
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -36,12 +37,14 @@ bool pollForChanges()
             if (!file.is_open())
             {
                 std::cerr << "Failed to open config\n";
+                logWarning("Failed to open config", WARNING);
                 return false;
             }
 
             data = json::parse(file);
 
             std::cout << "File reread\n";
+            logWarning("File reread", INFO);
             extract();
 
             return true;
@@ -49,6 +52,7 @@ bool pollForChanges()
         catch (const std::exception &e)
         {
             std::cerr << "JSON failed: " << e.what() << "\n";
+            logWarning("JSON failed", WARNING);
             return false;
         }
     }

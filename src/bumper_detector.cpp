@@ -13,6 +13,7 @@
 #ifndef WIN32
 #include "rknn_api.h"
 #endif
+#include "debug_log.h"
 #include "analyze_detections.h"
 #include <thread>
 #include <atomic>
@@ -207,6 +208,7 @@ int run()
         if (!fp)
         {
             std::cerr << "Failed to open model: " << model_path << std::endl;
+            logWarning("Failed to open model", WARNING);
             return -1;
         }
         fseek(fp, 0, SEEK_END);
@@ -223,11 +225,13 @@ int run()
         if (ret != 0)
         {
             std::cerr << "Failed to init RKNN: " << ret << std::endl;
+            logWarning("Failed to init RKNN", WARNING);
             return -1;
         }
         rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
         rknn_set_core_mask(ctx, core_mask);
         std::cout << "RKNN model loaded successfully" << std::endl;
+        logWarning("Failed to init RKNN", INFO);
 #else
         std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);

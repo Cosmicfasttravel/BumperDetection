@@ -1,5 +1,5 @@
 ﻿#include "analyze_detections.h"
-
+#include "debug_log.h"
 #include <deque>
 #include "config_extraction.h"
 #include <opencv2/highgui.hpp>
@@ -152,8 +152,6 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
         init = true;
-
-        std::cout << "Tesseract initiated" << std::endl;
     }
 
     int ids = 0;
@@ -441,6 +439,7 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
                 try {
                     return analyzeDetection(i, teamNumbers, hsv, detections[i], config);
                 } catch (...) {
+                    logWarning("Thread Scheduling error", WARNING);
                     return OutputData{};
                 } }));
     }
@@ -472,7 +471,6 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
             if (det.id == t.robot_id && !det.label.empty())
             {
                 t.label = det.label;
-                std::cout << det.label << std::endl;
             }
         }
     }
@@ -498,4 +496,5 @@ void cleanUp()
         fut.get();
     }
     threadManager.shutdown();
+    logWarning("Threads Shutdown", INFO);
 }
