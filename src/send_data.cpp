@@ -4,8 +4,6 @@
 #include "networktables/NetworkTableInstance.h"
 #include <networktables/DoubleTopic.h>
 #include <networktables/StringTopic.h>
-
-
 #include "config_extraction.h"
 
 void setupNT(){

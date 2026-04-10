@@ -6,7 +6,7 @@ kalmanFilter::kalmanFilter(const Config& config)
 {
     kf.init(6, 3, 0, CV_64F);
 
-    static const double dt = 1.0 / config.avg_fps;
+    static const double dt = 1.0 / config.kalman.avg_fps;
 
     kf.transitionMatrix = (cv::Mat_<double>(6,6) <<
         1, 0, 0, dt, 0,  0,
@@ -23,9 +23,9 @@ kalmanFilter::kalmanFilter(const Config& config)
         0,0,1,0,0,0
     );
 
-    double processNoise = config.process_noise;
-    double measurementNoise = config.measurement_noise;
-    double error = config.error;
+    double processNoise = config.kalman.process_noise;
+    double measurementNoise = config.kalman.measurement_noise;
+    double error = config.kalman.error;
     cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise));//motion
     cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise));//noise
     cv::setIdentity(kf.errorCovPost, cv::Scalar(error));//measurement variance

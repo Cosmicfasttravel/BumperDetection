@@ -2,48 +2,63 @@
 #define BUMPERDETECTION_CONFIG_EXTRACTION_H
 #include <filesystem>
 #include <string>
+#include <array>
+#include <nlohmann/json.hpp>
 
-struct Config {
-    // Bumper
-    double bumper_height;
-    double focal_length;
-    double pixel_height;
+struct Bumper
+{
+    double height;
+};
 
-    // Screen
-    double screen_width;
-    double screen_height;
+struct Screen
+{
+    double width;
+    double height;
     double x_fov;
     double y_fov;
 
-    // Kalman Filter
+    int rotation;
+};
+
+struct Kalman
+{
     double avg_fps;
     double process_noise;
     double measurement_noise;
     double error;
+};
 
-    // Levenshtein
+struct OCR
+{
     double lev_distance;
+};
 
-    // Network Tables
+struct NetworkTables
+{
     std::string ip;
+};
 
-    // Yolo
+struct Yolo
+{
     double conf_threshold;
     double nms_threshold;
+};
 
-    // Frame
-    int rotation;
+struct Teams
+{
+    std::array<std::string, 5> t;
+};
 
-    // Teams
-    std::string teams[5];
+struct Modes
+{
+    bool logging;
+    bool write_frame;
+    bool video;
+    bool display;
+};
 
-    // Modes
-    int loggingMode;
-    int writeFrameMode;
-    int videoMode;
-    int displayMode;
-
-    // Camera
+struct Camera
+{
     int brightness;
     int exposure;
     int gain;
@@ -51,17 +66,105 @@ struct Config {
     int saturation;
     int contrast;
     int temperature;
-    int autoWhiteBalance;
-    int initialBlur;
-
-    // Max distances
-    int maxDistanceThresholdX;
-    int maxDistanceThresholdY;
+    int auto_white_balance;
+    int initial_blur;
+    double focal_length;
+    double pixel_height;
 };
 
-std::string extractByTag(const std::string& tag);
-bool pollForChanges();
-void extractAll();
-const Config& getConfig();
+struct Tracking
+{
+    int max_distance_threshold_x;
+    int max_distance_threshold_y;
+};
 
-#endif //BUMPERDETECTION_CONFIG_EXTRACTION_H
+struct Config
+{
+    Bumper bumper;
+    Screen screen;
+    Kalman kalman;
+    OCR ocr;
+    NetworkTables nt;
+    Yolo yolo;
+    Teams teams;
+    Modes modes;
+    Camera camera;
+    Tracking tracking;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Bumper,
+    height
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Screen,
+    width,
+    height,
+    x_fov,
+    y_fov,
+    rotation
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Kalman,
+    avg_fps,
+    process_noise,
+    measurement_noise,
+    error
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OCR,
+    lev_distance
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NetworkTables,
+    ip
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Yolo,
+    conf_threshold,
+    nms_threshold
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modes,
+    logging,
+    write_frame,
+    video,
+    display
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Camera,
+    brightness,
+    exposure,
+    gain,
+    hue,
+    saturation,
+    contrast,
+    temperature,
+    auto_white_balance,
+    initial_blur,
+    focal_length,
+    pixel_height
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Tracking,
+    max_distance_threshold_x,
+    max_distance_threshold_y
+)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Config,
+    bumper,
+    screen,
+    kalman,
+    ocr,
+    nt,
+    yolo,
+    modes,
+    camera,
+    tracking
+)
+
+Config &getConfig();
+
+bool pollForChanges();
+void extract();
+
+#endif // BUMPERDETECTION_CONFIG_EXTRACTION_H

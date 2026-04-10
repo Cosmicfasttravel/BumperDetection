@@ -1,0 +1,67 @@
+﻿{
+    "bumper": {
+        "height": 15.4
+    },
+
+    "screen": {
+        "width": 1280,
+        "height": 720,
+        "x_fov": 70,
+        "y_fov": 43,
+        "rotation": 0
+    },
+
+    "kalman": {
+        "avg_fps": 15,
+        "process_noise": 1000,
+        "measurement_noise": 100,
+        "error": 20
+    },
+
+    "ocr": {
+        "lev_distance": 5
+    },
+
+    "nt": {
+        "ip": "1"
+    },
+
+    "yolo": {
+        "conf_threshold": 0.025,
+        "nms_threshold": 0.1
+    },
+
+    "teams": [
+        "1306",
+        "11258",
+        "1792",
+        "1732",
+        "11258"
+    ],
+
+    "modes": {
+        "logging": false,
+        "display": true,
+        "video": false,
+        "write_frame": false
+    },
+
+    "camera": {
+        "brightness": -1,
+        "contrast": -1,
+        "hue": 0,
+        "saturation": -1,
+        "gain": 0,
+        "exposure": -1,
+        "temperature": 4000,
+        "auto_white_balance": 1,
+        "initial_blur": 0,
+        "focal_length": 0.26,
+        "pixel_height": 0.0003
+    },
+
+    "tracking": {
+        "max_distance_threshold_x": 100,
+        "max_distance_threshold_y": 15
+    }
+}

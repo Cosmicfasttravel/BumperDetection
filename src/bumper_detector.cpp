@@ -2,7 +2,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <vector>
-#include "log_to_file.h"
 #include <ostream>
 #include <string>
 #include <chrono>
@@ -14,13 +13,11 @@
 #ifndef WIN32
 #include "rknn_api.h"
 #endif
-
 #include "analyze_detections.h"
 #include <thread>
 #include <atomic>
 #include <mutex>
 #include "tesseract/baseapi.h"
-
 #include "config_extraction.h"
 
 cv::Mat latestFrame;
@@ -197,11 +194,10 @@ std::vector<Detection> ProcessYoloOutput(
 
 int run()
 {
-    extractAll();
-
+    extract();
     const Config &config = getConfig();
 
-    std::string teamNumbers[5] = {config.teams[0], config.teams[1], config.teams[2], config.teams[3], config.teams[4]};
+    std::string teamNumbers[5] = {config.teams.t.at(0), config.teams.t.at(1), config.teams.t.at(2), config.teams.t.at(3), config.teams.t.at(4)};
 
     try
     {
@@ -242,36 +238,28 @@ int run()
 #endif
 
         cv::VideoCapture cap;
-        std::string video_path = "../vids/5ft.mp4";
+        std::string video_path = ""; // add path config
 #ifdef WIN32
         if (config.videoMode)
             cap.open(video_path);
         else
             cap.open(0, cv::CAP_DSHOW);
 #else
-        if (config.videoMode)
+        if (config.modes.video)
             cap.open(video_path);
         else
             cap.open(0, cv::CAP_V4L2);
 #endif
 
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen_width);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen_height);
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
         cap.set(cv::CAP_PROP_FPS, 60);
         cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
 
-        cap.set(cv::CAP_PROP_BRIGHTNESS, config.brightness);
-        cap.set(cv::CAP_PROP_CONTRAST, config.contrast);
-        cap.set(cv::CAP_PROP_HUE, config.hue);
-        cap.set(cv::CAP_PROP_SATURATION, config.saturation);
-        cap.set(cv::CAP_PROP_GAIN, config.gain);
-        cap.set(cv::CAP_PROP_EXPOSURE, config.exposure);
-        cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.temperature);
-        cap.set(cv::CAP_PROP_AUTO_WB, config.autoWhiteBalance);
-
         int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
         int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+
         double fpsVideo = cap.get(cv::CAP_PROP_FPS);
         if (fpsVideo <= 0)
             fpsVideo = 15.0;
@@ -281,24 +269,13 @@ int run()
 #else
         codec = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
 #endif
-        std::string Nfilename = "./outputNOANNOTATIONS.mp4";
-        std::string Afilename = "./outputANNOTATED.mp4";
+        std::string filename_NA = "./ouput_NA.mp4"; // No annotations
+        std::string filename_A = "./output_A.mp4";  // Annotated
 
         cv::VideoWriter writer;
         cv::VideoWriter annotatedWriter;
-        writer.open(Nfilename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
-        annotatedWriter.open(Afilename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
-
-        initLogFile("log", config);
-
-        logToFile("Brightness", cap.get(cv::CAP_PROP_BRIGHTNESS));
-        logToFile("Contrast", cap.get(cv::CAP_PROP_CONTRAST));
-        logToFile("Hue", cap.get(cv::CAP_PROP_HUE));
-        logToFile("Saturation", cap.get(cv::CAP_PROP_SATURATION));
-        logToFile("Gain", cap.get(cv::CAP_PROP_GAIN));
-        logToFile("Exposure", cap.get(cv::CAP_PROP_EXPOSURE));
-        logToFile("Auto White Balance Enabled", cap.get(cv::CAP_PROP_AUTO_WB));
-        logToFile("Temperature", cap.get(cv::CAP_PROP_WB_TEMPERATURE));
+        writer.open(filename_NA, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
+        annotatedWriter.open(filename_A, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
 
         if (!cap.isOpened())
         {
@@ -331,15 +308,15 @@ int run()
             std::stringstream ss;
             if (pollForChanges())
             {
-                cap.set(cv::CAP_PROP_BRIGHTNESS, config.brightness);
-                cap.set(cv::CAP_PROP_CONTRAST, config.contrast);
-                cap.set(cv::CAP_PROP_HUE, config.hue);
-                cap.set(cv::CAP_PROP_SATURATION, config.saturation);
-                cap.set(cv::CAP_PROP_GAIN, config.gain);
-                cap.set(cv::CAP_PROP_EXPOSURE, config.exposure);
-                cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.temperature);
-                cap.set(cv::CAP_PROP_AUTO_WB, config.autoWhiteBalance);
-            } // check config
+                cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
+                cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
+                cap.set(cv::CAP_PROP_HUE, config.camera.hue);
+                cap.set(cv::CAP_PROP_SATURATION, config.camera.saturation);
+                cap.set(cv::CAP_PROP_GAIN, config.camera.gain);
+                cap.set(cv::CAP_PROP_EXPOSURE, config.camera.exposure);
+                cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.camera.temperature);
+                cap.set(cv::CAP_PROP_AUTO_WB, config.camera.temperature);
+            }
 
             auto frame_start = Clock::now();
             prev_frame_time = frame_start;
@@ -352,11 +329,11 @@ int run()
             constexpr int INPUT_WIDTH = 640;
 #endif
 
-            float CONF_THRESHOLD = config.conf_threshold;
-            float NMS_THRESHOLD = config.nms_threshold;
+            float CONF_THRESHOLD = config.yolo.conf_threshold;
+            float NMS_THRESHOLD = config.yolo.nms_threshold;
             auto preprocess_start = std::chrono::high_resolution_clock::now();
 
-            if (!config.videoMode)
+            if (!config.modes.video)
             {
                 {
                     std::lock_guard<std::mutex> lock(frameMutex);
@@ -371,11 +348,11 @@ int run()
                     return -1;
             }
 
-            if (config.initialBlur != 0)
+            if (config.camera.initial_blur != 0)
             {
-                cv::GaussianBlur(frame, frame, cv::Size(config.initialBlur, config.initialBlur), 0);
+                cv::GaussianBlur(frame, frame, cv::Size(config.camera.initial_blur, config.camera.initial_blur), 0);
             }
-            int rotatedDegrees = config.rotation;
+            int rotatedDegrees = config.screen.rotation;
             if (rotatedDegrees == 90)
                 cv::rotate(frame, frame, cv::ROTATE_90_CLOCKWISE);
             if (rotatedDegrees == -90)
@@ -393,7 +370,7 @@ int run()
             }
             processed_count++;
 
-            if (config.writeFrameMode)
+            if (config.modes.write_frame)
             {
                 writer.write(frame);
             }
@@ -494,22 +471,15 @@ int run()
                 fps.erase(fps.begin());
             }
 
-            logToFile("FPS", sum / fps.size());
-
             cap.set(cv::CAP_PROP_FPS, sum / fps.size());
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            if (!config.displayMode)
-            {
-                logFPS(std::to_string(sum / fps.size()));
-            }
-
-            if (config.displayMode)
+            if (config.modes.display)
                 cv::imshow("detectEdgesBumper", frame);
 
-            if (config.writeFrameMode)
+            if (config.modes.write_frame)
             {
                 annotatedWriter.write(frame);
             }
@@ -532,8 +502,9 @@ int run()
 #endif
         cleanUp();
 
-        if (!config.videoMode)
+        if (!config.modes.video)
             camThread.join();
+
         cv::waitKey(500);
 
         cap.release();
@@ -542,10 +513,6 @@ int run()
         std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
         std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
         std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
-
-        logToFile("Preprocessing (ms)", total_preprocess_time / processed_count);
-        logToFile("Inference (ms)", total_inference_time / processed_count);
-        logToFile("Post-processing (ms)", total_postprocess_time / processed_count);
 
         cv::destroyAllWindows();
         cv::waitKey(500);

@@ -4,6 +4,11 @@ project(BumperDetection)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+include(FetchContent)
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui videoio dnn video)
 
 if (UNIX)
@@ -31,16 +36,14 @@ add_library(BumperDetection SHARED
         src/bumper_detector.cpp
         src/analyze_detections.cpp
         src/kalman_filter.cpp
-        src/top_down_view.cpp
         src/send_data.cpp
-        src/receive_data.cpp
         src/config_extraction.cpp
-        src/log_to_file.cpp
-        src/thread_manager.h
+        src/thread_manager.cpp
 )
 
 target_link_libraries(BumperDetection
         ${OpenCV_LIBS}
+        nlohmann_json::nlohmann_json
 )
 
 if (UNIX)
@@ -63,9 +66,11 @@ endif()
 add_executable(run_yolo src/main.cpp)
 
 target_link_libraries(run_yolo
-        BumperDetection
+        BumperDetection 
         ${OpenCV_LIBS}
+        nlohmann_json::nlohmann_json
 )
+
 if(WIN32)
         target_link_libraries(run_yolo
         Tesseract::libtesseract

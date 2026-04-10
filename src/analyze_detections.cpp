@@ -1,7 +1,6 @@
 ﻿#include "analyze_detections.h"
 
 #include <deque>
-#include "log_to_file.h"
 #include "config_extraction.h"
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -20,7 +19,6 @@
 #include <unordered_set>
 #include <opencv2/video/tracking.hpp>
 #include "kalman_filter.h"
-#include "top_down_view.h"
 #include "thread_manager.h"
 
 int levenshteinDist(const std::string &word1, const std::string &word2)
@@ -55,9 +53,9 @@ int levenshteinDist(const std::string &word1, const std::string &word2)
 
 double getDistance(const double height, const Config &config)
 {
-    double focal_length_cm = config.focal_length;
-    double known_height_cm = config.bumper_height;
-    double pixel_height_cm = config.pixel_height;
+    double focal_length_cm = config.camera.focal_length;
+    double known_height_cm = config.bumper.height;
+    double pixel_height_cm = config.camera.pixel_height;
 
     double distance;
     if (height > 0)
@@ -74,10 +72,10 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     thread_local std::unordered_map<std::string, kalmanFilter> filters;
     std::string label = detection.label;
 
-    double SCREEN_WIDTH = config.screen_width;
-    double SCREEN_HEIGHT = config.screen_height;
-    double X_FOV = config.x_fov;
-    double Y_FOV = config.y_fov;
+    double SCREEN_WIDTH = config.screen.width;
+    double SCREEN_HEIGHT = config.screen.height;
+    double X_FOV = config.screen.x_fov;
+    double Y_FOV = config.screen.y_fov;
 
     double max_cord_x = SCREEN_WIDTH / 2;
     double max_cord_y = SCREEN_HEIGHT / 2;
@@ -100,7 +98,6 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     filtered[1] = y_coordinate;
     filtered[2] = z_coordinate;
 
-    // Update tracker with robot position
     if (!label.empty())
     {
         auto it = filters.find(label);
@@ -203,7 +200,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
         }
     }
 
-    double distance = config.lev_distance;
+    double distance = config.ocr.lev_distance;
     if (minDist > distance)
     {
         return det.id;
@@ -376,7 +373,7 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
             double dy = centerY - t.y;
             double dist = std::sqrt(dx * dx + dy * dy);
 
-            if (dist < minDist && dist < config.maxDistanceThresholdX)
+            if (dist < minDist && dist < config.tracking.max_distance_threshold_x)
             {
                 minDist = dist;
                 bestMatch = &t;
