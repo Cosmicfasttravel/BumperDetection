@@ -161,7 +161,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
 std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string teamNumbers[5], const Config &config,
                           bool cleanUp = false)
 {
-    auto maxOCR = 3; // config
+    auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
         return "";
     ocrCounter++;
@@ -185,7 +185,10 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     if (!init)
     {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY); //config for modes
+        if(config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
+        if(config.ocr.mode == "lstmonly") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+        if(config.ocr.mode == "combined") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_LSTM_COMBINED);
+        
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
         init = true;
@@ -198,18 +201,17 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     cv::Mat colorMask;
     cv::inRange(img, cv::Scalar(0, 0, 130), cv::Scalar(179, 170, 255), colorMask); // add config for these
 
-    //config for tesseract image size
-    if (colorMask.cols < 300)
+    if (colorMask.cols < config.ocr.min_img_size)
     {
-        double scale = 300.0 / colorMask.cols;
-        cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC); // config for mode
+        double scale = config.ocr.min_img_size / colorMask.cols;
+        cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
     }
 
     cv::Mat final;
     cv::bitwise_not(colorMask, final);
 
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)); // config for kernel size
-    cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel); // config for open + close and combos
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(config.ocr.morphology_kernel_size, config.ocr.morphology_kernel_size));
+    cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
     api->SetImage(final.data, final.cols, final.rows, 1, final.step);
 

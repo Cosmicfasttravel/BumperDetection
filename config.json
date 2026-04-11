@@ -19,7 +19,11 @@
     },
 
     "ocr": {
-        "lev_distance": 5
+        "lev_distance": 5,
+        "max_instances": 3,
+        "morphology_kernel_size": 3,
+        "mode": "default",
+        "min_img_size": 300
     },
 
     "nt": {
@@ -31,12 +35,15 @@
         "nms_threshold": 0.1
     },
 
-    "teams": [
+    "redTeams": [
         "1306",
-        "11258",
-        "1792",
-        "1732",
-        "11258"
+        "1678",
+        "254"
+    ],
+    "blueTeams": [
+        "1768",
+        "245",
+        "1307"
     ],
 
     "modes": {

@@ -31,6 +31,10 @@ struct Kalman
 struct OCR
 {
     double lev_distance;
+    int max_instances;
+    int morphology_kernel_size;
+    std::string mode;
+    int min_img_size;
 };
 
 struct NetworkTables
@@ -46,7 +50,8 @@ struct Yolo
 
 struct Teams
 {
-    std::array<std::string, 5> t;
+    std::array<std::string, 3> blueTeams;
+    std::array<std::string, 3> redTeams;
 };
 
 struct Modes
@@ -112,7 +117,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Kalman,
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OCR,
-    lev_distance
+    lev_distance,
+    max_instances,
+    morphology_kernel_sizes,
+    teseract_mode,
+    min_img_size
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NetworkTables,
