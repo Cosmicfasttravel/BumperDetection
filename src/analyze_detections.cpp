@@ -185,7 +185,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     if (!init)
     {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY); //config for modes
+        api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY); //config for modes
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
         init = true;

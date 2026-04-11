@@ -453,7 +453,7 @@ int run()
             }
 
             detectionScheduler(teamNumbers, frame, detections, config);
-            
+
             int key = cv::waitKey(waitTime);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
@@ -484,6 +484,8 @@ int run()
 
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
+
+            if(sum/fps.size() <= 20) logger->warn("Deep stutter at " + std::to_string(sum/fps.size()) + "fps");
 
             if (config.modes.display)
                 cv::imshow("detectEdgesBumper", frame);
