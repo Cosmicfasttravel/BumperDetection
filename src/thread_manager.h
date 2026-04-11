@@ -97,7 +97,7 @@ public:
     
     int numThreads = Num_Threads;
 private:
-int Num_Threads = std::max(1u, std::thread::hardware_concurrency());
+int Num_Threads = std::max(1u, std::thread::hardware_concurrency()); // config
 
     std::vector<std::thread> Pool;
 

@@ -9,6 +9,9 @@ include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
+FetchContent_Declare(spdlog URL https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.tar.gz)
+FetchContent_MakeAvailable(spdlog)
+
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui videoio dnn video)
 
 if (UNIX)
@@ -39,12 +42,14 @@ add_library(BumperDetection SHARED
         src/send_data.cpp
         src/config_extraction.cpp
         src/thread_manager.cpp
+        src/debug_log.cpp
         src/debug_log.h
 )
 
 target_link_libraries(BumperDetection
         ${OpenCV_LIBS}
         nlohmann_json::nlohmann_json
+        spdlog::spdlog
 )
 
 if (UNIX)
@@ -70,6 +75,7 @@ target_link_libraries(run_yolo
         BumperDetection 
         ${OpenCV_LIBS}
         nlohmann_json::nlohmann_json
+        spdlog::spdlog
 )
 
 if(WIN32)

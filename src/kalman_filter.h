@@ -10,6 +10,7 @@ public:
 private:
     cv::KalmanFilter kf;
     bool initialized = false;
+    double deltaTime;
 };
 
 

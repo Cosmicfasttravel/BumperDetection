@@ -6,12 +6,10 @@ kalmanFilter::kalmanFilter(const Config& config)
 {
     kf.init(6, 3, 0, CV_64F);
 
-    static const double dt = 1.0 / config.kalman.avg_fps;
-
     kf.transitionMatrix = (cv::Mat_<double>(6,6) <<
-        1, 0, 0, dt, 0,  0,
-        0, 1, 0, 0,  dt, 0,
-        0, 0, 1, 0,  0,  dt,
+        1, 0, 0, deltaTime, 0,  0,
+        0, 1, 0, 0,  deltaTime, 0,
+        0, 0, 1, 0,  0,  deltaTime,
         0, 0, 0, 1,  0,  0,
         0, 0, 0, 0,  1,  0,
         0, 0, 0, 0,  0,  1
@@ -33,6 +31,8 @@ kalmanFilter::kalmanFilter(const Config& config)
 
 cv::Vec3d kalmanFilter::update(double x, double y, double z, double dt)
 {
+    deltaTime = dt;
+
     if (!initialized) {
         kf.statePost.at<double>(0) = x;
         kf.statePost.at<double>(1) = y;

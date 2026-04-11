@@ -10,9 +10,8 @@ struct Detection {
     cv::Rect bounding_box;
     
     std::string class_name;
-    std::string id;
-    std::string color;
-    std::string label;
+
+    std::string color, id, teamNumber;
 
     bool tracked = false;
 };

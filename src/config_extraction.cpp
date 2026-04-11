@@ -37,14 +37,14 @@ bool pollForChanges()
             if (!file.is_open())
             {
                 std::cerr << "Failed to open config\n";
-                logWarning("Failed to open config", WARNING);
+                logger->warn("Failed to open config");
                 return false;
             }
 
             data = json::parse(file);
 
             std::cout << "File reread\n";
-            logWarning("File reread", INFO);
+            logger->info("Reread file");
             extract();
 
             return true;
@@ -52,7 +52,7 @@ bool pollForChanges()
         catch (const std::exception &e)
         {
             std::cerr << "JSON failed: " << e.what() << "\n";
-            logWarning("JSON failed", WARNING);
+            logger->info("JSON failed");
             return false;
         }
     }

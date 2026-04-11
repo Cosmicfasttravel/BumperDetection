@@ -9,7 +9,7 @@
 void setupNT(){
 auto nt = nt::NetworkTableInstance::GetDefault();
     nt.StartClient4("bumper_detection");
-    nt.SetServer("det", 0);
+    nt.SetServer("det", 0); // config
 }
 
 void publishRobotPos(const std::string& label, double x, double y, double z) {

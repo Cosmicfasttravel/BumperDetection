@@ -198,17 +198,19 @@ int run()
     extract();
     const Config &config = getConfig();
 
+    initLogger();
+
     std::string teamNumbers[5] = {config.teams.t.at(0), config.teams.t.at(1), config.teams.t.at(2), config.teams.t.at(3), config.teams.t.at(4)};
 
     try
     {
 #ifndef WIN32
-        std::string model_path = "../bumper_yolov9_320x.rknn";
+        std::string model_path = "../bumper_yolov9_320x.rknn"; // config
         FILE *fp = fopen(model_path.c_str(), "rb");
         if (!fp)
         {
             std::cerr << "Failed to open model: " << model_path << std::endl;
-            logWarning("Failed to open model", WARNING);
+            logger->error("Failed to open model");
             return -1;
         }
         fseek(fp, 0, SEEK_END);
@@ -225,15 +227,15 @@ int run()
         if (ret != 0)
         {
             std::cerr << "Failed to init RKNN: " << ret << std::endl;
-            logWarning("Failed to init RKNN", WARNING);
+            logger->warn("Failed to init RKNN");
             return -1;
         }
         rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
         rknn_set_core_mask(ctx, core_mask);
         std::cout << "RKNN model loaded successfully" << std::endl;
-        logWarning("Failed to init RKNN", INFO);
+        logger->info("RKNN Loaded sucessfully");
 #else
-        std::string model_path = "C:/Users/marcu/CLionProjects/robotvisiontest/modeltest/bumper_yolov9.onnx";
+        std::string model_path = "../modeltest/bumper_yolov9.onnx";
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
         if (net.empty())
         {
@@ -290,7 +292,8 @@ int run()
         }
         std::thread camThread(captureThread, std::ref(cap));
 
-        int frame_skip = 1;
+        int frame_skip = 1; // config
+
         cv::Mat frame;
         int frame_count = 0;
         int processed_count = 0;
@@ -326,7 +329,7 @@ int run()
             prev_frame_time = frame_start;
 
 #ifndef WIN32
-            constexpr int INPUT_HEIGHT = 320;
+            constexpr int INPUT_HEIGHT = 320; // configs
             constexpr int INPUT_WIDTH = 320;
 #else
             constexpr int INPUT_HEIGHT = 640;
@@ -356,6 +359,7 @@ int run()
             {
                 cv::GaussianBlur(frame, frame, cv::Size(config.camera.initial_blur, config.camera.initial_blur), 0);
             }
+
             int rotatedDegrees = config.screen.rotation;
             if (rotatedDegrees == 90)
                 cv::rotate(frame, frame, cv::ROTATE_90_CLOCKWISE);
@@ -424,7 +428,7 @@ int run()
 
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
-            int sizes[3] = {1, 5, 2100};
+            int sizes[3] = {1, 5, 2100}; // config
             cv::Mat output_mat;
 #ifndef WIN32
             cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
@@ -449,6 +453,7 @@ int run()
             }
 
             detectionScheduler(teamNumbers, frame, detections, config);
+            
             int key = cv::waitKey(waitTime);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
@@ -505,6 +510,8 @@ int run()
         rknn_destroy(ctx);
 #endif
         cleanUp();
+
+        spdlog::shutdown();
 
         if (!config.modes.video)
             camThread.join();
