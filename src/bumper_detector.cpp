@@ -192,13 +192,13 @@ std::vector<Detection> ProcessYoloOutput(
 
 int run()
 {
-    extract();
-    const Config &config = getConfig();
-
-    initLogger();
-
     try
     {
+        extractConfig();
+        const Config &config = getConfig();
+
+        initLogger();
+
 #ifndef WIN32
         std::string model_path = config.input_paths.rknn_path;
         FILE *fp = fopen(model_path.c_str(), "rb");
@@ -282,7 +282,8 @@ int run()
 #endif
             return -1;
         }
-        std::thread camThread(captureThread, std::ref(cap));
+        std::thread camThread;
+        if (!config.modes.video) camThread = std::thread(captureThread, std::ref(cap));
 
         int frame_skip = config.screen.frame_skip;
 
@@ -295,15 +296,13 @@ int run()
         long long total_inference_time = 0;
         long long total_postprocess_time = 0;
 
-        bool paused = false;
-        int waitTime = 1;
         auto prev_frame_time = Clock::now();
         std::vector<double> fps;
 
         while (true)
         {
             std::stringstream ss;
-            if (pollForChanges())
+            if (pollForChanges() && config.modes.dynamic_camera_properties_updating)
             {
                 cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
                 cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
@@ -344,6 +343,7 @@ int run()
                 if (!cap.read(frame))
                     return -1;
             }
+            auto frame_timestamp = Clock::now();
 
             if (config.camera.initial_blur != 0)
             {
@@ -439,12 +439,13 @@ int run()
 
             for (auto &det : detections)
             {
-                cv::rectangle(frame, det.bounding_box, cv::FILLED);
+                cv::rectangle(frame, det.bounding_box, cv::Scalar(255, 255, 255));
+                det.timestamp = frame_timestamp;
             }
 
             detectionScheduler(frame, detections, config);
 
-            int key = cv::waitKey(waitTime);
+            int key = cv::waitKey(1);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
             total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -462,7 +463,7 @@ int run()
                 sum += fps[i];
             }
 
-            ss << std::fixed << std::setprecision(2) << "FPS: " << sum / fps.size();
+            ss << std::fixed << std::setprecision(2) << "FPS: " << ((fps.empty()) ? 0 : (sum / static_cast<double>(fps.size())));
             fps.emplace_back((1.f / delta));
 
             if (fps.size() >= 20)
@@ -470,12 +471,10 @@ int run()
                 fps.erase(fps.begin());
             }
 
-            cap.set(cv::CAP_PROP_FPS, sum / fps.size());
-
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            if(sum/fps.size() <= 20) logger->warn("Deep stutter at " + std::to_string(sum/fps.size()) + "fps");
+            if(sum/fps.size() <= 5 && frame_count >= 100) logger->warn("Deep stutter at " + std::to_string(sum/fps.size()) + "fps");
 
             if (config.modes.display) cv::imshow("detectEdgesBumper", frame);
 
@@ -490,12 +489,6 @@ int run()
                 capturing = false;
                 break;
             }
-            if (key == 112)
-                paused = !paused;
-            if (paused)
-                waitTime = -1;
-            else
-                waitTime = 1;
         }
 #ifndef WIN32
         rknn_destroy(ctx);
@@ -535,5 +528,6 @@ int run()
         return -1;
     }
 
+    logger->info("Exited\n");
     return 0;
 }

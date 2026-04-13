@@ -1,26 +1,30 @@
 ﻿{
     "bumper": {
+        "_comments": "Centimeters",
         "height": 15.4
     },
 
     "screen": {
+        "_comments": "Pixels",
         "width": 1280,
         "height": 720,
+
         "x_fov": 70,
-        "y_fov": 43,
+        "y_fov": 39.5,
         "rotation": 0,
         "frame_skip": 1
     },
 
     "kalman": {
-        "avg_fps": 15,
-        "process_noise": 1000,
+        "_comments": "Centimeters",
+        "avg_fps": 40,
+        "process_noise": 100,
         "measurement_noise": 100,
         "error": 20
     },
 
     "ocr": {
-        "lev_distance": 5,
+        "lev_distance": 3,
         "max_instances": 3,
         "morphology_kernel_size": 3,
         "mode": "default",
@@ -33,7 +37,8 @@
             "hue_upper": 179,
             "saturation_upper": 170,
             "value_upper": 255
-        }
+        },
+        "tessdata_path": "/usr/share/tessdata/"
     },
 
     "height_measurement": {
@@ -77,7 +82,7 @@
     },
 
     "redTeams": [
-        "1306",
+        "",
         "1678",
         "254"
     ],
@@ -88,10 +93,10 @@
     ],
 
     "modes": {
-        "logging": false,
         "display": true,
-        "video": false,
-        "write_frame": false
+        "video": true,
+        "write_frame_to_file": false,
+        "dynamic_camera_properties_updating": true
     },
 
     "camera": {
@@ -109,13 +114,17 @@
     },
 
     "tracking": {
+        "_comments": "Pixels",
         "max_distance_threshold_x": 100,
-        "max_distance_threshold_y": 15
+        "max_distance_threshold_y": 15,
+
+        "id_count": 20,
+        "lost_threshold": 10
     },
 
     "input_paths": {
         "rknn_path": "../bumper_yolov9_320x.rknn",
-        "onnx_path": "../modeltest/bumper_yolov9.onnx",
-        "video_path": ""
+        "onnx_path": "../modeltest/bumper_yolov9_320x320.onnx",
+        "video_path": "../vids/5ft.MP4"
     }
 }

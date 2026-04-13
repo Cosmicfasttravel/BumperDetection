@@ -37,6 +37,8 @@ struct TrackedRobot {
     std::string teamNumber;
 
     bool used = false;
+
+    std::chrono::steady_clock::time_point timestamp;
 };
 
 struct OutputData {
@@ -86,7 +88,7 @@ double getDistance(const double height, const Config &config) {
     return (height > 0) ? (known_height_cm * focal_length_cm) / (height * pixel_height_cm) : 0.0;
 }
 
-std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config) {
+std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) {
     thread_local std::unordered_map<std::string, kalmanFilter> filters;
     std::string id = detection.id;
 
@@ -122,8 +124,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
             it = filters.emplace(id, config).first;
         }
         kalmanFilter &filter = it->second;
-        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate,
-                                 static_cast<double>(1) / config.kalman.avg_fps);
+        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, dt);
     }
 
     for (auto it = filters.begin(); it != filters.end();) {
@@ -166,10 +167,12 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
     if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
-            "/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
-        if (config.ocr.mode == "lstmonly") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
-        if (config.ocr.mode == "combined") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_LSTM_COMBINED);
+        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly")
+            api->Init(
+                config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_LSTM_ONLY);
+        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
+                                                     tesseract::OEM_TESSERACT_LSTM_COMBINED);
 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -205,12 +208,12 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     std::string result(outText);
     delete[] outText;
 
-    result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
+    std::erase_if(result, ::isspace);
 
     int minIndex = 0;
 
     int minDist = INT_MAX;
-    if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
+    if (!result.empty() && std::ranges::all_of(result, ::isdigit)) {
         for (int i = 0; i < 5; i++) {
             int d = {};
 
@@ -237,8 +240,8 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 OutputData analyzeDetection(
     cv::Mat &hsv,
     Detection det,
-    const Config &config) {
-
+    const Config &config,
+    double dt) {
     auto bumperBoundingBox = hsv(det.bounding_box).clone();
 
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
@@ -289,7 +292,7 @@ OutputData analyzeDetection(
     cv::bitwise_or(rMask1, bMask, finalMask);
 
     cv::Mat flood = finalMask.clone();
-    cv::floodFill(flood, cv::Point(0,0), 255);
+    cv::floodFill(flood, cv::Point(0, 0), 255);
 
     cv::Mat floodInv;
     cv::bitwise_not(flood, floodInv);
@@ -315,10 +318,11 @@ OutputData analyzeDetection(
 
     height = sum / det.bounding_box.width;
 
-    std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config);
+    std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, dt);
 
     OutputData data;
-    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.teamNumber, data.det = det;
+    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.teamNumber, data.det
+            = det;
 
     return data;
 }
@@ -344,6 +348,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     cv::Mat hsv;
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
+    //switch away from greedy tracking
     for (auto &det: detections) {
         int centerX = det.bounding_box.x + det.bounding_box.width / 2;
         int centerY = det.bounding_box.y + det.bounding_box.height / 2;
@@ -379,6 +384,10 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             ss << "ID: " << det.id << " " << "Label: " << bestMatch->teamNumber;
             cv::putText(frame, ss.str(), cv::Point(det.bounding_box.x, det.bounding_box.y), cv::FONT_HERSHEY_SIMPLEX,
                         0.7, cv::Scalar(255, 255, 255), 2);
+
+            det.meta.dt = std::chrono::duration<double>(det.timestamp - bestMatch->timestamp).count();
+
+            bestMatch->timestamp = det.timestamp;
         } else if (!availableIDs.empty()) {
             int newID = availableIDs.front();
             availableIDs.pop_front();
@@ -410,7 +419,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             ++it;
     }
 
-    std::vector<std::future<OutputData>> futures;
+    std::vector<std::future<OutputData> > futures;
     ocrCounter = 0;
     for (const auto &detection: detections) {
         if (!thread_manager.has_value()) {
@@ -419,7 +428,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
         }
         futures.push_back(thread_manager->enqueue([&hsv, config, &detection]() {
             try {
-                return analyzeDetection(hsv, detection, config);
+                return analyzeDetection(hsv, detection, config, detection.meta.dt);
             } catch (...) {
                 logger->error("Problem occurred with thread scheduling");
                 return OutputData{};

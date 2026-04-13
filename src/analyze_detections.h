@@ -4,10 +4,16 @@
 #include <tesseract/baseapi.h>
 #include "config_extraction.h"
 
+struct TrackingMeta {
+    double dt;
+};
+
 struct Detection {
     float confidence;
     cv::Rect bounding_box;
     std::string color, id, teamNumber;
+    std::chrono::steady_clock::time_point timestamp;
+    TrackingMeta meta;
 };
 
 void detectionScheduler(

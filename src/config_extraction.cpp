@@ -17,7 +17,7 @@ json data = json::parse(file);
 
 std::filesystem::file_time_type prevTime = {};
 
-void extract(){
+void extractConfig(){
     r_config = data.get<Config>();
 
     r_config.teams.blueTeams = data["blueTeams"];
@@ -48,7 +48,7 @@ bool pollForChanges()
 
             std::cout << "File reread\n";
             logger->info("Reread file");
-            extract();
+            extractConfig();
 
             return true;
         }

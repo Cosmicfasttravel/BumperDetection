@@ -49,6 +49,8 @@ struct OCR
     int min_img_size;
 
     MaskThresholds mask_thresholds;
+
+    std::string tessdata_path;
 };
 
 struct HeightMeasurement {
@@ -78,10 +80,10 @@ struct Teams
 
 struct Modes
 {
-    bool logging;
     bool write_frame_to_file;
     bool video;
     bool display;
+    bool dynamic_camera_properties_updating;
 };
 
 struct Camera
@@ -165,7 +167,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OCR,
     morphology_kernel_size,
     mode,
     min_img_size,
-    mask_thresholds
+    mask_thresholds,
+    tessdata_path
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(HeightMeasurement,
@@ -185,10 +188,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Yolo,
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modes,
-    logging,
     write_frame_to_file,
     video,
-    display
+    display,
+    dynamic_camera_properties_updating
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Camera,
@@ -230,12 +233,12 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Config,
     modes,
     camera,
     tracking,
-    paths
+    input_paths
 )
 
 Config &getConfig();
 
 bool pollForChanges();
-void extract();
+void extractConfig();
 
 #endif // BUMPERDETECTION_CONFIG_EXTRACTION_H
