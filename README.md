@@ -13,7 +13,7 @@ The pipeline performs the following steps:
 
 ---
 
-# How It Works
+# How It Works (Outdated)
 
 This system uses a **YOLOv9 object detection model** to identify bumpers in each frame.
 
