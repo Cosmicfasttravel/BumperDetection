@@ -36,6 +36,35 @@
         }
     },
 
+    "height_measurement": {
+        "red_mask_thresholds_1": {
+            "hue_lower": 0,
+            "saturation_lower": 100,
+            "value_lower": 30,
+            "hue_upper": 15,
+            "saturation_upper": 255,
+            "value_upper": 255
+        },
+        "red_mask_thresholds_2": {
+            "hue_lower": 170,
+            "saturation_lower": 100,
+            "value_lower": 30,
+            "hue_upper": 179,
+            "saturation_upper": 255,
+            "value_upper": 255
+        },
+        "blue_mask_thresholds": {
+            "hue_lower": 80,
+            "saturation_lower": 100,
+            "value_lower": 30,
+            "hue_upper": 130,
+            "saturation_upper": 255,
+            "value_upper": 255
+        }
+    },
+
+    "thread_pool_size": -1,
+
     "nt": {
         "ip": "1"
     },
@@ -82,5 +111,11 @@
     "tracking": {
         "max_distance_threshold_x": 100,
         "max_distance_threshold_y": 15
+    },
+
+    "input_paths": {
+        "rknn_path": "../bumper_yolov9_320x.rknn",
+        "onnx_path": "../modeltest/bumper_yolov9.onnx",
+        "video_path": ""
     }
 }

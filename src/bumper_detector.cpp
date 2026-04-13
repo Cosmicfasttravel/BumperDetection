@@ -200,11 +200,10 @@ int run()
     try
     {
 #ifndef WIN32
-        std::string model_path = "../bumper_yolov9_320x.rknn"; // config
+        std::string model_path = config.input_paths.rknn_path;
         FILE *fp = fopen(model_path.c_str(), "rb");
         if (!fp)
         {
-            std::cerr << "Failed to open model: " << model_path << std::endl;
             logger->error("Failed to open model");
             return -1;
         }
@@ -221,16 +220,14 @@ int run()
         free(model_data);
         if (ret != 0)
         {
-            std::cerr << "Failed to init RKNN: " << ret << std::endl;
             logger->warn("Failed to init RKNN");
             return -1;
         }
         rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
         rknn_set_core_mask(ctx, core_mask);
-        std::cout << "RKNN model loaded successfully" << std::endl;
         logger->info("RKNN Loaded sucessfully");
 #else
-        std::string model_path = "../modeltest/bumper_yolov9.onnx";
+        std::string model_path = config.input_paths.onnx_path;
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
         if (net.empty())
         {
@@ -239,7 +236,7 @@ int run()
 #endif
 
         cv::VideoCapture cap;
-        std::string video_path = ""; // add path config
+        std::string video_path = config.input_paths.video_path;
 #ifdef WIN32
         if (config.modes.video)
             cap.open(video_path);
@@ -287,7 +284,7 @@ int run()
         }
         std::thread camThread(captureThread, std::ref(cap));
 
-        int frame_skip = 1; // config
+        int frame_skip = config.screen.frame_skip;
 
         cv::Mat frame;
         int frame_count = 0;
@@ -322,7 +319,7 @@ int run()
             prev_frame_time = frame_start;
 
 #ifndef WIN32
-            int INPUT_HEIGHT = config.yolo.input_dimensions; // configs
+            int INPUT_HEIGHT = config.yolo.input_dimensions;
             int INPUT_WIDTH = config.yolo.input_dimensions;
 #else
             int INPUT_HEIGHT = config.yolo.input_dimensions;
@@ -515,26 +512,26 @@ int run()
         cap.release();
         writer.release();
 
-        std::cout << "  Preprocess: " << (total_preprocess_time / processed_count) << "ms" << std::endl;
-        std::cout << "  Inference: " << (total_inference_time / processed_count) << "ms" << std::endl;
-        std::cout << "  Post-processing: " << (total_postprocess_time / processed_count) << "ms" << std::endl;
+        logger->info("  Preprocess: " + std::to_string(total_preprocess_time / processed_count) + "ms\n");
+        logger->info("  Inference: " + std::to_string(total_inference_time / processed_count) + "ms\n");
+        logger->info("  Post-processing: " + std::to_string(total_postprocess_time / processed_count) + "ms\n");
 
         cv::destroyAllWindows();
         cv::waitKey(500);
     }
     catch (const cv::Exception &e)
     {
-        std::cerr << "OpenCV error: " << e.what() << std::endl;
+        logger->critical("OpenCV error" + std::string(e.what()) + "\n");
         return -1;
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        logger->critical("Error" + std::string(e.what()) + "\n");
         return -1;
     }
     catch (...)
     {
-        std::cerr << "Error" << std::endl;
+        logger->critical("Unknown error\n");
         return -1;
     }
 

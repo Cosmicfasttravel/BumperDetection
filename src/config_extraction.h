@@ -51,6 +51,11 @@ struct OCR
     MaskThresholds mask_thresholds;
 };
 
+struct HeightMeasurement {
+    MaskThresholds red_mask_thresholds_1;
+    MaskThresholds red_mask_thresholds_2;
+    MaskThresholds blue_mask_thresholds;
+};
 
 struct NetworkTables
 {
@@ -102,18 +107,27 @@ struct Tracking
     int lost_threshold;
 };
 
+struct InputPaths {
+    std::string rknn_path;
+    std::string onnx_path;
+    std::string video_path;
+};
+
 struct Config
 {
     Bumper bumper;
     Screen screen;
     Kalman kalman;
     OCR ocr;
+    HeightMeasurement height_measurement;
+    int thread_pool_size;
     NetworkTables nt;
     Yolo yolo;
     Teams teams;
     Modes modes;
     Camera camera;
     Tracking tracking;
+    InputPaths input_paths;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Bumper,
@@ -154,6 +168,12 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OCR,
     mask_thresholds
 )
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(HeightMeasurement,
+    red_mask_thresholds_1,
+    red_mask_thresholds_2,
+    blue_mask_thresholds
+)
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NetworkTables,
     ip
 )
@@ -192,16 +212,25 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Tracking,
     id_count
 )
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InputPaths,
+    rknn_path,
+    onnx_path,
+    video_path
+)
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Config,
     bumper,
     screen,
     kalman,
     ocr,
+    height_measurement,
+    thread_pool_size,
     nt,
     yolo,
     modes,
     camera,
-    tracking
+    tracking,
+    paths
 )
 
 Config &getConfig();

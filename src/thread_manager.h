@@ -7,15 +7,23 @@
 #include <condition_variable>
 #include <functional>
 #include <tesseract/baseapi.h>
+#include <optional>
 #include <leptonica/allheaders.h>
 #include <future>
 #include <algorithm>
 
+#include "debug_log.h"
+
+
 class ThreadManager
 {
 public:
-    ThreadManager()
+    explicit ThreadManager(int thread_count)
     {
+        if (!Num_Threads.has_value()) Num_Threads = thread_count;
+        if (thread_count > std::thread::hardware_concurrency()) {Num_Threads = std::thread::hardware_concurrency(); logger->critical("Too many threads specified, defaulting to 1...");}
+        if (thread_count < 1) {Num_Threads = 1; logger->critical("Too few threads specified, defaulting to 1...");}
+
         for (int i = 0; i < Num_Threads; i++)
         {
             Pool.emplace_back(std::thread(&ThreadManager::workerLoop, this));
@@ -94,11 +102,9 @@ public:
                 t.join();
         }
     }
-    
-    int numThreads = Num_Threads;
-private:
-int Num_Threads = std::max(1u, std::thread::hardware_concurrency()); // config
 
+    std::optional<int> Num_Threads;
+private:
     std::vector<std::thread> Pool;
 
     std::mutex Queue_Mutex;

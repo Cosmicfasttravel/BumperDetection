@@ -244,14 +244,28 @@ OutputData analyzeDetection(
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto centerY = det.bounding_box.y + (0.5 * det.bounding_box.height);
 
-    auto lowerRedThreshold_1 = cv::Scalar(0, 100, 30);
-    auto upperRedThreshold_1 = cv::Scalar(15, 255, 255);
+    //Red thresholds
+    auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,
+                                          config.height_measurement.red_mask_thresholds_1.saturation_lower,
+                                          config.height_measurement.red_mask_thresholds_1.value_lower);
+    auto upperRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_upper,
+                                          config.height_measurement.red_mask_thresholds_1.saturation_upper,
+                                          config.height_measurement.red_mask_thresholds_1.value_upper);
 
-    auto lowerRedThreshold_2 = cv::Scalar(170, 100, 30);
-    auto upperRedThreshold_2 = cv::Scalar(179, 255, 255);
+    auto lowerRedThreshold_2 = cv::Scalar(config.height_measurement.red_mask_thresholds_2.hue_lower,
+                                          config.height_measurement.red_mask_thresholds_2.saturation_lower,
+                                          config.height_measurement.red_mask_thresholds_2.value_lower);
+    auto upperRedThreshold_2 = cv::Scalar(config.height_measurement.red_mask_thresholds_2.hue_upper,
+                                          config.height_measurement.red_mask_thresholds_2.saturation_upper,
+                                          config.height_measurement.red_mask_thresholds_2.value_upper);
 
-    auto lowerBlueThreshold = cv::Scalar(80, 100, 30);
-    auto upperBlueThreshold = cv::Scalar(130, 255, 255);
+    //Blue threshold
+    auto lowerBlueThreshold = cv::Scalar(config.height_measurement.blue_mask_thresholds.hue_lower,
+                                         config.height_measurement.blue_mask_thresholds.saturation_lower,
+                                         config.height_measurement.blue_mask_thresholds.value_lower);
+    auto upperBlueThreshold = cv::Scalar(config.height_measurement.blue_mask_thresholds.hue_upper,
+                                         config.height_measurement.blue_mask_thresholds.saturation_upper,
+                                         config.height_measurement.blue_mask_thresholds.value_upper);
 
     cv::Mat rMask1, rMask2, bMask, finalMask, contours;
     cv::inRange(bumperBoundingBox, lowerRedThreshold_1, upperRedThreshold_1, rMask1);
@@ -282,19 +296,24 @@ OutputData analyzeDetection(
 
     finalMask = finalMask | floodInv;
 
-    double height = 0;
+    double height = 0, sum = 0;
 
     auto topY = det.bounding_box.y;
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
 
-    //config for height checking behavior and switch to mask checking and add sampling and filling of the numbers
-    for (auto y = topY; y < bottomY; y++) {
-        int color = 0;
+    for (auto x = det.bounding_box.x; x < det.bounding_box.x + det.bounding_box.width; x++) {
+        height = 0;
+        for (auto y = topY; y < bottomY; y++) {
+            int color = 0;
 
-        color = finalMask.at<int>(y, static_cast<int>(centerX));
+            color = finalMask.at<int>(y, static_cast<int>(centerX));
 
-        if (color > 0) height++;
+            if (color > 0) height++;
+        }
+        sum += height;
     }
+
+    height = sum / det.bounding_box.width;
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config);
 
@@ -304,7 +323,7 @@ OutputData analyzeDetection(
     return data;
 }
 
-ThreadManager threadManager;
+std::optional<ThreadManager> thread_manager;
 
 void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
     if (detections.empty()) return;
@@ -317,6 +336,8 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
         for (int i = 0; i < config.tracking.id_count; i++) availableIDs.push_back(i);
         idFilled = true;
     }
+
+    thread_manager.emplace(config.thread_pool_size);
 
     for (auto &t: tracked) t.used = false;
 
@@ -389,10 +410,14 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             ++it;
     }
 
-    std::vector<std::future<OutputData> > futures;
+    std::vector<std::future<OutputData>> futures;
     ocrCounter = 0;
     for (const auto &detection: detections) {
-        futures.push_back(threadManager.enqueue([&hsv, config, &detection]() {
+        if (!thread_manager.has_value()) {
+            logger->critical("Thread Manager lacks a value");
+            return;
+        }
+        futures.push_back(thread_manager->enqueue([&hsv, config, &detection]() {
             try {
                 return analyzeDetection(hsv, detection, config);
             } catch (...) {
@@ -442,10 +467,12 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
 }
 
 void cleanUp() {
+    if (!thread_manager.has_value()) return;
+
     std::vector<std::future<void> > cleanupFutures;
 
-    for (int i = 0; i < threadManager.numThreads; ++i) {
-        cleanupFutures.push_back(threadManager.enqueue([]() {
+    for (int i = 0; i < thread_manager->Num_Threads; ++i) {
+        cleanupFutures.push_back(thread_manager->enqueue([]() {
             cv::Mat emptyHsv;
             Detection emptyDet;
             Config defaultConfig;
@@ -456,6 +483,6 @@ void cleanUp() {
     for (auto &fut: cleanupFutures) {
         fut.get();
     }
-    threadManager.shutdown();
+    thread_manager->shutdown();
     logger->info("Shutting down threads");
 }
