@@ -253,7 +253,7 @@ OutputData analyzeDetection(
     auto lowerBlueThreshold = cv::Scalar(80, 100, 30);
     auto upperBlueThreshold = cv::Scalar(130, 255, 255);
 
-    cv::Mat rMask1, rMask2, bMask;
+    cv::Mat rMask1, rMask2, bMask, finalMask, contours;
     cv::inRange(bumperBoundingBox, lowerRedThreshold_1, upperRedThreshold_1, rMask1);
     cv::inRange(bumperBoundingBox, lowerRedThreshold_2, upperRedThreshold_2, rMask2);
     cv::bitwise_or(rMask1, rMask2, rMask1);
@@ -272,6 +272,16 @@ OutputData analyzeDetection(
         }
     }
 
+    cv::bitwise_or(rMask1, bMask, finalMask);
+
+    cv::Mat flood = finalMask.clone();
+    cv::floodFill(flood, cv::Point(0,0), 255);
+
+    cv::Mat floodInv;
+    cv::bitwise_not(flood, floodInv);
+
+    finalMask = finalMask | floodInv;
+
     double height = 0;
 
     auto topY = det.bounding_box.y;
@@ -279,26 +289,17 @@ OutputData analyzeDetection(
 
     //config for height checking behavior and switch to mask checking and add sampling and filling of the numbers
     for (auto y = topY; y < bottomY; y++) {
-        auto color = hsv.at<cv::Vec3b>(y, centerX);
-        const double h = color[0];
-        const double s = color[1];
-        const double v = color[2];
+        int color = 0;
 
-        //range config
-        if (((h >= 80 && h <= 130) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) && det.color == "blue") {
-            height++;
-        } else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) ||
-                    ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255))) &&
-                   det.color == "red") {
-            height++;
-        }
+        color = finalMask.at<int>(y, static_cast<int>(centerX));
+
+        if (color > 0) height++;
     }
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config);
 
     OutputData data;
-    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.teamNumber, data.det
-            = det;
+    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.teamNumber, data.det = det;
 
     return data;
 }
