@@ -18,6 +18,7 @@ struct Screen
     double y_fov;
 
     int rotation;
+    int frame_skip;
 };
 
 struct Kalman
@@ -28,6 +29,17 @@ struct Kalman
     double error;
 };
 
+struct MaskThresholds
+{
+    int hue_lower;
+    int saturation_lower;
+    int value_lower;
+
+    int hue_upper;
+    int saturation_upper;
+    int value_upper;
+};
+
 struct OCR
 {
     double lev_distance;
@@ -35,7 +47,10 @@ struct OCR
     int morphology_kernel_size;
     std::string mode;
     int min_img_size;
+
+    MaskThresholds mask_thresholds;
 };
+
 
 struct NetworkTables
 {
@@ -46,6 +61,8 @@ struct Yolo
 {
     double conf_threshold;
     double nms_threshold;
+    int input_dimensions;
+    std::array<int, 3> output_dimensions;
 };
 
 struct Teams
@@ -57,7 +74,7 @@ struct Teams
 struct Modes
 {
     bool logging;
-    bool write_frame;
+    bool write_frame_to_file;
     bool video;
     bool display;
 };
@@ -81,6 +98,8 @@ struct Tracking
 {
     int max_distance_threshold_x;
     int max_distance_threshold_y;
+    int id_count;
+    int lost_threshold;
 };
 
 struct Config
@@ -106,7 +125,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Screen,
     height,
     x_fov,
     y_fov,
-    rotation
+    rotation,
+    frame_skip
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Kalman,
@@ -116,12 +136,22 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Kalman,
     error
 )
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaskThresholds,
+    hue_lower,
+    hue_upper,
+    saturation_lower,
+    saturation_upper,
+    value_lower,
+    value_upper
+)
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OCR,
     lev_distance,
     max_instances,
-    morphology_kernel_sizes,
-    teseract_mode,
-    min_img_size
+    morphology_kernel_size,
+    mode,
+    min_img_size,
+    mask_thresholds
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NetworkTables,
@@ -130,12 +160,13 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NetworkTables,
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Yolo,
     conf_threshold,
-    nms_threshold
+    nms_threshold,
+    input_dimensions
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modes,
     logging,
-    write_frame,
+    write_frame_to_file,
     video,
     display
 )
@@ -156,7 +187,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Camera,
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Tracking,
     max_distance_threshold_x,
-    max_distance_threshold_y
+    max_distance_threshold_y,
+    lost_threshold,
+    id_count
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Config,

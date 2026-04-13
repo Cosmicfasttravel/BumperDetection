@@ -8,7 +8,8 @@
         "height": 720,
         "x_fov": 70,
         "y_fov": 43,
-        "rotation": 0
+        "rotation": 0,
+        "frame_skip": 1
     },
 
     "kalman": {
@@ -23,7 +24,16 @@
         "max_instances": 3,
         "morphology_kernel_size": 3,
         "mode": "default",
-        "min_img_size": 300
+        "min_img_size": 300,
+
+        "mask_thresholds": {
+            "hue_lower": 0,
+            "saturation_lower": 0,
+            "value_lower": 130,
+            "hue_upper": 179,
+            "saturation_upper": 170,
+            "value_upper": 255
+        }
     },
 
     "nt": {
@@ -32,7 +42,9 @@
 
     "yolo": {
         "conf_threshold": 0.025,
-        "nms_threshold": 0.1
+        "nms_threshold": 0.1,
+        "input_dimensions": 320,
+        "output_dimensions": [1, 5, 2100]
     },
 
     "redTeams": [

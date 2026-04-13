@@ -5,19 +5,12 @@
 #include "config_extraction.h"
 
 struct Detection {
-    int class_id;
     float confidence;
     cv::Rect bounding_box;
-    
-    std::string class_name;
-
     std::string color, id, teamNumber;
-
-    bool tracked = false;
 };
 
 void detectionScheduler(
-    std::string teamNumbers[5],
     cv::Mat &frame,
     std::vector<Detection> &detections, 
     const Config& config

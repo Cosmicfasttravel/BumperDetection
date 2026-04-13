@@ -28,8 +28,7 @@
 
 std::atomic<int> ocrCounter{0};
 
-struct TrackedRobot
-{
+struct TrackedRobot {
     int x = -1;
     int y = -1;
     int lostCounter = 0;
@@ -40,8 +39,7 @@ struct TrackedRobot
     bool used = false;
 };
 
-struct OutputData
-{
+struct OutputData {
     double x;
     double y;
     double z;
@@ -50,11 +48,10 @@ struct OutputData
     int id;
 };
 
-std::vector<TrackedRobot> tracked(5); // config for slots
+std::vector<TrackedRobot> tracked(5);
 std::vector<std::string> visibleNumbers;
 
-int levenshteinDist(const std::string &word1, const std::string &word2)
-{
+int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
     const int size2 = static_cast<int>(word2.size());
     std::vector verif(size1 + 1, std::vector<int>(size2 + 1));
@@ -69,10 +66,8 @@ int levenshteinDist(const std::string &word1, const std::string &word2)
     for (int j = 0; j <= size2; j++)
         verif[0][j] = j;
 
-    for (int i = 1; i <= size1; i++)
-    {
-        for (int j = 1; j <= size2; j++)
-        {
+    for (int i = 1; i <= size1; i++) {
+        for (int j = 1; j <= size2; j++) {
             int cost = (word2[j - 1] == word1[i - 1]) ? 0 : 1;
             verif[i][j] = std::min(
                 std::min(verif[i - 1][j] + 1, verif[i][j - 1] + 1),
@@ -83,8 +78,7 @@ int levenshteinDist(const std::string &word1, const std::string &word2)
     return verif[size1][size2];
 }
 
-double getDistance(const double height, const Config &config)
-{
+double getDistance(const double height, const Config &config) {
     double focal_length_cm = config.camera.focal_length;
     double known_height_cm = config.bumper.height;
     double pixel_height_cm = config.camera.pixel_height;
@@ -92,9 +86,7 @@ double getDistance(const double height, const Config &config)
     return (height > 0) ? (known_height_cm * focal_length_cm) / (height * pixel_height_cm) : 0.0;
 }
 
-std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config,
-                                    const std::vector<std::string> &visibleNumbers)
-{
+std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config) {
     thread_local std::unordered_map<std::string, kalmanFilter> filters;
     std::string id = detection.id;
 
@@ -107,7 +99,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     double max_cord_y = SCREEN_HEIGHT / 2;
 
     double abs_bounding_x = detection.bounding_box.x + (0.5 * detection.bounding_box.width); // middle x
-    double abs_bounding_y = detection.bounding_box.y + (detection.bounding_box.height);      // bottom y
+    double abs_bounding_y = detection.bounding_box.y + (detection.bounding_box.height); // bottom y
 
     double offset_x = (abs_bounding_x - max_cord_x) / max_cord_x;
     double offset_y = (abs_bounding_y - max_cord_y) / max_cord_y;
@@ -124,33 +116,26 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     filtered[1] = y_coordinate;
     filtered[2] = z_coordinate;
 
-    if (!id.empty())
-    {
+    if (!id.empty()) {
         auto it = filters.find(id);
-        if (it == filters.end())
-        {
+        if (it == filters.end()) {
             it = filters.emplace(id, config).first;
         }
         kalmanFilter &filter = it->second;
-        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, static_cast<double>(1) / config.kalman.avg_fps);
+        filtered = filter.update(x_coordinate, y_coordinate, z_coordinate,
+                                 static_cast<double>(1) / config.kalman.avg_fps);
     }
 
-    for (auto it = filters.begin(); it != filters.end();)
-    {
+    for (auto it = filters.begin(); it != filters.end();) {
         bool found = false;
-        for (auto &num : visibleNumbers)
-        {
-            if (it->first == num)
-            {
+        for (auto &num: visibleNumbers) {
+            if (it->first == num) {
                 found = true;
             }
         }
-        if (!found)
-        {
+        if (!found) {
             it = filters.erase(it);
-        }
-        else
-        {
+        } else {
             ++it;
         }
     }
@@ -158,22 +143,19 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     return {filtered[0], filtered[1], filtered[2]};
 }
 
-std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string teamNumbers[5], const Config &config,
-                          bool cleanUp = false)
-{
+std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config, bool cleanUp = false) {
     auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
         return "";
-    ocrCounter++;
+    ++ocrCounter;
 
-    if (det.color == "")
+    if (det.color.empty())
         return "";
 
     thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
     static thread_local bool init = false;
 
-    if (cleanUp)
-    {
+    if (cleanUp) {
         if (!api)
             return "-1";
 
@@ -182,35 +164,39 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
         return "-1";
     }
 
-    if (!init)
-    {
+    if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        if(config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
-        if(config.ocr.mode == "lstmonly") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
-        if(config.ocr.mode == "combined") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_LSTM_COMBINED);
-        
+        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
+            "/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "lstmonly") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_LSTM_ONLY);
+        if (config.ocr.mode == "combined") api->Init("/usr/share/tessdata", "eng", tesseract::OEM_TESSERACT_LSTM_COMBINED);
+
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
         init = true;
     }
 
-    int ids = 0;
-
     cv::Mat img = hsv(det.bounding_box).clone();
 
     cv::Mat colorMask;
-    cv::inRange(img, cv::Scalar(0, 0, 130), cv::Scalar(179, 170, 255), colorMask); // add config for these
 
-    if (colorMask.cols < config.ocr.min_img_size)
-    {
-        double scale = config.ocr.min_img_size / colorMask.cols;
+    cv::inRange(
+        img, cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
+                        config.ocr.mask_thresholds.value_lower),
+        cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
+                   config.ocr.mask_thresholds.value_upper), colorMask);
+
+    if (colorMask.cols < config.ocr.min_img_size) {
+        double scale = static_cast<float>(config.ocr.min_img_size) / static_cast<float>(colorMask.cols);
         cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
     }
 
     cv::Mat final;
     cv::bitwise_not(colorMask, final);
 
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(config.ocr.morphology_kernel_size, config.ocr.morphology_kernel_size));
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT,
+                                               cv::Size(config.ocr.morphology_kernel_size,
+                                                        config.ocr.morphology_kernel_size));
     cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
     api->SetImage(final.data, final.cols, final.rows, 1, final.step);
@@ -224,24 +210,24 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
     int minIndex = 0;
 
     int minDist = INT_MAX;
-    if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit))
-    {
-        for (int i = 0; i < 5; i++)
-        {
-            int d;
-            d = levenshteinDist(result, teamNumbers[i]); // config for blue+red or red or blue
-            if (d < minDist)
-            {
+    if (!result.empty() && std::all_of(result.begin(), result.end(), ::isdigit)) {
+        for (int i = 0; i < 5; i++) {
+            int d = {};
+
+            if (det.color == "blue") d = levenshteinDist(result, config.teams.blueTeams[i]);
+            if (det.color == "red") d = levenshteinDist(result, config.teams.redTeams[i]);
+
+            if (d < minDist) {
                 minDist = d;
                 minIndex = i;
             }
         }
     }
 
-    result = teamNumbers[minIndex];
+    if (det.color == "blue") result = config.teams.blueTeams[minIndex];
+    if (det.color == "red") result = config.teams.redTeams[minIndex];
 
-    if (minDist > config.ocr.lev_distance)
-    {
+    if (minDist > config.ocr.lev_distance) {
         result = "";
     }
 
@@ -249,44 +235,39 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const std::string 
 }
 
 OutputData analyzeDetection(
-    std::string teamNumbers[5],
     cv::Mat &hsv,
     Detection det,
-    const Config &config,
-    bool cleanUp = false)
-{
-    if (cleanUp)
-    {
-        getRobotLabel(det, {}, {}, {}, true);
-        return {};
-    }
+    const Config &config) {
 
-    auto t1 = std::chrono::high_resolution_clock::now();
+    auto bumperBoundingBox = hsv(det.bounding_box).clone();
 
-    auto centerX = det.bounding_box.x + (0.75 * det.bounding_box.width); // config
+    auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto centerY = det.bounding_box.y + (0.5 * det.bounding_box.height);
 
-    auto color = hsv.at<cv::Vec3b>(centerY, centerX);
+    auto lowerRedThreshold_1 = cv::Scalar(0, 100, 30);
+    auto upperRedThreshold_1 = cv::Scalar(15, 255, 255);
 
-    const double h = color[0];
-    const double s = color[1];
-    const double v = color[2];
+    auto lowerRedThreshold_2 = cv::Scalar(170, 100, 30);
+    auto upperRedThreshold_2 = cv::Scalar(179, 255, 255);
 
-    //ranges need config
-    if (((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) || ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)))
-        det.color = "red";
-    else if ((h >= 80 && h <= 130) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255))
-        det.color = "blue";
-    else
-        det.color = "";
+    auto lowerBlueThreshold = cv::Scalar(80, 100, 30);
+    auto upperBlueThreshold = cv::Scalar(130, 255, 255);
 
-    for (const auto &t : tracked)
-    {
-        if (t.robot_id == det.id)
-        {
-            if (t.teamNumber.empty())
-            {
-                det.teamNumber = getRobotLabel(det, hsv, teamNumbers, config);
+    cv::Mat rMask1, rMask2, bMask;
+    cv::inRange(bumperBoundingBox, lowerRedThreshold_1, upperRedThreshold_1, rMask1);
+    cv::inRange(bumperBoundingBox, lowerRedThreshold_2, upperRedThreshold_2, rMask2);
+    cv::bitwise_or(rMask1, rMask2, rMask1);
+
+    cv::inRange(bumperBoundingBox, lowerBlueThreshold, upperBlueThreshold, bMask);
+
+    if (rMask1.at<int>(centerY, centerX) > 0) det.color = "red";
+    else if (bMask.at<int>(centerY, centerX) > 0) det.color = "blue";
+    else det.color = "";
+
+    for (const auto &t: tracked) {
+        if (t.robot_id == det.id) {
+            if (t.teamNumber.empty()) {
+                det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
     }
@@ -296,72 +277,59 @@ OutputData analyzeDetection(
     auto topY = det.bounding_box.y;
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
 
-    //config for height checking behavior
-    for (auto y = topY; y < bottomY; y++)
-    {
+    //config for height checking behavior and switch to mask checking and add sampling and filling of the numbers
+    for (auto y = topY; y < bottomY; y++) {
         auto color = hsv.at<cv::Vec3b>(y, centerX);
         const double h = color[0];
         const double s = color[1];
         const double v = color[2];
 
         //range config
-        if (((h >= 80 && h <= 130) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) && det.color == "blue")
-        {
+        if (((h >= 80 && h <= 130) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) && det.color == "blue") {
             height++;
-        }
-        else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) ||
-                  ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255))) &&
-                 det.color == "red")
-        {
+        } else if ((((h >= 0 && h <= 15) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255)) ||
+                    ((h >= 170 && h <= 179) && (s >= 100 && s <= 255) && (v >= 30 && v <= 255))) &&
+                   det.color == "red") {
             height++;
         }
     }
-    std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, visibleNumbers);
+
+    std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config);
 
     OutputData data;
-    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.teamNumber, data.det = det;
-    auto t4 = std::chrono::high_resolution_clock::now();
+    data.x = measurements[0], data.y = measurements[1], data.z = measurements[2], data.label = det.teamNumber, data.det
+            = det;
 
     return data;
 }
 
 ThreadManager threadManager;
 
-void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<Detection> &detections, const Config &config)
-{
-    static int frameCount = 0;
-
-    if (detections.empty())
-        return;
+void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
+    if (detections.empty()) return;
 
     visibleNumbers.clear();
 
     static std::deque<int> availableIDs;
     static bool idFilled = false;
-    if (!idFilled)
-    {
-        //config for id amount
-        for (int i = 0; i < 20; i++)
-            availableIDs.push_back(i);
+    if (!idFilled) {
+        for (int i = 0; i < config.tracking.id_count; i++) availableIDs.push_back(i);
         idFilled = true;
     }
 
-    for (auto &t : tracked)
-        t.used = false;
+    for (auto &t: tracked) t.used = false;
 
     cv::Mat hsv;
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-    for (auto &det : detections)
-    {
+    for (auto &det: detections) {
         int centerX = det.bounding_box.x + det.bounding_box.width / 2;
         int centerY = det.bounding_box.y + det.bounding_box.height / 2;
 
         TrackedRobot *bestMatch = nullptr;
         double minDist = std::numeric_limits<double>::max();
 
-        for (auto &t : tracked)
-        {
+        for (auto &t: tracked) {
             if (t.used)
                 continue;
 
@@ -369,15 +337,13 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
             double dy = centerY - t.y;
             double dist = std::sqrt(dx * dx + dy * dy);
 
-            if (dist < minDist && dist < config.tracking.max_distance_threshold_x)
-            {
+            if (dist < minDist && dist < config.tracking.max_distance_threshold_x) {
                 minDist = dist;
                 bestMatch = &t;
             }
         }
 
-        if (bestMatch)
-        {
+        if (bestMatch) {
             bestMatch->x = centerX;
             bestMatch->y = centerY;
             bestMatch->lostCounter = 0;
@@ -387,13 +353,11 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
             if (!det.teamNumber.empty())
                 bestMatch->teamNumber = det.teamNumber;
 
-            //config for writing on frame
             std::stringstream ss;
             ss << "ID: " << det.id << " " << "Label: " << bestMatch->teamNumber;
-            cv::putText(frame, ss.str(), cv::Point(det.bounding_box.x, det.bounding_box.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-        }
-        else if (!availableIDs.empty())
-        {
+            cv::putText(frame, ss.str(), cv::Point(det.bounding_box.x, det.bounding_box.y), cv::FONT_HERSHEY_SIMPLEX,
+                        0.7, cv::Scalar(255, 255, 255), 2);
+        } else if (!availableIDs.empty()) {
             int newID = availableIDs.front();
             availableIDs.pop_front();
 
@@ -406,105 +370,89 @@ void detectionScheduler(std::string teamNumbers[5], cv::Mat &frame, std::vector<
 
             tracked.push_back(newRobot);
             det.id = newRobot.robot_id;
-        }
-        else
-        {
+        } else {
             det.id.clear();
         }
     }
 
-    for (auto it = tracked.begin(); it != tracked.end();)
-    {
+    for (auto it = tracked.begin(); it != tracked.end();) {
         if (!it->used)
             it->lostCounter++;
 
-            //config
-        if (it->lostCounter >= 10)
-        {
-            if (it->robot_id != "-1")
-            {
+        if (it->lostCounter >= config.tracking.lost_threshold) {
+            if (it->robot_id != "-1") {
                 availableIDs.push_back(std::stoi(it->robot_id));
             }
             it = tracked.erase(it);
-        }
-        else
+        } else
             ++it;
     }
 
-    std::vector<std::future<OutputData>> futures;
+    std::vector<std::future<OutputData> > futures;
     ocrCounter = 0;
-    for (size_t i = 0; i < detections.size(); i++)
-    {
-        futures.push_back(threadManager.enqueue([&hsv, teamNumbers, config, detections, i]()
-                                                {
-                try {
-                    return analyzeDetection(teamNumbers, hsv, detections[i], config);
-                } catch (...) {
-                    logger->error("Problem occurred with thread scheduling");
-
-                    return OutputData{};
-                } }));
+    for (const auto &detection: detections) {
+        futures.push_back(threadManager.enqueue([&hsv, config, &detection]() {
+            try {
+                return analyzeDetection(hsv, detection, config);
+            } catch (...) {
+                logger->error("Problem occurred with thread scheduling");
+                return OutputData{};
+            }
+        }));
     }
 
     std::vector<OutputData> results;
     results.reserve(futures.size());
 
-    for (auto &fut : futures)
-    {
+    for (auto &fut: futures) {
         results.push_back(fut.get());
     }
 
-    for (size_t i = 0; i < detections.size(); i++)
-    {
+    for (size_t i = 0; i < detections.size(); i++) {
         detections[i].teamNumber = results[i].label;
     }
 
-    for (auto &det : detections)
-    {
-        for (auto &result : results)
-        {
-            //config for writing on frame
-            if (result.det.color == "")
-                cv::line(frame, cv::Point(640, 720), cv::Point(result.det.bounding_box.x + result.det.bounding_box.width / 2, result.det.bounding_box.y + result.det.bounding_box.height / 2), cv::Scalar(255, 255, 255), 1);
+    for (auto &det: detections) {
+        for (auto &result: results) {
+            if (result.det.color.empty())
+                cv::line(frame, cv::Point(640, 720),
+                         cv::Point(result.det.bounding_box.x + result.det.bounding_box.width / 2,
+                                   result.det.bounding_box.y + result.det.bounding_box.height / 2),
+                         cv::Scalar(255, 255, 255), 1);
             else
-                cv::line(frame, cv::Point(640, 720), cv::Point(result.det.bounding_box.x + result.det.bounding_box.width / 2, result.det.bounding_box.y + result.det.bounding_box.height / 2), result.det.color == "blue" ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 0, 255), 1);
+                cv::line(frame, cv::Point(640, 720),
+                         cv::Point(result.det.bounding_box.x + result.det.bounding_box.width / 2,
+                                   result.det.bounding_box.y + result.det.bounding_box.height / 2),
+                         result.det.color == "blue" ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 0, 255), 1);
         }
 
-        for (auto &t : tracked)
-        {
-            if (det.id == t.robot_id && !det.teamNumber.empty())
-            {
+        for (auto &t: tracked) {
+            if (det.id == t.robot_id && !det.teamNumber.empty()) {
                 t.teamNumber = det.teamNumber;
             }
         }
     }
-    for (auto &result : results)
-    {
-        //config for writing on frame
+    for (auto &result: results) {
         std::stringstream ss;
         ss << "X: " << result.x << " " << "Y: " << result.y << " Color: " << result.det.color;
-        cv::putText(frame, ss.str(), cv::Point(result.det.bounding_box.x, result.det.bounding_box.y - 25), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+        cv::putText(frame, ss.str(), cv::Point(result.det.bounding_box.x, result.det.bounding_box.y - 25),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
     }
-    frameCount++;
 }
 
-void cleanUp()
-{
-    std::vector<std::future<void>> cleanupFutures;
+void cleanUp() {
+    std::vector<std::future<void> > cleanupFutures;
 
-    for (int i = 0; i < threadManager.numThreads; ++i)
-    {
-        cleanupFutures.push_back(threadManager.enqueue([]()
-                                                       {
-            std::string teamNumbers[5] = {"0", "0", "0", "0", "0"};
+    for (int i = 0; i < threadManager.numThreads; ++i) {
+        cleanupFutures.push_back(threadManager.enqueue([]() {
             cv::Mat emptyHsv;
             Detection emptyDet;
             Config defaultConfig;
-            getRobotLabel(emptyDet, emptyHsv, teamNumbers, defaultConfig, true); }));
+            getRobotLabel(emptyDet, emptyHsv, defaultConfig, true);
+        }));
     }
 
-    for (auto &fut : cleanupFutures)
-    {
+    for (auto &fut: cleanupFutures) {
         fut.get();
     }
     threadManager.shutdown();

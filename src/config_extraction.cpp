@@ -20,7 +20,10 @@ std::filesystem::file_time_type prevTime = {};
 void extract(){
     r_config = data.get<Config>();
 
-    r_config.teams.t = data["teams"];
+    r_config.teams.blueTeams = data["blueTeams"];
+    r_config.teams.redTeams = data["redTeams"];
+
+    r_config.yolo.output_dimensions = data["yolo"]["output_dimensions"];
 }
 
 bool pollForChanges()

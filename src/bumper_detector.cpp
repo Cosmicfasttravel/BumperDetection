@@ -177,15 +177,12 @@ std::vector<Detection> ProcessYoloOutput(
     for (int idx : nms_result)
     {
         Detection result;
-        result.class_id = class_ids[idx];
         result.confidence = confidences[idx];
         result.bounding_box = boxes[idx];
         if (result.bounding_box.width >= 450 || result.bounding_box.width <= 50)
         {
             continue;
         }
-        result.class_name = "bumper";
-        result.tracked = false;
 
         detections.emplace_back(result);
     }
@@ -199,8 +196,6 @@ int run()
     const Config &config = getConfig();
 
     initLogger();
-
-    std::string teamNumbers[5] = {config.teams.t.at(0), config.teams.t.at(1), config.teams.t.at(2), config.teams.t.at(3), config.teams.t.at(4)};
 
     try
     {
@@ -246,7 +241,7 @@ int run()
         cv::VideoCapture cap;
         std::string video_path = ""; // add path config
 #ifdef WIN32
-        if (config.videoMode)
+        if (config.modes.video)
             cap.open(video_path);
         else
             cap.open(0, cv::CAP_DSHOW);
@@ -299,8 +294,6 @@ int run()
         int processed_count = 0;
         int detection_count = 0;
 
-        auto start_time = std::chrono::high_resolution_clock::now();
-
         long long total_preprocess_time = 0;
         long long total_inference_time = 0;
         long long total_postprocess_time = 0;
@@ -329,11 +322,11 @@ int run()
             prev_frame_time = frame_start;
 
 #ifndef WIN32
-            constexpr int INPUT_HEIGHT = 320; // configs
-            constexpr int INPUT_WIDTH = 320;
+            int INPUT_HEIGHT = config.yolo.input_dimensions; // configs
+            int INPUT_WIDTH = config.yolo.input_dimensions;
 #else
-            constexpr int INPUT_HEIGHT = 640;
-            constexpr int INPUT_WIDTH = 640;
+            int INPUT_HEIGHT = config.yolo.input_dimensions;
+            int INPUT_WIDTH = config.yolo.input_dimensions;
 #endif
 
             float CONF_THRESHOLD = config.yolo.conf_threshold;
@@ -378,7 +371,7 @@ int run()
             }
             processed_count++;
 
-            if (config.modes.write_frame)
+            if (config.modes.write_frame_to_file)
             {
                 writer.write(frame);
             }
@@ -428,7 +421,7 @@ int run()
 
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
-            int sizes[3] = {1, 5, 2100}; // config
+            int sizes[3] = {config.yolo.output_dimensions[0], config.yolo.output_dimensions[1], config.yolo.output_dimensions[2]};
             cv::Mat output_mat;
 #ifndef WIN32
             cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
@@ -452,7 +445,7 @@ int run()
                 cv::rectangle(frame, det.bounding_box, cv::FILLED);
             }
 
-            detectionScheduler(teamNumbers, frame, detections, config);
+            detectionScheduler(frame, detections, config);
 
             int key = cv::waitKey(waitTime);
 
@@ -487,10 +480,9 @@ int run()
 
             if(sum/fps.size() <= 20) logger->warn("Deep stutter at " + std::to_string(sum/fps.size()) + "fps");
 
-            if (config.modes.display)
-                cv::imshow("detectEdgesBumper", frame);
+            if (config.modes.display) cv::imshow("detectEdgesBumper", frame);
 
-            if (config.modes.write_frame)
+            if (config.modes.write_frame_to_file)
             {
                 annotatedWriter.write(frame);
             }
