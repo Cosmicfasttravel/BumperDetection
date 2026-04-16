@@ -343,7 +343,7 @@ int run()
                 if (!cap.read(frame))
                     return -1;
             }
-            auto frame_timestamp = Clock::now();
+            auto frame_timestamp = std::chrono::steady_clock::now();
 
             if (config.camera.initial_blur != 0)
             {
@@ -458,9 +458,9 @@ int run()
 
             ss.clear();
             double sum = 0;
-            for (int i = 0; i < fps.size(); i++)
+            for (double fp : fps)
             {
-                sum += fps[i];
+                sum += fp;
             }
 
             ss << std::fixed << std::setprecision(2) << "FPS: " << ((fps.empty()) ? 0 : (sum / static_cast<double>(fps.size())));
