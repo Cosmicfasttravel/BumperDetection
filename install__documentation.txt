@@ -1,2 +1,48 @@
-﻿Dump of scripts to install
+Dump of scripts to install
 ---------------------------
+CMAKE
+---------------------------
+sudo apt update
+sudo apt install build-essential cmake -y
+
+GIT
+---------------------------
+sudo apt update
+sudo apt install git
+
+TESSERACT
+---------------------------
+sudo apt update
+sudo apt install tesseract-ocr
+sudo apt install libtesseract-dev libleptonica-dev
+
+OPENCV
+---------------------------
+git clone https://github.com/opencv/opencv.git
+git clone https://github.com/opencv/opencv_contrib.git
+cd opencv && mkdir build && cd build
+cmake -D CMAKE_BUILD_TYPE=RELEASE \
+      -D CMAKE_INSTALL_PREFIX=/usr/local \
+      -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+
+RKNN
+---------------------------
+git clone https://github.com
+cd rknpu2
+sudo cp runtime/RK3588/Linux/librknn_api/include/* /usr/local/include/
+sudo cp runtime/RK3588/Linux/librknn_api/aarch64/librknnrt.so /usr/local/lib/
+sudo ldconfig
+
+NTCORE
+----------------------------
+git clone https://github.com/wpilibsuite/allwpilib.git
+cd allwpilib
+./gradlew build
+
+
+
+
+
