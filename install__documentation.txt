@@ -16,7 +16,7 @@ sudo apt update
 sudo apt install tesseract-ocr
 sudo apt install libtesseract-dev libleptonica-dev
 
-OPENCV
+OPENCV 
 ---------------------------
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
@@ -28,15 +28,15 @@ make -j$(nproc)
 sudo make install
 sudo ldconfig
 
-RKNN
+RKNN (works)
 ---------------------------
-git clone https://github.com
-cd rknpu2
-sudo cp runtime/RK3588/Linux/librknn_api/include/* /usr/local/include/
-sudo cp runtime/RK3588/Linux/librknn_api/aarch64/librknnrt.so /usr/local/lib/
+git clone https://github.com/rockchip-linux/rknn-toolkit2.git
+cd rknn-toolkit2/rknpu2
+sudo cp runtime/Linux/librknn_api/include/* /usr/local/include
+sudo cp runtime/Linux/librknn_api/aarch64/librknnrt.so /usr/local/lib/
 sudo ldconfig
-
-NTCORE
+ 
+NTCORE 
 ----------------------------
 git clone https://github.com/wpilibsuite/allwpilib.git
 cd allwpilib
