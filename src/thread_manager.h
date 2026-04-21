@@ -21,12 +21,18 @@ public:
     explicit ThreadManager(int thread_count)
     {
         if (!Num_Threads.has_value()) Num_Threads = thread_count;
-        if (thread_count > std::thread::hardware_concurrency()) {Num_Threads = std::thread::hardware_concurrency(); logger->critical("Too many threads specified, defaulting to 1...");}
-        if (thread_count < 1) {Num_Threads = 1; logger->critical("Too few threads specified, defaulting to 1...");}
+        if (thread_count > std::thread::hardware_concurrency()) {
+            Num_Threads = std::thread::hardware_concurrency();
+            logger->critical("Too many threads specified, defaulting to 1...");
+        }
+        if (thread_count < 1) {
+            Num_Threads = 1;
+            logger->critical("Too few threads specified, defaulting to 1...");
+        }
 
         for (int i = 0; i < Num_Threads; i++)
         {
-            Pool.emplace_back(std::thread(&ThreadManager::workerLoop, this));
+            Pool.emplace_back(&ThreadManager::workerLoop, this);
         }
     }
 
@@ -76,7 +82,7 @@ public:
         return future;
     }
 
-    void addJob(std::function<void()> New_Job)
+    void addJob(const std::function<void()>& New_Job)
     {
         {
             std::unique_lock<std::mutex> lock(Queue_Mutex);

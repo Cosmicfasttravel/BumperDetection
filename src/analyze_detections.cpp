@@ -2,7 +2,6 @@
 #include "debug_log.h"
 #include <deque>
 #include "config_extraction.h"
-#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/mat.hpp>
 #include <sstream>
@@ -25,6 +24,7 @@
 #include <opencv2/video/tracking.hpp>
 #include "kalman_filter.h"
 #include "thread_manager.h"
+#include <motcpp/trackers/bytetrack.hpp>
 
 std::atomic<int> ocrCounter{0};
 
@@ -42,12 +42,12 @@ struct TrackedRobot {
 };
 
 struct OutputData {
-    double x;
-    double y;
-    double z;
+    double x{};
+    double y{};
+    double z{};
     std::string label;
     Detection det;
-    int id;
+    int id{};
 };
 
 std::vector<TrackedRobot> tracked(5);
@@ -88,8 +88,10 @@ double getDistance(const double height, const Config &config) {
     return (height > 0) ? (known_height_cm * focal_length_cm) / (height * pixel_height_cm) : 0.0;
 }
 
+std::mutex Filter_Mutex;
+static std::unordered_map<std::string, kalmanFilter> filters;
+
 std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) {
-    thread_local std::unordered_map<std::string, kalmanFilter> filters;
     std::string id = detection.id;
 
     double SCREEN_WIDTH = config.screen.width;
@@ -118,10 +120,11 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     filtered[1] = y_coordinate;
     filtered[2] = z_coordinate;
 
+    Filter_Mutex.lock();
     if (!id.empty()) {
         auto it = filters.find(id);
         if (it == filters.end()) {
-            it = filters.emplace(id, config).first;
+            it = filters.emplace(id, kalmanFilter(config.position_kalman.process_noise, config.position_kalman.measurement_noise, config.position_kalman.error)).first;
         }
         kalmanFilter &filter = it->second;
         filtered = filter.update(x_coordinate, y_coordinate, z_coordinate, dt);
@@ -140,6 +143,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
             ++it;
         }
     }
+    Filter_Mutex.unlock();
 
     return {filtered[0], filtered[1], filtered[2]};
 }
@@ -171,8 +175,9 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
             api->Init(
                 config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
         if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_LSTM_ONLY);
-        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
-                                                     tesseract::OEM_TESSERACT_LSTM_COMBINED);
+        if (config.ocr.mode == "combined")
+            api->Init(config.ocr.tessdata_path.c_str(), "eng",
+                      tesseract::OEM_TESSERACT_LSTM_COMBINED);
 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -277,8 +282,8 @@ OutputData analyzeDetection(
 
     cv::inRange(bumperBoundingBox, lowerBlueThreshold, upperBlueThreshold, bMask);
 
-    if (rMask1.at<int>(centerY, centerX) > 0) det.color = "red";
-    else if (bMask.at<int>(centerY, centerX) > 0) det.color = "blue";
+    if (rMask1.at<int>(static_cast<int>(centerY), static_cast<int>(centerX)) > 0) det.color = "red";
+    else if (bMask.at<int>(static_cast<int>(centerY), static_cast<int>(centerX)) > 0) det.color = "blue";
     else det.color = "";
 
     for (const auto &t: tracked) {
@@ -348,6 +353,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     cv::Mat hsv;
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
+
     //switch away from greedy tracking
     for (auto &det: detections) {
         int centerX = det.bounding_box.x + det.bounding_box.width / 2;
@@ -358,6 +364,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
 
         for (auto &t: tracked) {
             if (t.used)
+                
                 continue;
 
             double dx = centerX - t.x;

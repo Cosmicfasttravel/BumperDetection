@@ -15,9 +15,15 @@
         "frame_skip": 1
     },
 
-    "kalman": {
+    "position_kalman": {
         "_comments": "Centimeters",
-        "avg_fps": 40,
+        "process_noise": 100,
+        "measurement_noise": 100,
+        "error": 20
+    },
+
+    "pixel_kalman": {
+        "_comments": "Pixels",
         "process_noise": 100,
         "measurement_noise": 100,
         "error": 20

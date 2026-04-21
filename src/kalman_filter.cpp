@@ -2,31 +2,27 @@
 #include "config_extraction.h"
 #include <opencv2/core/mat.hpp>
 
-kalmanFilter::kalmanFilter(const Config& config)
-{
+kalmanFilter::kalmanFilter(double processNoise, double measurementNoise, double error) : deltaTime(0) {
     kf.init(6, 3, 0, CV_64F);
 
-    kf.transitionMatrix = (cv::Mat_<double>(6,6) <<
-        1, 0, 0, deltaTime, 0,  0,
-        0, 1, 0, 0,  deltaTime, 0,
-        0, 0, 1, 0,  0,  deltaTime,
-        0, 0, 0, 1,  0,  0,
-        0, 0, 0, 0,  1,  0,
-        0, 0, 0, 0,  0,  1
+    kf.transitionMatrix = (cv::Mat_<double>(6, 6) <<
+                           1, 0, 0, deltaTime, 0, 0,
+                           0, 1, 0, 0, deltaTime, 0,
+                           0, 0, 1, 0, 0, deltaTime,
+                           0, 0, 0, 1, 0, 0,
+                           0, 0, 0, 0, 1, 0,
+                           0, 0, 0, 0, 0, 1
     );
 
-    kf.measurementMatrix = (cv::Mat_<double>(3,6) <<
-        1,0,0,0,0,0,
-        0,1,0,0,0,0,
-        0,0,1,0,0,0
+    kf.measurementMatrix = (cv::Mat_<double>(3, 6) <<
+                            1, 0, 0, 0, 0, 0,
+                            0, 1, 0, 0, 0, 0,
+                            0, 0, 1, 0, 0, 0
     );
 
-    double processNoise = config.kalman.process_noise;
-    double measurementNoise = config.kalman.measurement_noise;
-    double error = config.kalman.error;
-    cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise));//motion
-    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise));//noise
-    cv::setIdentity(kf.errorCovPost, cv::Scalar(error));//measurement variance
+    cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise)); //motion
+    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise)); //noise
+    cv::setIdentity(kf.errorCovPost, cv::Scalar(error)); //measurement variance
 }
 
 cv::Vec3d kalmanFilter::update(double x, double y, double z, double dt)

@@ -4,7 +4,7 @@
 #include "config_extraction.h"
 class kalmanFilter {
 public:
-    kalmanFilter(const Config& config);
+    kalmanFilter(double processNoise, double measurementNoise, double error);
     cv::Vec3d update(double x, double y, double z, double dt);
 
 private:

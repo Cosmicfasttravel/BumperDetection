@@ -23,7 +23,7 @@ struct Screen
 
 struct Kalman
 {
-    double avg_fps;
+
     double process_noise;
     double measurement_noise;
     double error;
@@ -119,7 +119,8 @@ struct Config
 {
     Bumper bumper;
     Screen screen;
-    Kalman kalman;
+    Kalman position_kalman;
+    Kalman pixel_kalman;
     OCR ocr;
     HeightMeasurement height_measurement;
     int thread_pool_size;
@@ -146,7 +147,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Screen,
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Kalman,
-    avg_fps,
     process_noise,
     measurement_noise,
     error
@@ -224,7 +224,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InputPaths,
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Config,
     bumper,
     screen,
-    kalman,
+    position_kalman,
     ocr,
     height_measurement,
     thread_pool_size,
