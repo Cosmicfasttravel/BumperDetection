@@ -13,8 +13,8 @@ sudo apt install git
 TESSERACT
 ---------------------------
 sudo apt update
-sudo apt install tesseract-ocr
-sudo apt install libtesseract-dev libleptonica-dev
+sudo apt-get install libleptonica-dev
+sudo apt install tesseract-ocr libtesseract-dev
 
 OPENCV 
 ---------------------------
@@ -38,36 +38,57 @@ sudo ldconfig
  
 NTCORE 
 ----------------------------
+sudo apt update
+sudo apt install g++-12
+
+sudo apt update && sudo apt install curl zip unzip
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk install java 17.0.10-tem
+
 git clone https://github.com/wpilibsuite/allwpilib.git
 cd allwpilib
-./gradlew build
+./gradlew :ntcore:build
 
-MOT
+YAML
 ----------------------------
 git clone https://github.com/jbeder/yaml-cpp.git
 cd yaml-cpp
 mkdir build
 cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
+cmake ..
 cd ..
 mkdir install
 cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_INSTALL_PREFIX="../install" -DYAML_BUILD_SHARED_LIBS=OFF
+cmake .. -DCMAKE_INSTALL_PREFIX="../install" -DYAML_BUILD_SHARED_LIBS=OFF
 cmake --build . --config Release
 cmake --install . --config Release
 cd ..
 cd ..
 
+CONFIG
+----------------------------
+sudo apt install pkg-config
 
+
+MOT
+----------------------------
 git clone https://github.com/Geekgineer/motcpp.git
 cd motcpp
 mkdir build
 cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="../yaml-cpp/install" -DCMAKE_INSTALL_PREFIX="../install"
+cmake .. -DCMAKE_PREFIX_PATH="../../yaml-cpp/install" -DCMAKE_INSTALL_PREFIX="../install"
 cmake --build . --config Release
 
-
-
-
-
+PROGRAM (CHANGE CORES IF NEEDED)
+----------------------------
+git clone -b OrangePi5 --single-branch https://github.com/Cosmicfasttravel/BumperDetection.git
+cd BumperDetection
+mkdir build
+cd build
+cmake ..
+make
+cd ..
+chmod +x run_yolo.sh
+./run_yolo.sh
 
