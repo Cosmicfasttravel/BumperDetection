@@ -56,15 +56,13 @@ git clone https://github.com/jbeder/yaml-cpp.git
 cd yaml-cpp
 mkdir build
 cd build
-cmake ..
-cd ..
-mkdir install
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX="../install" -DYAML_BUILD_SHARED_LIBS=OFF
+cmake .. \
+  -DCMAKE_INSTALL_PREFIX="/home/orangepi/yaml-cpp/install" \
+  -DYAML_BUILD_SHARED_LIBS=OFF \
+  -DCMAKE_BUILD_TYPE=Release
 cmake --build . --config Release
 cmake --install . --config Release
-cd ..
-cd ..
+cd ../..
 
 CONFIG
 ----------------------------
@@ -82,7 +80,9 @@ git clone https://github.com/Geekgineer/motcpp.git
 cd motcpp
 mkdir build
 cd build
-cmake .. -D CMAKE_PREFIX_PATH="../../yaml-cpp/build" -D CMAKE_INSTALL_PREFIX="../install"
+cmake .. \
+  -DCMAKE_PREFIX_PATH="/home/orangepi/yaml-cpp/install" \
+  -DCMAKE_INSTALL_PREFIX="../install"
 cmake --build . --config Release
 
 PROGRAM (CHANGE CORES IF NEEDED)
