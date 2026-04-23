@@ -41,8 +41,6 @@ find_package(yaml-cpp REQUIRED)
 set(MOTCPP_INCLUDE_DIR "../motcpp/include")
 set(MOTCPP_LIB "../motcpp/build/Release/motcpp.lib")
 
-find_package(ntcore REQUIRED)
-
 if (UNIX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LEPT REQUIRED lept)
@@ -104,7 +102,7 @@ endif()
 
 add_executable(run_yolo src/main.cpp)
 
-target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR})
+target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} ../allwpilib/ntcore/src/main/native/include)
 
 target_link_libraries(run_yolo
         BumperDetection 
@@ -112,6 +110,7 @@ target_link_libraries(run_yolo
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
+        ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
 )
 
 if(WIN32)
