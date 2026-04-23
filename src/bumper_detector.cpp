@@ -248,6 +248,13 @@ int run()
         else
             cap.open(0, cv::CAP_V4L2);
 #endif
+        if (!cap.isOpened())
+        {
+#ifndef WIN32
+            rknn_destroy(ctx);
+#endif
+            return -1;
+        }
 
         cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
         cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
@@ -275,13 +282,6 @@ int run()
         writer.open(filename_NA, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
         annotatedWriter.open(filename_A, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
 
-        if (!cap.isOpened())
-        {
-#ifndef WIN32
-            rknn_destroy(ctx);
-#endif
-            return -1;
-        }
         std::thread camThread;
         if (!config.modes.video) camThread = std::thread(captureThread, std::ref(cap));
 
