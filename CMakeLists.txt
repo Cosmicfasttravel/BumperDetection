@@ -41,6 +41,9 @@ find_package(yaml-cpp REQUIRED)
 set(MOTCPP_INCLUDE_DIR "../motcpp/include")
 set(MOTCPP_LIB "../motcpp/build/Release/motcpp.lib")
 
+find_package(wpiutil REQUIRED)
+find_package(ntcore REQUIRED)
+
 if (UNIX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LEPT REQUIRED lept)
