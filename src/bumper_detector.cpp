@@ -442,7 +442,7 @@ int run()
                 cv::rectangle(frame, det.bounding_box, cv::Scalar(255, 255, 255));
                 det.timestamp = frame_timestamp;
             }
-
+            
             detectionScheduler(frame, detections, config);
 
             int key = cv::waitKey(1);

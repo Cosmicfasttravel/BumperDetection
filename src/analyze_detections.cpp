@@ -24,7 +24,6 @@
 #include <opencv2/video/tracking.hpp>
 #include "kalman_filter.h"
 #include "thread_manager.h"
-#include <motcpp/trackers/bytetrack.hpp>
 
 std::atomic<int> ocrCounter{0};
 
@@ -92,6 +91,8 @@ std::mutex Filter_Mutex;
 static std::unordered_map<std::string, kalmanFilter> filters;
 
 std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) {
+    if (dt <= 0.0 || dt > 1.0) dt = 0.0033;
+
     std::string id = detection.id;
 
     double SCREEN_WIDTH = config.screen.width;
@@ -157,7 +158,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     if (det.color.empty())
         return "";
 
-    thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
+    static thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
     static thread_local bool init = false;
 
     if (cleanUp) {
@@ -171,13 +172,9 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
     if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly")
-            api->Init(
-                config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
         if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_LSTM_ONLY);
-        if (config.ocr.mode == "combined")
-            api->Init(config.ocr.tessdata_path.c_str(), "eng",
-                      tesseract::OEM_TESSERACT_LSTM_COMBINED);
+        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_LSTM_COMBINED);
 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -243,14 +240,23 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 }
 
 OutputData analyzeDetection(
-    cv::Mat &hsv,
+    cv::Mat hsv,
     Detection det,
     const Config &config,
     double dt) {
+
+    if (hsv.empty()) return OutputData{};
+    cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsv.cols, hsv.rows);
+    if (safeBB.width <= 0 || safeBB.height <= 0) return OutputData{};
+    det.bounding_box = safeBB;
+
     auto bumperBoundingBox = hsv(det.bounding_box).clone();
 
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto centerY = det.bounding_box.y + (0.5 * det.bounding_box.height);
+
+    int relCenterX = static_cast<int>(centerX) - det.bounding_box.x;
+    int relCenterY = static_cast<int>(centerY) - det.bounding_box.y;
 
     //Red thresholds
     auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,
@@ -282,8 +288,11 @@ OutputData analyzeDetection(
 
     cv::inRange(bumperBoundingBox, lowerBlueThreshold, upperBlueThreshold, bMask);
 
-    if (rMask1.at<int>(static_cast<int>(centerY), static_cast<int>(centerX)) > 0) det.color = "red";
-    else if (bMask.at<int>(static_cast<int>(centerY), static_cast<int>(centerX)) > 0) det.color = "blue";
+    relCenterX = std::clamp(relCenterX, 0, rMask1.cols - 1);
+    relCenterY = std::clamp(relCenterY, 0, rMask1.rows - 1);
+
+    if (rMask1.at<uchar>(relCenterY, relCenterX) > 0) det.color = "red";
+    else if (bMask.at<uchar>(relCenterY, relCenterX) > 0) det.color = "blue";
     else det.color = "";
 
     for (const auto &t: tracked) {
@@ -312,10 +321,8 @@ OutputData analyzeDetection(
     for (auto x = det.bounding_box.x; x < det.bounding_box.x + det.bounding_box.width; x++) {
         height = 0;
         for (auto y = topY; y < bottomY; y++) {
-            int color = 0;
-
-            color = finalMask.at<int>(y, static_cast<int>(centerX));
-
+            int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
+            uchar color = finalMask.at<uchar>(relY, relCenterX);
             if (color > 0) height++;
         }
         sum += height;
@@ -332,10 +339,12 @@ OutputData analyzeDetection(
     return data;
 }
 
-std::optional<ThreadManager> thread_manager;
+std::unique_ptr<ThreadManager> thread_manager;
 
 void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
     if (detections.empty()) return;
+
+    if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
 
     visibleNumbers.clear();
 
@@ -345,8 +354,6 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
         for (int i = 0; i < config.tracking.id_count; i++) availableIDs.push_back(i);
         idFilled = true;
     }
-
-    thread_manager.emplace(config.thread_pool_size);
 
     for (auto &t: tracked) t.used = false;
 
@@ -405,6 +412,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             newRobot.robot_id = std::to_string(newID);
             newRobot.lostCounter = 0;
             newRobot.used = true;
+            newRobot.timestamp = det.timestamp;
 
             tracked.push_back(newRobot);
             det.id = newRobot.robot_id;
@@ -425,15 +433,10 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
         } else
             ++it;
     }
-
     std::vector<std::future<OutputData> > futures;
     ocrCounter = 0;
     for (const auto &detection: detections) {
-        if (!thread_manager.has_value()) {
-            logger->critical("Thread Manager lacks a value");
-            return;
-        }
-        futures.push_back(thread_manager->enqueue([&hsv, config, &detection]() {
+        futures.push_back(thread_manager->enqueue([hsv, config, detection]() {
             try {
                 return analyzeDetection(hsv, detection, config, detection.meta.dt);
             } catch (...) {
@@ -442,7 +445,6 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             }
         }));
     }
-
     std::vector<OutputData> results;
     results.reserve(futures.size());
 
@@ -474,6 +476,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             }
         }
     }
+
     for (auto &result: results) {
         std::stringstream ss;
         ss << "X: " << result.x << " " << "Y: " << result.y << " Color: " << result.det.color;
@@ -483,8 +486,6 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
 }
 
 void cleanUp() {
-    if (!thread_manager.has_value()) return;
-
     std::vector<std::future<void> > cleanupFutures;
 
     for (int i = 0; i < thread_manager->Num_Threads; ++i) {
