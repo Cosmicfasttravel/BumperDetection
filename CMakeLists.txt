@@ -41,15 +41,6 @@ find_package(yaml-cpp REQUIRED)
 set(MOTCPP_INCLUDE_DIR "../motcpp/include")
 set(MOTCPP_LIB "../motcpp/build/Release/motcpp.lib")
 
-file(GLOB_RECURSE WPILIB_INCLUDE_DIRS LIST_DIRECTORIES true
-    ../allwpilib/*/src/main/native/include
-    ../allwpilib/*/src/main/native/thirdparty/*/include
-)
-
-file(GLOB WPILIB_LIBS
-    ../allwpilib/*/build/libs/*/shared/linuxarm64/release/*.so
-)
-
 if (UNIX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LEPT REQUIRED lept)
@@ -66,13 +57,12 @@ add_library(BumperDetection SHARED
         src/bumper_detector.cpp
         src/analyze_detections.cpp
         src/kalman_filter.cpp
-        src/send_data.cpp
         src/config_extraction.cpp
         src/debug_log.cpp
         src/debug_log.h
 )
 
-target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR} ${WPILIB_INCLUDE_DIRS})
+target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR})
 
 if (UNIX)
     target_include_directories(BumperDetection
@@ -87,7 +77,6 @@ target_link_libraries(BumperDetection
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
-        ${WPILIB_LIBS}
 )
 
 if (UNIX)
@@ -109,7 +98,7 @@ endif()
 
 add_executable(run_yolo src/main.cpp)
 
-target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} ${WPILIB_INCLUDE_DIRS})
+target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR})
 
 target_link_libraries(run_yolo
         BumperDetection 
@@ -117,7 +106,6 @@ target_link_libraries(run_yolo
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
-        ${WPILIB_LIBS}
 )
 
 if(WIN32)
