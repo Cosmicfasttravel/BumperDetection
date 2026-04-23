@@ -66,7 +66,8 @@ add_library(BumperDetection SHARED
 target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR} 
         ../allwpilib/ntcore/src/main/native/include
         ../allwpilib/wpiutil/src/main/native/include
-        ../allwpilib/wpinet/src/main/native/include)
+        ../allwpilib/wpinet/src/main/native/include
+        ../allwpilib/wpiutil/src/main/native/thirdparty/nanopb/include)
 
 if (UNIX)
     target_include_directories(BumperDetection
@@ -111,7 +112,8 @@ add_executable(run_yolo src/main.cpp)
 target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} 
         ../allwpilib/ntcore/src/main/native/include
         ../allwpilib/wpiutil/src/main/native/include
-        ../allwpilib/wpinet/src/main/native/include)
+        ../allwpilib/wpinet/src/main/native/include
+        ../allwpilib/wpiutil/src/main/native/thirdparty/nanopb/include)
 
 target_link_libraries(run_yolo
         BumperDetection 
