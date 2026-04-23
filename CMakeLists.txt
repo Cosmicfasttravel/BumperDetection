@@ -63,7 +63,10 @@ add_library(BumperDetection SHARED
         src/debug_log.h
 )
 
-target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR})
+target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR} 
+            ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
+            ../allwpilib/wpiutil/build/libs/wpiutil/shared/linuxarm64/release/libwpiutil.so
+            ../allwpilib/wpinet/build/libs/wpinet/shared/linuxarm64/release/libwpinet.so)
 
 if (UNIX)
     target_include_directories(BumperDetection
@@ -78,6 +81,9 @@ target_link_libraries(BumperDetection
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
+        ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
+        ../allwpilib/wpiutil/build/libs/wpiutil/shared/linuxarm64/release/libwpiutil.so
+        ../allwpilib/wpinet/build/libs/wpinet/shared/linuxarm64/release/libwpinet.so
 )
 
 if (UNIX)
@@ -102,7 +108,10 @@ endif()
 
 add_executable(run_yolo src/main.cpp)
 
-target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} ../allwpilib/ntcore/src/main/native/include)
+target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} 
+            ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
+            ../allwpilib/wpiutil/build/libs/wpiutil/shared/linuxarm64/release/libwpiutil.so
+            ../allwpilib/wpinet/build/libs/wpinet/shared/linuxarm64/release/libwpinet.so)
 
 target_link_libraries(run_yolo
         BumperDetection 
@@ -111,6 +120,8 @@ target_link_libraries(run_yolo
         spdlog::spdlog
         Eigen3::Eigen
         ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
+        ../allwpilib/wpiutil/build/libs/wpiutil/shared/linuxarm64/release/libwpiutil.so
+        ../allwpilib/wpinet/build/libs/wpinet/shared/linuxarm64/release/libwpinet.so
 )
 
 if(WIN32)
