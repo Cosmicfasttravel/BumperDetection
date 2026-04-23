@@ -34,7 +34,7 @@ cmake .. -D CMAKE_BUILD_TYPE=RELEASE \
       -D WITH_FFMPEG=ON \
       -D WITH_GSTREAMER=ON
 
-make -j$(nproc)
+make 
 sudo make install
 sudo ldconfig
 
