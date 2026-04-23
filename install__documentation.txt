@@ -16,6 +16,9 @@ sudo apt update
 sudo apt-get install libleptonica-dev
 sudo apt install tesseract-ocr libtesseract-dev
 
+Donwload eng.traineddata
+https://github.com/tesseract-ocr/tessdata/blob/main/eng.traineddata
+
 OPENCV  (RERUN)
 ---------------------------
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
