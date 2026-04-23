@@ -16,7 +16,7 @@ sudo apt update
 sudo apt-get install libleptonica-dev
 sudo apt install tesseract-ocr libtesseract-dev
 
-OPENCV 
+OPENCV  (RERUN)
 ---------------------------
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
      libswscale-dev libgstreamer1.0-dev \
