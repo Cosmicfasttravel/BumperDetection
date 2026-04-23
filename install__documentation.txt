@@ -19,7 +19,7 @@ sudo apt install tesseract-ocr libtesseract-dev
 OPENCV 
 ---------------------------
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
-     libswscale-dev libavresample-dev libgstreamer1.0-dev \
+     libswscale-dev libgstreamer1.0-dev \
      libgstreamer-plugins-base1.0-dev
 
 git clone https://github.com/opencv/opencv.git
