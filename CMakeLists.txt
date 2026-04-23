@@ -123,9 +123,6 @@ if (UNIX)
     target_link_libraries(run_yolo
             ${TESS_LIBRARIES}
             ${LEPT_LIBRARIES}
-            ntcore
-            wpiutil
-            wpinet
             rknnrt
     )
 endif ()
