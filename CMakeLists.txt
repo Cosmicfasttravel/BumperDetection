@@ -41,6 +41,15 @@ find_package(yaml-cpp REQUIRED)
 set(MOTCPP_INCLUDE_DIR "../motcpp/include")
 set(MOTCPP_LIB "../motcpp/build/Release/motcpp.lib")
 
+file(GLOB_RECURSE WPILIB_INCLUDE_DIRS LIST_DIRECTORIES true
+    ../allwpilib/*/src/main/native/include
+    ../allwpilib/*/src/main/native/thirdparty/*/include
+)
+
+file(GLOB WPILIB_LIBS
+    ../allwpilib/*/build/libs/*/shared/linuxarm64/release/*.so
+)
+
 if (UNIX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LEPT REQUIRED lept)
@@ -63,11 +72,7 @@ add_library(BumperDetection SHARED
         src/debug_log.h
 )
 
-target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR} 
-        ../allwpilib/ntcore/src/main/native/include
-        ../allwpilib/wpiutil/src/main/native/include
-        ../allwpilib/wpinet/src/main/native/include
-        ../allwpilib/wpiutil/src/main/native/thirdparty/nanopb/include)
+target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS} ${MOTCPP_INCLUDE_DIR} ${WPILIB_INCLUDE_DIRS})
 
 if (UNIX)
     target_include_directories(BumperDetection
@@ -82,9 +87,7 @@ target_link_libraries(BumperDetection
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
-        ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
-        ../allwpilib/wpiutil/build/libs/wpiutil/shared/linuxarm64/release/libwpiutil.so
-        ../allwpilib/wpinet/build/libs/wpinet/shared/linuxarm64/release/libwpinet.so
+        ${WPILIB_LIBS}
 )
 
 if (UNIX)
@@ -92,9 +95,6 @@ if (UNIX)
             rknnrt
             ${TESS_LIBRARIES}
             ${LEPT_LIBRARIES}
-            ntcore
-            wpiutil
-            wpinet
     )
 endif ()
 
@@ -109,11 +109,7 @@ endif()
 
 add_executable(run_yolo src/main.cpp)
 
-target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} 
-        ../allwpilib/ntcore/src/main/native/include
-        ../allwpilib/wpiutil/src/main/native/include
-        ../allwpilib/wpinet/src/main/native/include
-        ../allwpilib/wpiutil/src/main/native/thirdparty/nanopb/include)
+target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR} ${WPILIB_INCLUDE_DIRS})
 
 target_link_libraries(run_yolo
         BumperDetection 
@@ -121,9 +117,7 @@ target_link_libraries(run_yolo
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
-        ../allwpilib/ntcore/build/libs/ntcore/shared/linuxarm64/release/libntcore.so
-        ../allwpilib/wpiutil/build/libs/wpiutil/shared/linuxarm64/release/libwpiutil.so
-        ../allwpilib/wpinet/build/libs/wpinet/shared/linuxarm64/release/libwpinet.so
+        ${WPILIB_LIBS}
 )
 
 if(WIN32)
