@@ -87,6 +87,9 @@ if (UNIX)
             rknnrt
             ${TESS_LIBRARIES}
             ${LEPT_LIBRARIES}
+            ntcore
+            wpiutil
+            wpinet
     )
 endif ()
 
