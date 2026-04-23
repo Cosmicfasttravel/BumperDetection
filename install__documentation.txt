@@ -82,7 +82,7 @@ git clone https://github.com/Geekgineer/motcpp.git
 cd motcpp
 mkdir build
 cd build
-cmake .. -DCMAKE_PREFIX_PATH="../../yaml-cpp/install" -DCMAKE_INSTALL_PREFIX="../install"
+cmake .. -D CMAKE_PREFIX_PATH="../../yaml-cpp/build" -D CMAKE_INSTALL_PREFIX="../install"
 cmake --build . --config Release
 
 PROGRAM (CHANGE CORES IF NEEDED)
