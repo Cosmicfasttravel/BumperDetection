@@ -26,7 +26,7 @@
 #include "thread_manager.h"
 
 std::atomic<int> ocrCounter{0};
-std::atomic<bool> cleanUp(true);
+std::atomic<bool> cleanUp(false);
 
 
 struct TrackedRobot {
@@ -347,9 +347,9 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     static std::unique_ptr<ThreadManager> thread_manager;
 
     if (detections.empty()) return;
-    if (cleanUp) thread_manager->shutdown();
 
     if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
+    if (cleanUp) thread_manager->shutdown();
 
     visibleIDs.clear();
 
