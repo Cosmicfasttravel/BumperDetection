@@ -245,12 +245,10 @@ OutputData analyzeDetection(
     const Config &config,
     double dt) {
 
-    if (hsv.empty()) return OutputData{};
-    cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsv.cols, hsv.rows);
-    if (safeBB.width <= 0 || safeBB.height <= 0) return OutputData{};
-    det.bounding_box = safeBB;
+    if (hsv.empty()) return OutputData{}; 
 
     auto bumperBoundingBox = hsv(det.bounding_box).clone();
+    if (bumperBoundingBox.width <= 0 || bumperBoundingBox.height <= 0) return OutputData{};
 
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto centerY = det.bounding_box.y + (0.5 * det.bounding_box.height);
@@ -297,7 +295,7 @@ OutputData analyzeDetection(
 
     for (const auto &t: tracked) {
         if (t.robot_id == det.id) {
-            if (t.teamNumber.empty()) {
+            if (t.teamNumber.empty()) { // add forced amount of ocr runs
                 det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
