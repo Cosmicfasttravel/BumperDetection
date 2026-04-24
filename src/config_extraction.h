@@ -84,6 +84,7 @@ struct Modes
     bool video;
     bool display;
     bool dynamic_camera_properties_updating;
+    bool cam_tuning;
 };
 
 struct Camera
@@ -191,7 +192,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modes,
     write_frame_to_file,
     video,
     display,
-    dynamic_camera_properties_updating
+    dynamic_camera_properties_updating,
+    cam_tuning
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Camera,

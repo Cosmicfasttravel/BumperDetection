@@ -100,9 +100,10 @@
 
     "modes": {
         "display": true,
-        "video": true,
+        "video": false,
         "write_frame_to_file": false,
-        "dynamic_camera_properties_updating": true
+        "dynamic_camera_properties_updating": true,
+        "cam_tuning": false
     },
 
     "camera": {
@@ -110,7 +111,7 @@
         "contrast": -1,
         "hue": 0,
         "saturation": -1,
-        "gain": 0,
+        "gain": -1,
         "exposure": -1,
         "temperature": 4000,
         "auto_white_balance": 1,

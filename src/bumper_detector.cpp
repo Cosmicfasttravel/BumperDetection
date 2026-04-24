@@ -299,6 +299,8 @@ int run()
         auto prev_frame_time = Clock::now();
         std::vector<double> fps;
 
+        if (config.modes.cam_tuning) cap.set(cv::CAP_PROP_SETTINGS, 1);
+
         while (true)
         {
             std::stringstream ss;

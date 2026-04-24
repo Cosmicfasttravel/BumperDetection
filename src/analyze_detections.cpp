@@ -50,7 +50,7 @@ struct OutputData {
 };
 
 std::vector<TrackedRobot> tracked(5);
-std::vector<std::string> visibleNumbers;
+std::vector<std::string> visibleIDs;
 
 int levenshteinDist(const std::string &word1, const std::string &word2) {
     const int size1 = static_cast<int>(word1.size());
@@ -133,7 +133,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
 
     for (auto it = filters.begin(); it != filters.end();) {
         bool found = false;
-        for (auto &num: visibleNumbers) {
+        for (auto &num: visibleIDs) {
             if (it->first == num) {
                 found = true;
             }
@@ -245,10 +245,11 @@ OutputData analyzeDetection(
     const Config &config,
     double dt) {
 
+
+    if (det.bounding_box.x < 0 || det.bounding_box.y < 0 || det.bounding_box.x + det.bounding_box.width > config.screen.width || det.bounding_box.y + det.bounding_box.height > config.screen.height) {}
     if (hsv.empty()) return OutputData{}; 
 
     auto bumperBoundingBox = hsv(det.bounding_box).clone();
-    if (bumperBoundingBox.width <= 0 || bumperBoundingBox.height <= 0) return OutputData{};
 
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto centerY = det.bounding_box.y + (0.5 * det.bounding_box.height);
@@ -344,7 +345,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
 
     if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
 
-    visibleNumbers.clear();
+    visibleIDs.clear();
 
     static std::deque<int> availableIDs;
     static bool idFilled = false;
@@ -431,6 +432,10 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
         } else
             ++it;
     }
+    for (const auto& det : detections) {
+        visibleIDs.emplace_back(det.id);
+    }
+
     std::vector<std::future<OutputData> > futures;
     ocrCounter = 0;
     for (const auto &detection: detections) {
