@@ -21,5 +21,7 @@ void detectionScheduler(
     std::vector<Detection> &detections, 
     const Config& config
 );
-void cleanUp();
+
+void clean();
+
 #endif //BUMPERDETECTION_EDGEDETECTION_H

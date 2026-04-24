@@ -26,6 +26,8 @@
 #include "thread_manager.h"
 
 std::atomic<int> ocrCounter{0};
+std::atomic<bool> cleanUp(true);
+
 
 struct TrackedRobot {
     int x = -1;
@@ -38,6 +40,8 @@ struct TrackedRobot {
     bool used = false;
 
     std::chrono::steady_clock::time_point timestamp;
+
+    int ocrCount = 0;
 };
 
 struct OutputData {
@@ -149,7 +153,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     return {filtered[0], filtered[1], filtered[2]};
 }
 
-std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config, bool cleanUp = false) {
+std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
     auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
         return "";
@@ -296,7 +300,7 @@ OutputData analyzeDetection(
 
     for (const auto &t: tracked) {
         if (t.robot_id == det.id) {
-            if (t.teamNumber.empty()) { // add forced amount of ocr runs
+            if (t.teamNumber.empty() && t.ocrCount < 6) { // add forced amount of ocr runs
                 det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
@@ -338,10 +342,12 @@ OutputData analyzeDetection(
     return data;
 }
 
-std::unique_ptr<ThreadManager> thread_manager;
 
 void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
+    static std::unique_ptr<ThreadManager> thread_manager;
+
     if (detections.empty()) return;
+    if (cleanUp) thread_manager->shutdown();
 
     if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
 
@@ -399,6 +405,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
                         0.7, cv::Scalar(255, 255, 255), 2);
 
             det.meta.dt = std::chrono::duration<double>(det.timestamp - bestMatch->timestamp).count();
+            bestMatch->ocrCount = 0;
 
             bestMatch->timestamp = det.timestamp;
         } else if (!availableIDs.empty()) {
@@ -412,6 +419,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             newRobot.lostCounter = 0;
             newRobot.used = true;
             newRobot.timestamp = det.timestamp;
+            newRobot.ocrCount = 0;
 
             tracked.push_back(newRobot);
             det.id = newRobot.robot_id;
@@ -488,21 +496,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     }
 }
 
-void cleanUp() {
-    std::vector<std::future<void> > cleanupFutures;
-
-    for (int i = 0; i < thread_manager->Num_Threads; ++i) {
-        cleanupFutures.push_back(thread_manager->enqueue([]() {
-            cv::Mat emptyHsv;
-            Detection emptyDet;
-            Config defaultConfig;
-            getRobotLabel(emptyDet, emptyHsv, defaultConfig, true);
-        }));
-    }
-
-    for (auto &fut: cleanupFutures) {
-        fut.get();
-    }
-    thread_manager->shutdown();
-    logger->info("Shutting down threads");
+void clean() {
+    cleanUp = true;
 }
+

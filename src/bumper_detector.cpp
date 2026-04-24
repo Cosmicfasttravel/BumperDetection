@@ -192,8 +192,7 @@ std::vector<Detection> ProcessYoloOutput(
 
 int run()
 {
-    try
-    {
+    try {
         extractConfig();
         const Config &config = getConfig();
 
@@ -495,7 +494,8 @@ int run()
 #ifndef WIN32
         rknn_destroy(ctx);
 #endif
-        cleanUp();
+
+        clean();
 
         spdlog::shutdown();
 

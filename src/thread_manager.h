@@ -27,7 +27,6 @@ public:
         }
         if (thread_count < 1) {
             Num_Threads = 1;
-            logger->critical("Too few threads specified, defaulting to 1...");
         }
 
         for (int i = 0; i < Num_Threads; i++)
