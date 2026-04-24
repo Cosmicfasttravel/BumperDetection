@@ -35,6 +35,10 @@ public:
         }
     }
 
+    ~ThreadManager() {
+        shutdown();
+    }
+
     void workerLoop()
     {
         while (true)
@@ -95,6 +99,7 @@ public:
 
     void shutdown()
     {
+        if (stop) return;
         {
             std::unique_lock<std::mutex> lock(Queue_Mutex);
             stop = true;
@@ -111,6 +116,7 @@ public:
     std::optional<int> Num_Threads;
 private:
     std::vector<std::thread> Pool;
+
 
     std::mutex Queue_Mutex;
     std::queue<std::function<void()>> Queue;

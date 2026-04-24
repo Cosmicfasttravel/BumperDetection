@@ -423,7 +423,7 @@ int run()
             cv::Mat output_mat;
 #ifndef WIN32
             cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
-            output_mat = output_mat_buf;
+            output_mat = output_mat_buf.clone();
             std::vector outputs = {output_mat};
 #endif
 
@@ -495,14 +495,10 @@ int run()
         rknn_destroy(ctx);
 #endif
 
-        clean();
-
-        spdlog::shutdown();
+        clean(config);
 
         if (!config.modes.video)
             camThread.join();
-
-        cv::waitKey(500);
 
         cap.release();
         writer.release();
@@ -512,7 +508,7 @@ int run()
         logger->info("  Post-processing: " + std::to_string(total_postprocess_time / processed_count) + "ms\n");
 
         cv::destroyAllWindows();
-        cv::waitKey(500);
+
     }
     catch (const cv::Exception &e)
     {
@@ -530,6 +526,7 @@ int run()
         return -1;
     }
 
-    logger->info("Exited\n");
+    spdlog::shutdown();
+
     return 0;
 }

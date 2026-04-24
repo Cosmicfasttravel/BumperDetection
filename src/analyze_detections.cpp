@@ -26,7 +26,7 @@
 #include "thread_manager.h"
 
 std::atomic<int> ocrCounter{0};
-std::atomic<bool> cleanUp(false);
+std::atomic<bool> cleanUp = false;
 
 
 struct TrackedRobot {
@@ -53,7 +53,7 @@ struct OutputData {
     int id{};
 };
 
-std::vector<TrackedRobot> tracked(5);
+std::vector<TrackedRobot> tracked;
 std::vector<std::string> visibleIDs;
 
 int levenshteinDist(const std::string &word1, const std::string &word2) {
@@ -153,7 +153,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     return {filtered[0], filtered[1], filtered[2]};
 }
 
-std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
+std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) { // wrap in try-catch block
     auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
         return "";
@@ -322,10 +322,12 @@ OutputData analyzeDetection(
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
 
     for (auto x = det.bounding_box.x; x < det.bounding_box.x + det.bounding_box.width; x++) {
+        int relX = std::clamp(x - det.bounding_box.x, 0, finalMask.cols - 1);
+
         height = 0;
         for (auto y = topY; y < bottomY; y++) {
             int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
-            uchar color = finalMask.at<uchar>(relY, relCenterX);
+            uchar color = finalMask.at<uchar>(relY, relX);
             if (color > 0) height++;
         }
         sum += height;
@@ -342,14 +344,14 @@ OutputData analyzeDetection(
     return data;
 }
 
+static std::unique_ptr<ThreadManager> thread_manager;
 
 void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
-    static std::unique_ptr<ThreadManager> thread_manager;
+    tracked.reserve(5);
 
     if (detections.empty()) return;
 
     if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
-    if (cleanUp) thread_manager->shutdown();
 
     visibleIDs.clear();
 
@@ -443,6 +445,7 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     for (const auto& det : detections) {
         visibleIDs.emplace_back(det.id);
     }
+    std::vector<OutputData> results = {};
 
     std::vector<std::future<OutputData> > futures;
     ocrCounter = 0;
@@ -456,7 +459,6 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
             }
         }));
     }
-    std::vector<OutputData> results;
     results.reserve(futures.size());
 
     for (auto &fut: futures) {
@@ -496,7 +498,30 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     }
 }
 
-void clean() {
+void clean(const Config& config) {
     cleanUp = true;
+
+    {
+        Detection det = {};
+        cv::Mat hsv = {};
+
+        std::vector<std::future<std::string>> futures;
+
+        for (int i = 0; i < config.thread_pool_size; ++i) {
+            futures.push_back(thread_manager->enqueue([hsv, config, &det]() {
+                try {
+                    return getRobotLabel(det, hsv, config);
+                } catch (...) {
+                    logger->error("Problem occurred with clean up");
+                    std::string s;
+                    return s;
+                }
+            }));
+        }
+        for (auto& fut : futures) {
+            fut.get();
+        }
+    }
+    thread_manager->shutdown();
 }
 

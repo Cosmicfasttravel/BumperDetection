@@ -22,6 +22,6 @@ void detectionScheduler(
     const Config& config
 );
 
-void clean();
+void clean(const Config& config);
 
 #endif //BUMPERDETECTION_EDGEDETECTION_H
