@@ -156,110 +156,106 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
 }
 
 std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
-    try {
-        auto maxOCR = config.ocr.max_instances;
-        if (ocrCounter >= maxOCR)
-            return "";
-        ++ocrCounter;
+    auto maxOCR = config.ocr.max_instances;
+    if (ocrCounter >= maxOCR)
+        return "";
+    ++ocrCounter;
 
-        if (det.color.empty())
-            return "";
+    if (det.color.empty())
+        return "";
 
-        static thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
-        static thread_local bool init = false;
+    static thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
+    static thread_local bool init = false;
 
-        if (cleanUp) {
-            if (!api)
-                return "-1";
-
-            api->End();
-            api.reset();
+    if (cleanUp) {
+        if (!api)
             return "-1";
-        }
 
-        if (!init) {
-            api = std::make_unique<tesseract::TessBaseAPI>();
-            if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
-                config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
-            if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng",
+        api->End();
+        api.reset();
+        return "-1";
+    }
+
+    if (!init) {
+        api = std::make_unique<tesseract::TessBaseAPI>();
+        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
+            config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng",
                                                          tesseract::OEM_LSTM_ONLY);
-            if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
+        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
                                                          tesseract::OEM_TESSERACT_LSTM_COMBINED);
 
-            api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
-            api->SetVariable("tessedit_char_whitelist", "0123456789");
-            init = true;
-        }
+        api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
+        api->SetVariable("tessedit_char_whitelist", "0123456789");
+        init = true;
+    }
 
-        cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsv.cols, hsv.rows);
-        if (safeBB.empty()) { --ocrCounter; return ""; }
-        cv::Mat img = hsv(safeBB).clone();
+    cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsv.cols, hsv.rows);
+    if (safeBB.empty()) { 
+        --ocrCounter; return ""; 
+    }
+    cv::Mat img = hsv(safeBB).clone();
 
-        cv::Mat colorMask;
+    cv::Mat colorMask;
 
-        cv::inRange(
-            img, cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
-                            config.ocr.mask_thresholds.value_lower),
-            cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
-                       config.ocr.mask_thresholds.value_upper), colorMask);
+    cv::inRange(
+        img, cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
+                        config.ocr.mask_thresholds.value_lower),
+        cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
+                    config.ocr.mask_thresholds.value_upper), colorMask);
 
-        if (colorMask.cols < config.ocr.min_img_size) {
-            double scale = static_cast<float>(config.ocr.min_img_size) / static_cast<float>(colorMask.cols);
-            cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
-        }
+    if (colorMask.cols < config.ocr.min_img_size) {
+        double scale = static_cast<float>(config.ocr.min_img_size) / static_cast<float>(colorMask.cols);
+        cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
+    }
 
-        cv::Mat final;
-        cv::bitwise_not(colorMask, final);
+    cv::Mat final;
+    cv::bitwise_not(colorMask, final);
 
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT,
-                                                   cv::Size(config.ocr.morphology_kernel_size,
-                                                            config.ocr.morphology_kernel_size));
-        cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT,
+                                                cv::Size(config.ocr.morphology_kernel_size,
+                                                        config.ocr.morphology_kernel_size));
+    cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
-        if (final.empty() || final.cols <= 0 || final.rows <= 0) {
-            --ocrCounter;
-            return "";
-        }
+    if (final.empty() || final.cols <= 0 || final.rows <= 0) {
+        --ocrCounter;
+        return "";
+    }
 
-        api->SetImage(final.data, final.cols, final.rows, 1, final.step);
-        api->SetSourceResolution(70);
-        char *outText = api->GetUTF8Text();
-        std::string result(outText);
-        delete[] outText;
+    api->SetImage(final.data, final.cols, final.rows, 1, final.step);
+    
+    char *outText = api->GetUTF8Text();
+    std::string result(outText);
+    delete[] outText;
 
-        std::erase_if(result, ::isspace);
+    std::erase_if(result, ::isspace);
 
-        int minIndex = 0;
+    int minIndex = 0;
 
-        int minDist = INT_MAX;
-        if (!result.empty() && std::ranges::all_of(result, ::isdigit)) {
-            for (int i = 0; i < 5; i++) {
-                int d = {};
+    int minDist = INT_MAX;
+    if (!result.empty() && std::ranges::all_of(result, ::isdigit)) {
+        for (int i = 0; i < 5; i++) {
+            int d = {};
 
-                if (det.color == "blue") d = levenshteinDist(result, config.teams.blueTeams[i]);
-                if (det.color == "red") d = levenshteinDist(result, config.teams.redTeams[i]);
+            if (det.color == "blue") d = levenshteinDist(result, config.teams.blueTeams[i]);
+            if (det.color == "red") d = levenshteinDist(result, config.teams.redTeams[i]);
 
-                if (d < minDist) {
+            if (d < minDist) {
                     minDist = d;
                     minIndex = i;
-                }
             }
         }
-
-        if (det.color == "blue") result = config.teams.blueTeams[minIndex];
-        if (det.color == "red") result = config.teams.redTeams[minIndex];
-
-        if (minDist > config.ocr.lev_distance) {
-            result = "";
-        }
-
-        return result;
-    } catch (std::exception &e) {
-        log("Tesseract Failure, " + std::string(e.what()), spdlog::level::critical);
-    } catch (...) {
-        log("Unknown Tesseract Failure", spdlog::level::critical);
     }
-    return "";
+
+    if (det.color == "blue") result = config.teams.blueTeams[minIndex];
+    if (det.color == "red") result = config.teams.redTeams[minIndex];
+
+    if (minDist > config.ocr.lev_distance) {
+        result = "";
+    }
+
+    return result;
+    
 }
 
 OutputData analyzeDetection(
