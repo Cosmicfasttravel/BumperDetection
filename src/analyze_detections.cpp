@@ -313,8 +313,8 @@ OutputData analyzeDetection(
     relCenterX = std::clamp(relCenterX, 0, rMask1.cols - 1);
     relCenterY = std::clamp(relCenterY, 0, rMask1.rows - 1);
 
-    if (rMask1.at<int>(relCenterY, relCenterX) > 0) det.color = "red";
-    else if (bMask.at<int>(relCenterY, relCenterX) > 0) det.color = "blue";
+    if (rMask1.at<uchar>(relCenterY, relCenterX) > 0) det.color = "red";
+    else if (bMask.at<uchar>(relCenterY, relCenterX) > 0) det.color = "blue";
     else det.color = "";
 
     for (const auto &t: tracked) {
@@ -331,12 +331,10 @@ OutputData analyzeDetection(
 
     auto topY = det.bounding_box.y;
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
-
-    int relX = std::clamp(det.bounding_box.x + det.bounding_box.width, 0, finalMask.cols - 1);
        
     for (auto y = topY; y < bottomY; y++) {
         int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
-        int color = finalMask.at<int>(y, centerX);
+        int color = finalMask.at<uchar>(relY, relCenterX);
         if (color > 0) height++;
     }
     
