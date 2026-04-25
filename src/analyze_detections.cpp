@@ -156,23 +156,18 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
 }
 
 std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
-    int i = 0;
-    std::cout << i << std::endl;
-    i++;
     auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
         return "";
+    
     ++ocrCounter;
-std::cout << i << std::endl;
-    i++;
+    
     if (det.color.empty())
         return "";
-std::cout << i << std::endl;
-    i++;
+
     thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
     thread_local bool init = false;
-std::cout << i << std::endl;
-    i++;
+
     if (cleanUp) {
         if (!api)
             return "-1";
@@ -185,8 +180,7 @@ std::cout << i << std::endl;
         
         return "-1";
     }
-std::cout << i << std::endl;
-    i++;
+
     if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
         if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
@@ -201,15 +195,13 @@ std::cout << i << std::endl;
         api->SetVariable("tessedit_char_whitelist", "0123456789");
         init = true;
     }
-std::cout << i << std::endl;
-    i++;
+
     cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsv.cols, hsv.rows);
     if (safeBB.empty()) { 
         --ocrCounter; return ""; 
     }
     cv::Mat img = hsv(safeBB).clone();
-std::cout << i << std::endl;
-    i++;
+
     cv::Mat colorMask;
 
     cv::inRange(
@@ -222,8 +214,7 @@ std::cout << i << std::endl;
         double scale = static_cast<float>(config.ocr.min_img_size) / static_cast<float>(colorMask.cols);
         cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
     }
-std::cout << i << std::endl;
-    i++;
+
     cv::Mat final;
     cv::bitwise_not(colorMask, final);
 
@@ -236,8 +227,7 @@ std::cout << i << std::endl;
         --ocrCounter;
         return "";
     }
-std::cout << i << std::endl;
-    i++;
+
     api->SetImage(final.data, final.cols, final.rows, 1, final.step);
     api->SetSourceResolution(70);
     char *outText = api->GetUTF8Text();
@@ -247,8 +237,7 @@ std::cout << i << std::endl;
     std::erase_if(result, ::isspace);
 
     int minIndex = 0;
-std::cout << i << std::endl;
-    i++;
+
     int minDist = INT_MAX;
     if (!result.empty() && std::ranges::all_of(result, ::isdigit)) {
         for (int i = 0; i < 5; i++) {
