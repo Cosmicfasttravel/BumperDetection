@@ -26,7 +26,7 @@
         "lev_distance": 3,
         "max_instances": 3,
         "morphology_kernel_size": 3,
-        "mode": "tessonly",
+        "mode": "lstmonly",
         "min_img_size": 300,
 
         "mask_thresholds": {
