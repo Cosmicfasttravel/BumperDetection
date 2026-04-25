@@ -321,7 +321,7 @@ OutputData analyzeDetection(
         if (t.robot_id == det.id) {
             if (t.teamNumber.empty() && t.ocrCount < 6) {
                 // add forced amount of ocr runs
-                det.teamNumber = getRobotLabel(det, hsv, config);
+                //det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
     }
