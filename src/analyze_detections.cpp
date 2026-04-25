@@ -155,6 +155,8 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     return {filtered[0], filtered[1], filtered[2]};
 }
 
+std::mutex Tess_Mutex;
+
 std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
     auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
@@ -166,6 +168,8 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
     thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
     thread_local bool init = false;
+
+    std::unique_lock<std::mutex> lock(Tess_Mutex);
 
     if (cleanUp) {
         if (!api)
@@ -182,8 +186,12 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
     if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        api->Init(
-            "/home/orangepi/BumperDetection/", "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
+            config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng",
+                                                         tesseract::OEM_LSTM_ONLY);
+        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
+                                                         tesseract::OEM_TESSERACT_LSTM_COMBINED);
         
 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
@@ -224,7 +232,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     }
 
     api->SetImage(final.data, final.cols, final.rows, 1, final.step);
-    
+    api->SetSourceResolution(70);
     char *outText = api->GetUTF8Text();
     std::string result(outText);
     delete[] outText;
