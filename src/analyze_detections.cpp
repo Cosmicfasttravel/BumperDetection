@@ -94,7 +94,7 @@ double getDistance(const double height, const Config &config) {
 std::mutex Filter_Mutex;
 static std::unordered_map<std::string, kalmanFilter> filters;
 
-std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) {
+std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) { //fix math
     if (dt <= 0.0 || dt > 1.0) dt = 0.0033;
 
     std::string id = detection.id;
