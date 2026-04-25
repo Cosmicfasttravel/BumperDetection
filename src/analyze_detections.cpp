@@ -322,15 +322,7 @@ OutputData analyzeDetection(
 
     cv::bitwise_or(rMask1, bMask, finalMask);
 
-    cv::Mat flood = finalMask.clone();
-    cv::floodFill(flood, cv::Point(0, 0), 255);
-
-    cv::Mat floodInv;
-    cv::bitwise_not(flood, floodInv);
-
-    finalMask = finalMask | floodInv;
-
-    double height = 0, sum = 0;
+    double height = 0;
 
     auto topY = det.bounding_box.y;
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
@@ -338,13 +330,10 @@ OutputData analyzeDetection(
     for (auto x = det.bounding_box.x; x < det.bounding_box.x + det.bounding_box.width; x++) {
         height = 0;
         for (auto y = topY; y < bottomY; y++) {
-            uchar color = finalMask.at<int>(y, centerX);
+            int color = finalMask.at<int>(y, centerX);
             if (color > 0) height++;
         }
-        sum += height;
     }
-
-    height = sum / det.bounding_box.width;
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, dt);
 
