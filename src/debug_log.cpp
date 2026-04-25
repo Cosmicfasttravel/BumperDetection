@@ -2,6 +2,8 @@
 #include "config_extraction.h"
 #include <chrono>
 
+Config config;
+
 void initLogger()
 {
     try
@@ -13,4 +15,15 @@ void initLogger()
         std::cout << "Log init failed: " << ex.what() << std::endl;
     }
     spdlog::flush_every(std::chrono::seconds(3));
+
+    config = getConfig();
+}
+
+
+void log(const std::string& text, const spdlog::level::level_enum lvl) {
+    if (lvl == spdlog::level::debug) if (config.modes.logging) logger->debug(text);
+    if (lvl == spdlog::level::info) if (config.modes.logging) logger->info(text);
+    if (lvl == spdlog::level::warn) if (config.modes.logging) logger->warn(text);
+    if (lvl == spdlog::level::err) if (config.modes.logging) logger->error(text);
+    if (lvl == spdlog::level::critical) if (config.modes.logging) logger->critical(text);
 }

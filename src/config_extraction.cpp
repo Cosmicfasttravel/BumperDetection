@@ -40,14 +40,14 @@ bool pollForChanges()
             if (!file.is_open())
             {
                 std::cerr << "Failed to open config\n";
-                logger->warn("Failed to open config");
+                log("Failed to open config", spdlog::level::warn);
                 return false;
             }
 
             data = json::parse(file);
 
             std::cout << "File reread\n";
-            logger->info("Reread file");
+            log("Reread file");
             extractConfig();
 
             return true;
@@ -55,7 +55,7 @@ bool pollForChanges()
         catch (const std::exception &e)
         {
             std::cerr << "JSON failed: " << e.what() << "\n";
-            logger->info("JSON failed");
+            log("JSON failed");
             return false;
         }
     }

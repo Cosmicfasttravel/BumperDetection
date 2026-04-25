@@ -23,7 +23,6 @@ struct Screen
 
 struct Kalman
 {
-
     double process_noise;
     double measurement_noise;
     double error;
@@ -85,6 +84,7 @@ struct Modes
     bool display;
     bool dynamic_camera_properties_updating;
     bool cam_tuning;
+    mutable bool logging;
 };
 
 struct Camera
@@ -121,7 +121,6 @@ struct Config
     Bumper bumper;
     Screen screen;
     Kalman position_kalman;
-    Kalman pixel_kalman;
     OCR ocr;
     HeightMeasurement height_measurement;
     int thread_pool_size;
@@ -193,7 +192,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modes,
     video,
     display,
     dynamic_camera_properties_updating,
-    cam_tuning
+    cam_tuning,
+    logging
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Camera,

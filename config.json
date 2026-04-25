@@ -22,13 +22,6 @@
         "error": 20
     },
 
-    "pixel_kalman": {
-        "_comments": "Pixels",
-        "process_noise": 100,
-        "measurement_noise": 100,
-        "error": 20
-    },
-
     "ocr": {
         "lev_distance": 3,
         "max_instances": 3,
@@ -99,11 +92,13 @@
     ],
 
     "modes": {
+        "_comments": "try to not modify these during runtime",
         "display": true,
         "video": false,
         "write_frame_to_file": false,
         "dynamic_camera_properties_updating": true,
-        "cam_tuning": false
+        "cam_tuning": false,
+        "logging": true
     },
 
     "camera": {

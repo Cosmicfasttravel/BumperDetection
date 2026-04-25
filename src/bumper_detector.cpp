@@ -198,12 +198,17 @@ int run()
 
         initLogger();
 
+        if (!logger) {
+            std::cerr << "Logger is null, defaulting to no logging" << std::endl;
+            config.modes.logging = false;
+        }
+
 #ifndef WIN32
         std::string model_path = config.input_paths.rknn_path;
         FILE *fp = fopen(model_path.c_str(), "rb");
         if (!fp)
         {
-            logger->error("Failed to open model");
+            log("Failed to open model", spdlog::level::err);
             return -1;
         }
         fseek(fp, 0, SEEK_END);
@@ -219,12 +224,12 @@ int run()
         free(model_data);
         if (ret != 0)
         {
-            logger->warn("Failed to init RKNN");
+            log("Failed to init RKNN", spdlog::level::warn);
             return -1;
         }
         rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
         rknn_set_core_mask(ctx, core_mask);
-        logger->info("RKNN Loaded sucessfully");
+        log("RKNN Loaded sucessfully");
 #else
         std::string model_path = config.input_paths.onnx_path;
         cv::dnn::Net net = cv::dnn::readNetFromONNX(model_path);
@@ -474,7 +479,7 @@ int run()
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            if(sum/static_cast<double>(fps.size()) <= 5 && frame_count >= 100) logger->warn("Stutter with " + std::to_string(sum/fps.size()) + "fps. At frame number " + std::to_string(frame_count) + " ");
+            if(sum/static_cast<double>(fps.size()) <= 5 && frame_count >= 100) log("Stutter with " + std::to_string(sum/fps.size()) + "fps. At frame number " + std::to_string(frame_count) + " ");
 
             if (config.modes.display) {
                 cv::imshow("", frame);
@@ -505,26 +510,26 @@ int run()
         cap.release();
         writer.release();
 
-        logger->info("  Preprocess: " + std::to_string(total_preprocess_time / processed_count) + "ms\n");
-        logger->info("  Inference: " + std::to_string(total_inference_time / processed_count) + "ms\n");
-        logger->info("  Post-processing: " + std::to_string(total_postprocess_time / processed_count) + "ms\n");
+        log("  Preprocess: " + std::to_string(total_preprocess_time / processed_count) + "ms\n");
+        log("  Inference: " + std::to_string(total_inference_time / processed_count) + "ms\n");
+        log("  Post-processing: " + std::to_string(total_postprocess_time / processed_count) + "ms\n");
 
         cv::destroyAllWindows();
 
     }
     catch (const cv::Exception &e)
     {
-        logger->critical("OpenCV error" + std::string(e.what()) + "\n");
+        log("OpenCV error" + std::string(e.what()) + "\n", spdlog::level::critical);
         return -1;
     }
     catch (const std::exception &e)
     {
-        logger->critical("Error" + std::string(e.what()) + "\n");
+        log("Error" + std::string(e.what()) + "\n", spdlog::level::critical);
         return -1;
     }
     catch (...)
     {
-        logger->critical("Unknown error\n");
+        log("Unknown error\n", spdlog::level::critical);
         return -1;
     }
 
