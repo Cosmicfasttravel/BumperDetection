@@ -164,8 +164,8 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     if (det.color.empty())
         return "";
 
-    static thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
-    static thread_local bool init = false;
+    thread_local std::unique_ptr<tesseract::TessBaseAPI> api;
+    thread_local bool init = false;
 
     if (cleanUp) {
         if (!api)
@@ -173,6 +173,10 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
         api->End();
         api.reset();
+
+        cleanUp = false;
+        init = false;
+        
         return "-1";
     }
 
