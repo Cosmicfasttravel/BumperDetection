@@ -24,6 +24,8 @@ OPENCV  (RERUN)
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
      libswscale-dev libgstreamer1.0-dev \
      libgstreamer-plugins-base1.0-dev
+sudo apt install libgtk-3-dev libgtk2.0-dev
+
 
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
@@ -32,7 +34,9 @@ cmake .. -D CMAKE_BUILD_TYPE=RELEASE \
       -D CMAKE_INSTALL_PREFIX=/usr/local \
       -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
       -D WITH_FFMPEG=ON \
-      -D WITH_GSTREAMER=ON
+      -D WITH_GSTREAMER=ON \
+      -D WITH_GTK=ON \
+      -D WITH_GTK_2_X=OFF
 
 make 
 sudo make install
