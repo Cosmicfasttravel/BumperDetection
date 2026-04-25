@@ -277,6 +277,9 @@ OutputData analyzeDetection(
     auto centerX = det.bounding_box.x + (0.5 * det.bounding_box.width);
     auto centerY = det.bounding_box.y + (0.5 * det.bounding_box.height);
 
+    int relCenterX = static_cast<int>(centerX) - det.bounding_box.x;
+    int relCenterY = static_cast<int>(centerY) - det.bounding_box.y;
+
     //Red thresholds
     auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,
                                           config.height_measurement.red_mask_thresholds_1.saturation_lower,
@@ -307,15 +310,17 @@ OutputData analyzeDetection(
 
     cv::inRange(bumperBoundingBox, lowerBlueThreshold, upperBlueThreshold, bMask);
 
-    if (rMask1.at<int>(centerY, centerX) > 0) det.color = "red";
-    else if (bMask.at<int>(centerY, centerX) > 0) det.color = "blue";
+    relCenterX = std::clamp(relCenterX, 0, rMask1.cols - 1);
+    relCenterY = std::clamp(relCenterY, 0, rMask1.rows - 1);
+
+    if (rMask1.at<int>(relCenterY, relCenterX) > 0) det.color = "red";
+    else if (bMask.at<int>(relCenterY, relCenterX) > 0) det.color = "blue";
     else det.color = "";
 
     for (const auto &t: tracked) {
         if (t.robot_id == det.id) {
             if (t.teamNumber.empty() && t.ocrCount < 6) {
-                // add forced amount of ocr runs
-                //det.teamNumber = getRobotLabel(det, hsv, config);
+                det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
     }
@@ -328,8 +333,11 @@ OutputData analyzeDetection(
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
 
     for (auto x = det.bounding_box.x; x < det.bounding_box.x + det.bounding_box.width; x++) {
+        int relX = std::clamp(x - det.bounding_box.x, 0, finalMask.cols - 1);
+       
         height = 0;
         for (auto y = topY; y < bottomY; y++) {
+            int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
             int color = finalMask.at<int>(y, centerX);
             if (color > 0) height++;
         }
