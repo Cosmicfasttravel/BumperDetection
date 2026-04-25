@@ -252,16 +252,14 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
             }
         }
     }
-std::cout << i << std::endl;
-    i++;
+
     if (det.color == "blue") result = config.teams.blueTeams[minIndex];
     if (det.color == "red") result = config.teams.redTeams[minIndex];
 
     if (minDist > config.ocr.lev_distance) {
         result = "";
     }
-std::cout << i << std::endl;
-    i++;
+
     return result;
     
 }
