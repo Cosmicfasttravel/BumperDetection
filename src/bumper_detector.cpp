@@ -446,7 +446,6 @@ int run()
             
             detectionScheduler(frame, detections, config);
 
-            int key = cv::waitKey(1);
 
             auto postprocess_end = std::chrono::high_resolution_clock::now();
             total_postprocess_time += std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -475,21 +474,24 @@ int run()
             cv::putText(frame, ss.str(), cv::Point(10, 50),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
 
-            if(sum/fps.size() <= 5 && frame_count >= 100) logger->warn("Deep stutter at " + std::to_string(sum/fps.size()) + "fps");
+            if(sum/static_cast<double>(fps.size()) <= 5 && frame_count >= 100) logger->warn("Stutter with " + std::to_string(sum/fps.size()) + "fps. At frame number " + std::to_string(frame_count) + " ");
 
-            if (config.modes.display) cv::imshow("detectEdgesBumper", frame);
+            if (config.modes.display) {
+                cv::imshow("", frame);
+
+                if (int key = cv::waitKey(1); key == 27)
+                {
+                    cv::waitKey(10);
+                    capturing = false;
+                    break;
+                }
+            }
 
             if (config.modes.write_frame_to_file)
             {
                 annotatedWriter.write(frame);
             }
 
-            if (key == 27)
-            {
-                cv::waitKey(10);
-                capturing = false;
-                break;
-            }
         }
 #ifndef WIN32
         rknn_destroy(ctx);

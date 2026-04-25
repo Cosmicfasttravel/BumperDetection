@@ -522,6 +522,5 @@ void clean(const Config& config) {
             fut.get();
         }
     }
-    thread_manager->shutdown();
 }
 
