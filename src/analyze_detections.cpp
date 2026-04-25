@@ -188,7 +188,6 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
             api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
             api->SetVariable("tessedit_char_whitelist", "0123456789");
-            api->SetSourceResolution(70);
             init = true;
         }
 
@@ -223,7 +222,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
         }
 
         api->SetImage(final.data, final.cols, final.rows, 1, final.step);
-
+        api->SetSourceResolution(70);
         char *outText = api->GetUTF8Text();
         std::string result(outText);
         delete[] outText;
