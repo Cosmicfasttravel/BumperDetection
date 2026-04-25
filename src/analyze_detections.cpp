@@ -340,7 +340,8 @@ OutputData analyzeDetection(
         int color = finalMask.at<uchar>(relY, relCenterX);
         if (color > 0) height++;
     }
-    
+    height = det.bounding_box.height;
+
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, dt);
 
