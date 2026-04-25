@@ -321,7 +321,7 @@ OutputData analyzeDetection(
     for (const auto &t: tracked) {
         if (t.robot_id == det.id) {
             if (t.teamNumber.empty() && t.ocrCount < 6) {
-                //det.teamNumber = getRobotLabel(det, hsv, config);
+                det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
     }
