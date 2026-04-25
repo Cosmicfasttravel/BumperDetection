@@ -152,7 +152,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     }
     Filter_Mutex.unlock();
 
-    return {x_coordinate, y_coordinate, z_coordinate};
+    return {filtered[0], filtered[1], filtered[2]};
 }
 
 std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
