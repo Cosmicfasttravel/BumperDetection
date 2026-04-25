@@ -347,7 +347,7 @@ OutputData analyzeDetection(
         height = 0;
         for (auto y = topY; y < bottomY; y++) {
             int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
-            uchar color = finalMask.at<uchar>(relY, relX);
+            uchar color = finalMask.at<uchar>(relY, centerX);
             if (color > 0) height++;
         }
         sum += height;
