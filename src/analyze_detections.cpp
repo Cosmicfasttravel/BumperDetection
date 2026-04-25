@@ -152,7 +152,7 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     }
     Filter_Mutex.unlock();
 
-    return {filtered[0], filtered[1], filtered[2]};
+    return {x_coordinate, y_coordinate, z_coordinate};
 }
 
 std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &config) {
@@ -340,8 +340,6 @@ OutputData analyzeDetection(
         int color = finalMask.at<uchar>(relY, relCenterX);
         if (color > 0) height++;
     }
-    height = det.bounding_box.height;
-
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, dt);
 
