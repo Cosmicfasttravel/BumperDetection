@@ -36,7 +36,8 @@ cmake .. -D CMAKE_BUILD_TYPE=RELEASE \
       -D WITH_FFMPEG=ON \
       -D WITH_GSTREAMER=ON \
       -D WITH_GTK=ON \
-      -D WITH_GTK_2_X=OFF
+      -D WITH_GTK_2_X=OFF \
+      -D WITH_CUDA=OFF
 
 make 
 sudo make install
