@@ -451,9 +451,10 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
     std::vector<std::future<OutputData> > futures;
     ocrCounter = 0;
     for (const auto &detection: detections) {
-        futures.push_back(thread_manager->enqueue([hsv, config, detection]() {
+        cv::Mat hsvCopy = hsv.clone();
+        futures.push_back(thread_manager->enqueue([hsvCopy, config, detection]() {
             try {
-                return analyzeDetection(hsv, detection, config, detection.meta.dt);
+                return analyzeDetection(hsvCopy, detection, config, detection.meta.dt);
             } catch (...) {
                 log("Problem occurred with thread scheduling", spdlog::level::warn);
                 return OutputData{};
