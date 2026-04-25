@@ -240,7 +240,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
     int minDist = INT_MAX;
     if (!result.empty() && std::ranges::all_of(result, ::isdigit)) {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             int d = {};
 
             if (det.color == "blue") d = levenshteinDist(result, config.teams.blueTeams[i]);
