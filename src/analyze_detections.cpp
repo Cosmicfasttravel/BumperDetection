@@ -269,6 +269,7 @@ OutputData analyzeDetection(
     double dt) {
     if (det.bounding_box.x < 0 || det.bounding_box.y < 0 || det.bounding_box.x + det.bounding_box.width > config.screen.
         width || det.bounding_box.y + det.bounding_box.height > config.screen.height) {
+        return {};
     }
     if (hsv.empty()) return OutputData{};
 
@@ -320,7 +321,7 @@ OutputData analyzeDetection(
     for (const auto &t: tracked) {
         if (t.robot_id == det.id) {
             if (t.teamNumber.empty() && t.ocrCount < 6) {
-                det.teamNumber = getRobotLabel(det, hsv, config);
+                //det.teamNumber = getRobotLabel(det, hsv, config);
             }
         }
     }
