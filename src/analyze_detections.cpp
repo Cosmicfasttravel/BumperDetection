@@ -182,12 +182,9 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
     if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
-            config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
-        if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng",
-                                                         tesseract::OEM_LSTM_ONLY);
-        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
-                                                         tesseract::OEM_TESSERACT_LSTM_COMBINED);
+        api->Init(
+            "/home/orangepi/BumperDetection/", "eng", tesseract::OEM_TESSERACT_ONLY);
+        
 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
