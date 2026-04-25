@@ -332,16 +332,14 @@ OutputData analyzeDetection(
     auto topY = det.bounding_box.y;
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
 
-    for (auto x = det.bounding_box.x; x < det.bounding_box.x + det.bounding_box.width; x++) {
-        int relX = std::clamp(x - det.bounding_box.x, 0, finalMask.cols - 1);
+    int relX = std::clamp(det.bounding_box.x + det.bounding_box.width, 0, finalMask.cols - 1);
        
-        height = 0;
-        for (auto y = topY; y < bottomY; y++) {
-            int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
-            int color = finalMask.at<int>(y, centerX);
-            if (color > 0) height++;
-        }
+    for (auto y = topY; y < bottomY; y++) {
+        int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
+        int color = finalMask.at<int>(y, centerX);
+        if (color > 0) height++;
     }
+    
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, dt);
 
