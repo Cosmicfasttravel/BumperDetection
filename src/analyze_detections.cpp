@@ -340,6 +340,7 @@ OutputData analyzeDetection(
         int color = finalMask.at<uchar>(relY, relCenterX);
         if (color > 0) height++;
     }
+    log("Height: " + height);
 
     std::vector<double> measurements = getMeasurements(getDistance(height, config), det, config, dt);
 
