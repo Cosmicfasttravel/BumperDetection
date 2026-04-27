@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#ifndef WIN32
+#ifdef __aarch64__
 #include "rknn_api.h"
 #endif
 #include "debug_log.h"
@@ -203,7 +203,7 @@ int run()
             config.modes.logging = false;
         }
 
-#ifndef WIN32
+#ifdef __aarch64__
         std::string model_path = config.input_paths.rknn_path;
         FILE *fp = fopen(model_path.c_str(), "rb");
         if (!fp)
@@ -254,7 +254,7 @@ int run()
 #endif
         if (!cap.isOpened())
         {
-#ifndef WIN32
+#ifdef __aarch64__
             rknn_destroy(ctx);
 #endif
             return -1;
@@ -273,7 +273,7 @@ int run()
         if (fpsVideo <= 0)
             fpsVideo = 15.0;
         int codec = {};
-#ifndef WIN32
+#ifndef __aarch64__
         codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
 #else
         codec = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
@@ -390,7 +390,7 @@ int run()
 
             auto inference_start = std::chrono::high_resolution_clock::now();
 
-#ifndef WIN32
+#ifdef __aarch64__
             rknn_input inputs[1];
             memset(inputs, 0, sizeof(inputs));
             inputs[0].index = 0;
@@ -407,7 +407,6 @@ int run()
             outputs_rknn[0].want_float = 1;
             rknn_outputs_get(ctx, 1, outputs_rknn, nullptr);
 #else
-
             cv::Mat blob;
             cv::dnn::blobFromImage(frame, blob, 1.0 / 255.0, cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true, false);
 
@@ -426,7 +425,7 @@ int run()
 
             int sizes[3] = {config.yolo.output_dimensions[0], config.yolo.output_dimensions[1], config.yolo.output_dimensions[2]};
             cv::Mat output_mat;
-#ifndef WIN32
+#ifdef __aarch64__
             cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
             output_mat = output_mat_buf.clone();
             std::vector outputs = {output_mat};
@@ -437,7 +436,7 @@ int run()
                 INPUT_WIDTH, INPUT_HEIGHT,
                 CONF_THRESHOLD, NMS_THRESHOLD);
 
-#ifndef WIN32
+#ifdef __aarch64__
             rknn_outputs_release(ctx, 1, outputs_rknn);
 #endif
 
@@ -498,7 +497,7 @@ int run()
             }
 
         }
-#ifndef WIN32
+#ifdef __aarch64__
         rknn_destroy(ctx);
 #endif
 

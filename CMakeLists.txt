@@ -74,16 +74,17 @@ endif ()
 
 target_link_libraries(BumperDetection
         ${OpenCV_LIBS}
+        ${TESS_LIBRARIES}
+        ${LEPT_LIBRARIES}
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
 )
 
-if (UNIX)
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm|aarch64")
     target_link_libraries(BumperDetection
             rknnrt
-            ${TESS_LIBRARIES}
-            ${LEPT_LIBRARIES}
+
     )
 endif ()
 
@@ -103,6 +104,8 @@ target_include_directories(run_yolo PRIVATE ${MOTCPP_INCLUDE_DIR})
 target_link_libraries(run_yolo
         BumperDetection 
         ${OpenCV_LIBS}
+        ${TESS_LIBRARIES}
+        ${LEPT_LIBRARIES}
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         Eigen3::Eigen
@@ -114,10 +117,8 @@ if(WIN32)
         )
 endif()
 
-if (UNIX)
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm|aarch64")
     target_link_libraries(run_yolo
-            ${TESS_LIBRARIES}
-            ${LEPT_LIBRARIES}
             rknnrt
     )
 endif ()
