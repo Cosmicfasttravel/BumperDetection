@@ -273,7 +273,7 @@ int run()
         if (fpsVideo <= 0)
             fpsVideo = 15.0;
         int codec = {};
-#ifndef __aarch64__
+#ifdef __aarch64__
         codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
 #else
         codec = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
