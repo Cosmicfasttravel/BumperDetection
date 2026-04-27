@@ -125,8 +125,8 @@
     },
 
     "input_paths": {
-        "rknn_path": "../bumper_yolov9_320x.rknn",
-        "onnx_path": "../modeltest/bumper_yolov9_320x320.onnx",
+        "rknn_path": "../models/LATEST.rknn",
+        "onnx_path": "../models/LATEST.onnx",
         "video_path": "../vids/5ft.MP4"
     }
 }
