@@ -26,7 +26,7 @@
         "lev_distance": 3,
         "max_instances": 3,
         "morphology_kernel_size": 3,
-        "mode": "lstmonly",
+        "mode": "tessonly",
         "min_img_size": 300,
 
         "mask_thresholds": {
@@ -37,7 +37,7 @@
             "saturation_upper": 170,
             "value_upper": 255
         },
-        "tessdata_path": "../"
+        "tessdata_path": "../models/"
     },
 
     "height_measurement": {

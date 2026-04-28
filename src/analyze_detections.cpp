@@ -175,7 +175,6 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
         api->End();
         api.reset();
 
-        cleanUp = false;
         init = false;
         
         return "-1";
