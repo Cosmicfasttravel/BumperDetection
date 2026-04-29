@@ -485,7 +485,6 @@ int run()
 
                 if (int key = cv::waitKey(1); key == 27)
                 {
-                    cv::waitKey(10);
                     capturing = false;
                     break;
                 }

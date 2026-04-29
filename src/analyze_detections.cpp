@@ -94,7 +94,8 @@ double getDistance(const double height, const Config &config) {
 std::mutex Filter_Mutex;
 static std::unordered_map<std::string, kalmanFilter> filters;
 
-std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) { //fix math
+std::vector<double> getMeasurements(double distance, const Detection &detection, const Config &config, double dt) {
+    //fix math
     if (dt <= 0.0 || dt > 1.0) dt = 0.0033;
 
     std::string id = detection.id;
@@ -159,9 +160,9 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     auto maxOCR = config.ocr.max_instances;
     if (ocrCounter >= maxOCR)
         return "";
-    
+
     ++ocrCounter;
-    
+
     if (det.color.empty())
         return "";
 
@@ -177,19 +178,22 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
 
         cleanUp = false;
         init = false;
-        
+
         return "-1";
     }
 
     if (!init) {
         api = std::make_unique<tesseract::TessBaseAPI>();
-        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly") api->Init(
-            config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
-        if (config.ocr.mode == "lstmonly") api->Init(config.ocr.tessdata_path.c_str(), "eng",
-                                                         tesseract::OEM_LSTM_ONLY);
-        if (config.ocr.mode == "combined") api->Init(config.ocr.tessdata_path.c_str(), "eng",
-                                                         tesseract::OEM_TESSERACT_LSTM_COMBINED);
-        
+        if (config.ocr.mode == "default" || config.ocr.mode == "tessonly")
+            api->Init(
+                config.ocr.tessdata_path.c_str(), "eng", tesseract::OEM_TESSERACT_ONLY);
+        if (config.ocr.mode == "lstmonly")
+            api->Init(config.ocr.tessdata_path.c_str(), "eng",
+                      tesseract::OEM_LSTM_ONLY);
+        if (config.ocr.mode == "combined")
+            api->Init(config.ocr.tessdata_path.c_str(), "eng",
+                      tesseract::OEM_TESSERACT_LSTM_COMBINED);
+
 
         api->SetPageSegMode(tesseract::PSM_SINGLE_WORD);
         api->SetVariable("tessedit_char_whitelist", "0123456789");
@@ -197,8 +201,9 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     }
 
     cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsv.cols, hsv.rows);
-    if (safeBB.empty()) { 
-        --ocrCounter; return ""; 
+    if (safeBB.empty()) {
+        --ocrCounter;
+        return "";
     }
     cv::Mat img = hsv(safeBB).clone();
 
@@ -208,7 +213,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
         img, cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
                         config.ocr.mask_thresholds.value_lower),
         cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
-                    config.ocr.mask_thresholds.value_upper), colorMask);
+                   config.ocr.mask_thresholds.value_upper), colorMask);
 
     if (colorMask.cols < config.ocr.min_img_size) {
         double scale = static_cast<float>(config.ocr.min_img_size) / static_cast<float>(colorMask.cols);
@@ -219,7 +224,7 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     cv::bitwise_not(colorMask, final);
 
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT,
-                                                cv::Size(config.ocr.morphology_kernel_size,
+                                               cv::Size(config.ocr.morphology_kernel_size,
                                                         config.ocr.morphology_kernel_size));
     cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
@@ -247,8 +252,8 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
             if (det.color == "red") d = levenshteinDist(result, config.teams.redTeams[i]);
 
             if (d < minDist) {
-                    minDist = d;
-                    minIndex = i;
+                minDist = d;
+                minIndex = i;
             }
         }
     }
@@ -261,7 +266,6 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
     }
 
     return result;
-    
 }
 
 OutputData analyzeDetection(
@@ -334,7 +338,7 @@ OutputData analyzeDetection(
 
     auto topY = det.bounding_box.y;
     auto bottomY = det.bounding_box.y + det.bounding_box.height;
-       
+
     for (auto y = topY; y < bottomY; y++) {
         int relY = std::clamp(y - det.bounding_box.y, 0, finalMask.rows - 1);
         int color = finalMask.at<uchar>(relY, relCenterX);
@@ -355,10 +359,9 @@ static std::unique_ptr<ThreadManager> thread_manager;
 
 void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
     tracked.reserve(5);
+    if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
 
     if (detections.empty()) return;
-
-    if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
 
     visibleIDs.clear();
 
