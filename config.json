@@ -102,11 +102,11 @@
     },
 
     "camera": {
-        "brightness": -1,
-        "contrast": -1,
+        "brightness": 75,
+        "contrast": 50,
         "hue": 0,
         "saturation": -1,
-        "gain": 0,
+        "gain": -1,
         "exposure": 0,
         "temperature": 4000,
         "auto_white_balance": 1,
