@@ -117,9 +117,9 @@ std::vector<double> getMeasurements(double distance, const Detection &detection,
     const double x_angle = (X_FOV / 2.0 * offset_x) * CV_PI / 180.0;
     const double y_angle = (Y_FOV / 2.0 * offset_y) * CV_PI / 180.0;
 
-    const double x_coordinate = (distance / 100.0) * cos(y_angle) * cos(x_angle);
-    const double y_coordinate = (distance / 100.0) * sin(x_angle);
-    const double z_coordinate = (distance / 100.0) * sin(y_angle) * cos(x_angle);
+    const double x_coordinate = (distance / 100.0) * sin(y_angle) * cos(x_angle);
+    const double y_coordinate = (distance / 100.0) * sin(y_angle) * sin(x_angle);
+    const double z_coordinate = (distance / 100.0) * cos(x_angle);
 
     cv::Vec3d filtered;
     filtered[0] = x_coordinate;
@@ -176,7 +176,6 @@ std::string getRobotLabel(Detection &det, const cv::Mat &hsv, const Config &conf
         api->End();
         api.reset();
 
-        cleanUp = false;
         init = false;
 
         return "-1";
@@ -376,7 +375,6 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
 
     cv::Mat hsv;
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
-
 
     //switch away from greedy tracking
     for (auto &det: detections) {

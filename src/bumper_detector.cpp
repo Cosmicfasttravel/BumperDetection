@@ -323,13 +323,8 @@ int run()
             auto frame_start = Clock::now();
             prev_frame_time = frame_start;
 
-#ifndef WIN32
             int INPUT_HEIGHT = config.yolo.input_dimensions;
             int INPUT_WIDTH = config.yolo.input_dimensions;
-#else
-            int INPUT_HEIGHT = config.yolo.input_dimensions;
-            int INPUT_WIDTH = config.yolo.input_dimensions;
-#endif
 
             float CONF_THRESHOLD = config.yolo.conf_threshold;
             float NMS_THRESHOLD = config.yolo.nms_threshold;
@@ -489,6 +484,8 @@ int run()
                     break;
                 }
             }
+
+
 
             if (config.modes.write_frame_to_file)
             {

@@ -19,7 +19,7 @@ sudo apt install tesseract-ocr libtesseract-dev
 Donwload eng.traineddata
 https://github.com/tesseract-ocr/tessdata/blob/main/eng.traineddata
 
-OPENCV  (RERUN)
+OPENCV  (rebuild)
 ---------------------------
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
      libswscale-dev libgstreamer1.0-dev \
