@@ -1,4 +1,4 @@
-﻿#include "analyze_detections.h"
+#include "analyze_detections.h"
 #include "debug_log.h"
 #include <deque>
 #include "config_extraction.h"
@@ -528,6 +528,6 @@ void clean(const Config &config) {
         for (auto &fut: futures) {
             fut.get();
         }
-        thread_manager->shutdown();
+        if (thread_manager) thread_manager->shutdown();
     }
 }
