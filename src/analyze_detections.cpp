@@ -357,6 +357,7 @@ OutputData analyzeDetection(
 static std::unique_ptr<ThreadManager> thread_manager;
 
 void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, const Config &config) {
+
     tracked.reserve(5);
     if (!thread_manager) thread_manager = std::make_unique<ThreadManager>(config.thread_pool_size);
 
@@ -386,7 +387,6 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
 
         for (auto &t: tracked) {
             if (t.used)
-
                 continue;
 
             double dx = centerX - t.x;

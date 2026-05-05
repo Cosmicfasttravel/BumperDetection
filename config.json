@@ -26,7 +26,7 @@
         "lev_distance": 3,
         "max_instances": 3,
         "morphology_kernel_size": 3,
-        "mode": "tessonly",
+        "mode": "lstmonly",
         "min_img_size": 300,
 
         "mask_thresholds": {
@@ -94,7 +94,7 @@
     "modes": {
         "_comments": "try to not modify these during runtime",
         "display": true,
-        "video": true,
+        "video": false,
         "write_frame_to_file": false,
         "dynamic_camera_properties_updating": true,
         "cam_tuning": false,
