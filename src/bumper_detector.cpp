@@ -485,8 +485,6 @@ int run()
                 }
             }
 
-
-
             if (config.modes.write_frame_to_file)
             {
                 annotatedWriter.write(frame);
