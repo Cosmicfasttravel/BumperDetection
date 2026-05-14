@@ -9,7 +9,7 @@ The goal of this project is to detect robot bumpers and estimate the position an
 - This branch is for information purposes
 
 ## **OrangePi5**
-- This branch is for development on the Orange PI 5 RK3588, this branch will **NOT** work with other devices
+- This branch is for development on the Orange PI 5 RK3588, this branch will **NOT** work with any other devices including other Orange Pis without the RK3588 processor
 - This branch **may** have issues but is ***more stable*** than the **GPU** branch and has more features
 
 ## **GPU**
