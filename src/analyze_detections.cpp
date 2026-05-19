@@ -450,8 +450,8 @@ void detectionScheduler(cv::Mat &frame, std::vector<Detection> &detections, cons
         } else
             ++it;
     }
-    for (const auto &det: detections) {
-        visibleIDs.emplace_back(det.id);
+    for (const auto &t: tracked) {
+        visibleIDs.emplace_back(t.robot_id);
     }
     std::vector<OutputData> results = {};
 

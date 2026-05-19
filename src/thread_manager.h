@@ -6,9 +6,7 @@
 #include <queue>
 #include <condition_variable>
 #include <functional>
-#include <tesseract/baseapi.h>
 #include <optional>
-#include <leptonica/allheaders.h>
 #include <future>
 #include <algorithm>
 
