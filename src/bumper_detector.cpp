@@ -7,9 +7,6 @@
 #include <chrono>
 #include <iomanip>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
 #ifdef __aarch64__
 #include "rknn_api.h"
 #endif
@@ -18,7 +15,6 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
-#include "tesseract/baseapi.h"
 #include "config_extraction.h"
 
 cv::Mat latestFrame;
@@ -418,9 +414,9 @@ int run()
 
             auto postprocess_start = std::chrono::high_resolution_clock::now();
 
-            int sizes[3] = {config.yolo.output_dimensions[0], config.yolo.output_dimensions[1], config.yolo.output_dimensions[2]};
             cv::Mat output_mat;
 #ifdef __aarch64__
+            int sizes[3] = {config.yolo.output_dimensions[0], config.yolo.output_dimensions[1], config.yolo.output_dimensions[2]};
             cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
             output_mat = output_mat_buf.clone();
             std::vector outputs = {output_mat};
