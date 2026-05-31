@@ -10,7 +10,7 @@
 #include <future>
 #include <algorithm>
 
-#include "debug_log.h"
+#include "logger.h"
 
 
 class ThreadManager
@@ -21,7 +21,6 @@ public:
         if (!Num_Threads.has_value()) Num_Threads = thread_count;
         if (thread_count > std::thread::hardware_concurrency()) {
             Num_Threads = std::thread::hardware_concurrency();
-            logger->critical("Too many threads specified, defaulting to 1...");
         }
         if (thread_count < 1) {
             Num_Threads = 1;
