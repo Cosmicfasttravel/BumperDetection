@@ -1,11 +1,11 @@
-﻿#include "config_extraction.h"
+﻿#include "./config_extraction.h"
 
 #include <filesystem>
 #include <functional>
 #include <ostream>
 #include <fstream>
 #include <iostream>
-#include "logger.h"
+#include "../../log/logger.h"
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 

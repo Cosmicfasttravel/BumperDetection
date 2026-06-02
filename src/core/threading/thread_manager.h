@@ -10,7 +10,7 @@
 #include <future>
 #include <algorithm>
 
-#include "logger.h"
+#include "../../log/logger.h"
 
 
 class ThreadManager
@@ -110,7 +110,7 @@ public:
         }
     }
 
-    std::optional<int> Num_Threads;
+    inline std::optional<int> Num_Threads;
 private:
     std::vector<std::thread> Pool;
 
