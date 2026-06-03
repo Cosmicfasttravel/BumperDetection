@@ -151,6 +151,7 @@ add_library(BumperDetection STATIC)
 if (BUILD_CORE)
     target_sources(BumperDetection PRIVATE src/core/kalman/kalman_filter.cpp)
     target_sources(BumperDetection PRIVATE src/core/config/config_extraction.cpp)
+    target_sources(BumperDetection PRIVATE src/core/threading/thread_manager.cpp)
 
     target_include_directories(BumperDetection PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS})

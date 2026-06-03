@@ -1,7 +1,9 @@
 ﻿#include "./kalman_filter.h"
 #include <opencv2/core/mat.hpp>
 
-kalmanFilter::kalmanFilter(double processNoise, double measurementNoise, double error) : deltaTime(0) {
+kalmanFilter::kalmanFilter() : deltaTime(0) {
+    const Config& k_config = config::getRef();
+
     kf.init(6, 3, 0, CV_64F);
 
     kf.transitionMatrix = (cv::Mat_<double>(6, 6) <<
@@ -19,13 +21,25 @@ kalmanFilter::kalmanFilter(double processNoise, double measurementNoise, double 
                             0, 0, 1, 0, 0, 0
     );
 
-    cv::setIdentity(kf.processNoiseCov, cv::Scalar(processNoise)); //motion
-    cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(measurementNoise)); //noise
-    cv::setIdentity(kf.errorCovPost, cv::Scalar(error)); //measurement variance
+
+}
+
+void kalmanFilter::init() {
+    if (configVersion < config::getVersion()) {
+
+        const Config& k_config = config::getRef();
+        configVersion = config::getVersion();
+
+        cv::setIdentity(kf.processNoiseCov, cv::Scalar(k_config.position_kalman.process_noise)); //motion
+        cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(k_config.position_kalman.measurement_noise)); //noise
+        cv::setIdentity(kf.errorCovPost, cv::Scalar(k_config.position_kalman.error)); //measurement variance
+    }
 }
 
 cv::Vec3d kalmanFilter::update(double x, double y, double z, double dt)
 {
+    init();
+
     deltaTime = dt;
 
     if (!initialized) {
