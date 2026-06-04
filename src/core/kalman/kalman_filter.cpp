@@ -1,9 +1,8 @@
 ﻿#include "./kalman_filter.h"
+
 #include <opencv2/core/mat.hpp>
 
-kalmanFilter::kalmanFilter() : deltaTime(0) {
-    const Config& k_config = config::getRef();
-
+kalmanFilter::kalmanFilter() : k_config(), deltaTime(0) {
     kf.init(6, 3, 0, CV_64F);
 
     kf.transitionMatrix = (cv::Mat_<double>(6, 6) <<
@@ -20,15 +19,11 @@ kalmanFilter::kalmanFilter() : deltaTime(0) {
                             0, 1, 0, 0, 0, 0,
                             0, 0, 1, 0, 0, 0
     );
-
-
 }
 
 void kalmanFilter::init() {
-    if (configVersion < config::getVersion()) {
-
-        const Config& k_config = config::getRef();
-        configVersion = config::getVersion();
+    if (config::checkConfigVersion(k_config)) {
+        k_config = config::getLatestCopy();
 
         cv::setIdentity(kf.processNoiseCov, cv::Scalar(k_config.position_kalman.process_noise)); //motion
         cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(k_config.position_kalman.measurement_noise)); //noise

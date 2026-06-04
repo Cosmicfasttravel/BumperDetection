@@ -1,20 +1,24 @@
 ﻿#include "./config_extraction.h"
 
 #include <filesystem>
-#include <functional>
-#include <ostream>
 #include <fstream>
+#include <functional>
 #include <iostream>
-#include "../../log/logger.h"
+
 #include <nlohmann/json.hpp>
+
+#include "../../log/logger.h"
+
 using json = nlohmann::json;
 
 namespace {
     const std::filesystem::path RELATIVE_CONFIG_PATH = "../config.json";
-    std::filesystem::path ABSOLUTE_CONFIG_PATH = "";
+    std::filesystem::path ABSOLUTE_CONFIG_PATH;
 
     Config robotConfig;
     std::filesystem::file_time_type prevTime{};
+
+    std::mutex lockMutex;
 }
 
 std::once_flag absolutePathResolvedFlag;
@@ -60,7 +64,9 @@ static bool load() {
     return false;
 }
 
+
 bool tryUpdate() {
+    std::lock_guard<std::mutex> lock(lockMutex);
     resolveAbsolutePath();
 
     try {
@@ -75,10 +81,16 @@ bool tryUpdate() {
     return false;
 }
 
-const Config &getRef() {
+Config getLatestCopy() {
+    std::lock_guard<std::mutex> lock(lockMutex);
     return robotConfig;
 }
 
 uint64_t getVersion() {
+    std::lock_guard<std::mutex> lock(lockMutex);
     return robotConfig.version;
+}
+
+bool checkConfigVersion(const Config& config) {
+    return config.version != getVersion();
 }

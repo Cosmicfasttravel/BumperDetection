@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <array>
+
 #include <nlohmann/json.hpp>
 
 struct Bumper
@@ -119,21 +120,21 @@ struct InputPaths {
 
 struct Config
 {
-    Bumper bumper;
-    Screen screen;
-    Kalman position_kalman;
+    Bumper bumper{};
+    Screen screen{};
+    Kalman position_kalman{};
     OCR ocr;
-    HeightMeasurement height_measurement;
-    int thread_pool_size;
+    HeightMeasurement height_measurement{};
+    int thread_pool_size{};
     NetworkTables nt;
-    Yolo yolo;
+    Yolo yolo{};
     Teams teams;
-    Modes modes;
-    Camera camera;
-    Tracking tracking;
+    Modes modes{};
+    Camera camera{};
+    Tracking tracking{};
     InputPaths input_paths;
 
-    uint64_t version;
+    uint64_t version = 0;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Bumper,

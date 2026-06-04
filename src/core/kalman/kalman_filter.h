@@ -1,6 +1,8 @@
 ﻿#ifndef BUMPERDETECTION_KALMANFILTER_H
 #define BUMPERDETECTION_KALMANFILTER_H
+
 #include <opencv2/video/tracking.hpp>
+
 #include "../config/config_extraction.h"
 
 class kalmanFilter {
@@ -13,11 +15,11 @@ private:
     void init();
 
     cv::KalmanFilter kf;
+    Config k_config;
 
     double deltaTime;
 
     bool initialized = false;
-    uint64_t configVersion = 0;
 };
 
 #endif

@@ -1,5 +1,6 @@
 #ifndef BUMPERDETECTION_DEBUG_LOG_H
 #define BUMPERDETECTION_DEBUG_LOG_H
+
 #include "spdlog/sinks/basic_file_sink.h"
 
 namespace logging {

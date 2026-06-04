@@ -1,9 +1,11 @@
 #include "../log/logger.h"
-#include "../core/config/config_extraction.h"
+
 #include <chrono>
 #include <iostream>
 
 #include "spdlog/spdlog.h"
+
+#include "../core/config/config_extraction.h"
 
 inline std::shared_ptr<spdlog::logger> logger;
 
@@ -25,10 +27,12 @@ void ensureLogger() {
 }
 
 void write(const std::string &text, const spdlog::level::level_enum lvl) {
+    static Config config;
+    if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
     ensureLogger();
 
-    if (!config::getRef().modes.logging) return;
+    if (!config.modes.logging) return;
     if (text.empty()) return;
 
     logger->log(lvl, text);

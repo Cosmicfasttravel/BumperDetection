@@ -1,5 +1,6 @@
 #ifndef BUMPERDETECTION_THREADMANAGER_H
 #define BUMPERDETECTION_THREADMANAGER_H
+
 #include <thread>
 #include <vector>
 #include <mutex>
@@ -56,7 +57,6 @@ private:
     std::optional<int> Num_Threads;
 
     std::vector<std::thread> Pool;
-
 
     std::mutex Queue_Mutex;
     std::queue<std::function<void()> > Queue;
