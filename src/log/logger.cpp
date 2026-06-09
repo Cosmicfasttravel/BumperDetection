@@ -1,11 +1,11 @@
-#include "../log/logger.h"
+#include "log/logger.h"
 
 #include <chrono>
 #include <iostream>
 
 #include "spdlog/spdlog.h"
 
-#include "../core/config/config_extraction.h"
+#include "global/build_info.h"
 
 inline std::shared_ptr<spdlog::logger> logger;
 
@@ -17,22 +17,20 @@ void initLogger() {
         std::cout << "Log init failed: " << ex.what() << std::endl;
     }
     spdlog::flush_every(std::chrono::seconds(3));
-
 }
 
 void ensureLogger() {
     std::call_once(loggerInitFlag, [] {
+        if constexpr (!build_info::logger) spdlog::set_level(spdlog::level::off);
         initLogger();
     });
 }
 
 void write(const std::string &text, const spdlog::level::level_enum lvl) {
-    static Config config;
-    if (config::checkConfigVersion(config)) config = config::getLatestCopy();
-
     ensureLogger();
 
-    if (!config.modes.logging) return;
+    if (!logger) return;
+
     if (text.empty()) return;
 
     logger->log(lvl, text);

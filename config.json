@@ -90,17 +90,6 @@
         "245",
         "1307"
     ],
-
-    "modes": {
-        "_comments": "try to not modify these during runtime",
-        "display": true,
-        "video": false,
-        "write_frame_to_file": false,
-        "dynamic_camera_properties_updating": true,
-        "cam_tuning": false,
-        "logging": true
-    },
-
     "camera": {
         "brightness": 75,
         "contrast": 50,

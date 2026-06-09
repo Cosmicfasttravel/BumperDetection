@@ -1,4 +1,4 @@
-﻿#include "./config_extraction.h"
+﻿#include "core/config/config_extraction.h"
 
 #include <filesystem>
 #include <fstream>
@@ -7,7 +7,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "../../log/logger.h"
+#include "log/logger.h"
 
 using json = nlohmann::json;
 

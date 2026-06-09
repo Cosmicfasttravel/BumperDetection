@@ -21,28 +21,17 @@ unset(BUILD_LOGGER CACHE)
 option(BUILD_CORE "Build the core engine" ON)
 option(BUILD_TESS "Build the optional tesseract module" OFF)
 option(BUILD_NT "Build the optional network tables module" OFF)
-option(BUILD_TRACK "Build the optional WebUI module" OFF)
+option(BUILD_TRACK "Build the optional tracking module" OFF)
 option(BUILD_WEBUI "Build the optional WebUI module" OFF)
 option(BUILD_LOGGER "Build the optional Logger module" ON)
 
-unset(_WIN CACHE)
-unset(_OPI CACHE)
-unset(_LINUX CACHE)
-
-option(_WIN "Build for windows" ON)
-option(_OPI "Build for the orange pi" OFF)
-option(_LINUX "Build for linux" OFF)
-
-if (_WIN)
-    unset(_OPI CACHE)
-    unset(_LINUX CACHE)
-elseif (_OPI)
-    unset(_WIN CACHE)
-    unset(_LINUX CACHE)
-elseif (_LINUX)
-    unset(_WIN CACHE)
-    unset(_OPI CACHE)
-endif ()
+unset(INFERENCE_BACKEND CACHE)
+set(INFERENCE_BACKEND "CPU" CACHE STRING "Inference backend") # Must type exactly the backend
+set_property(CACHE INFERENCE_BACKEND PROPERTY STRINGS
+        CPU
+        NVIDIA_GPU
+        RKNN_NPU
+)
 
 message(STATUS "----------------------------------------")
 message(STATUS " Configuration Summary:")
@@ -53,10 +42,7 @@ message(STATUS "   Tracking Module: ${BUILD_TRACK}")
 message(STATUS "   WebUI Module: ${BUILD_WEBUI}")
 message(STATUS "   Logger Module: ${BUILD_LOGGER}")
 message(STATUS "----------------------------------------")
-message(STATUS " Compiling device:")
-message(STATUS "   WIN: ${_WIN}")
-message(STATUS "   ORANGE PI: ${_OPI}")
-message(STATUS "   LINUX: ${_LINUX}")
+message(STATUS " Target device: " ${INFERENCE_BACKEND})
 message(STATUS "----------------------------------------")
 
 
@@ -75,13 +61,13 @@ endif ()
 if (BUILD_TESS)
     message(STATUS " Building Tesseract Module")
 
-    if (_OPI OR _LINUX)
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(LEPT REQUIRED lept)
         pkg_check_modules(TESS REQUIRED tesseract)
     endif ()
 
-    if (_WIN)
+    if (WIN32)
         set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
         find_package(Tesseract CONFIG REQUIRED)
         find_package(Leptonica CONFIG REQUIRED)
@@ -131,7 +117,6 @@ if (BUILD_WEBUI)
     message(STATUS " Building WebUI Module")
 
     message(STATUS " Built WebUI Module")
-
 endif ()
 
 if (BUILD_LOGGER)
@@ -148,32 +133,51 @@ message(STATUS " Adding library and linking...")
 
 add_library(BumperDetection STATIC)
 
+target_compile_definitions(
+        BumperDetection
+        PUBLIC
+        INFERENCE_BACKEND="${INFERENCE_BACKEND}"
+)
+
 if (BUILD_CORE)
     target_sources(BumperDetection PRIVATE src/core/kalman/kalman_filter.cpp)
     target_sources(BumperDetection PRIVATE src/core/config/config_extraction.cpp)
     target_sources(BumperDetection PRIVATE src/core/threading/thread_manager.cpp)
+    target_sources(BumperDetection PRIVATE src/global/internal/built_components.h)
 
     target_include_directories(BumperDetection PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+    target_compile_definitions(BumperDetection PUBLIC BUILD_CORE)
 endif ()
 if (BUILD_TESS)
     target_sources(BumperDetection PRIVATE src/tesseract)
+
+    target_compile_definitions(BumperDetection PUBLIC BUILD_TESS)
 endif ()
 if (BUILD_NT)
     target_sources(BumperDetection PRIVATE src/network-tables)
+
+    target_compile_definitions(BumperDetection PUBLIC BUILD_NT)
 endif ()
 if (BUILD_TRACK)
     target_sources(BumperDetection PRIVATE src/tracking)
     target_include_directories(BumperDetection PRIVATE ${MOTCPP_INCLUDE_DIR})
+
+    target_compile_definitions(BumperDetection PUBLIC BUILD_TRACK)
 endif ()
 if (BUILD_WEBUI)
     target_sources(BumperDetection PRIVATE src/webui)
+
+    target_compile_definitions(BumperDetection PUBLIC BUILD_WEBUI)
 endif ()
 if (BUILD_LOGGER)
     target_sources(BumperDetection PRIVATE src/log/logger.cpp)
+
+    target_compile_definitions(BumperDetection PUBLIC BUILD_LOGGER)
 endif ()
 
-if (_OPI OR _LINUX)
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_include_directories(BumperDetection PUBLIC
             ${LEPT_INCLUDE_DIRS}
             ${TESS_INCLUDE_DIRS}
@@ -199,7 +203,7 @@ if (BUILD_LOGGER)
 endif ()
 
 if (BUILD_TESS)
-    if (_OPI OR _LINUX)
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
         target_link_libraries(BumperDetection PUBLIC
                 ${TESS_LIBRARIES}
@@ -208,7 +212,7 @@ if (BUILD_TESS)
 
     endif ()
 
-    if (_WIN)
+    if (WIN32)
         target_include_directories(BumperDetection PUBLIC
                 ${Tesseract_INCLUDE_DIRS}
         )
@@ -218,7 +222,7 @@ if (BUILD_TESS)
     endif ()
 endif ()
 
-if (_OPI)
+if (INFERENCE_BACKEND STREQUAL "RKNN_NPU")
     target_link_libraries(BumperDetection PUBLIC rknnrt)
 endif ()
 

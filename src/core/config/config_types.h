@@ -79,16 +79,6 @@ struct Teams
     std::array<std::string, 3> redTeams;
 };
 
-struct Modes
-{
-    bool write_frame_to_file;
-    bool video;
-    bool display;
-    bool dynamic_camera_properties_updating;
-    bool cam_tuning;
-    mutable bool logging;
-};
-
 struct Camera
 {
     int brightness;
@@ -129,7 +119,6 @@ struct Config
     NetworkTables nt;
     Yolo yolo{};
     Teams teams;
-    Modes modes{};
     Camera camera{};
     Tracking tracking{};
     InputPaths input_paths;
@@ -191,15 +180,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Yolo,
     input_dimensions
 )
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modes,
-    write_frame_to_file,
-    video,
-    display,
-    dynamic_camera_properties_updating,
-    cam_tuning,
-    logging
-)
-
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Camera,
     brightness,
     exposure,
@@ -236,7 +216,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Config,
     thread_pool_size,
     nt,
     yolo,
-    modes,
     camera,
     tracking,
     input_paths

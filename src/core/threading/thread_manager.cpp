@@ -1,4 +1,4 @@
-﻿#include "./thread_manager.h"
+﻿#include "core/threading/thread_manager.h"
 
 ThreadManager::ThreadManager(int thread_count) {
     Num_Threads = std::clamp(
@@ -22,11 +22,10 @@ void ThreadManager::workerLoop() {
         std::function<void()> Job; {
             std::unique_lock<std::mutex> lock(Queue_Mutex);
 
-            condition.wait(lock, [this] { return stop || !Queue.empty(); });
-            if (stop &&Queue
-            .
-            empty()
-            )
+            condition.wait(lock, [this] {
+                return stop || !Queue.empty();
+            });
+            if (stop && Queue.empty())
                 return;
 
             Job = Queue.front();
@@ -37,12 +36,12 @@ void ThreadManager::workerLoop() {
 }
 
 void ThreadManager::addJob(const std::function<void()> &New_Job) { {
-    std::unique_lock<std::mutex> lock(Queue_Mutex);
-    if (stop)
-        return;
+        std::unique_lock<std::mutex> lock(Queue_Mutex);
+        if (stop)
+            return;
 
-    Queue.push(New_Job);
-}
+        Queue.push(New_Job);
+    }
     condition.notify_one();
 }
 

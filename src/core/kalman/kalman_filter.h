@@ -3,7 +3,7 @@
 
 #include <opencv2/video/tracking.hpp>
 
-#include "../config/config_extraction.h"
+#include "core/config/config_extraction.h"
 
 class kalmanFilter {
 public:
