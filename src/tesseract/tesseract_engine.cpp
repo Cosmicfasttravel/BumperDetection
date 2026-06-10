@@ -25,13 +25,13 @@ tesseract::TessBaseAPI& tesseract_engine::getTesseract() {
 
 bool tesseract_engine::initTesseractEngine() {
     try {
-        static std::atomic<bool> init = false;
+        static thread_local std::atomic<bool> init = false;
 
         updateConfig();
 
         if (init) return true;
 
-        thread_local auto& api = getTesseract();
+        auto& api = getTesseract();
 
         if (config.ocr.mode == "default" || config.ocr.mode == "tessonly")
             api.Init(
@@ -55,12 +55,14 @@ bool tesseract_engine::initTesseractEngine() {
     return true;
 }
 
-cv::Mat &tesseract_engine::proccessImage(const cv::Mat &hsvImage) {
+cv::Mat tesseract_engine::processImage(const cv::Mat &hsvImage) {
+    static cv::Mat emptyMat;
+
     // When the data structure for the detection is created ensure that these lines are performed (saves large performance)
     // cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsvImage.cols, hsvImage.rows);
     // if (safeBB.empty()) {
     //     --ocrCounter;
-    //     return {};
+    //     return emptyMat;
     // }
 
     cv::Mat colorMask;
@@ -84,9 +86,9 @@ cv::Mat &tesseract_engine::proccessImage(const cv::Mat &hsvImage) {
                                                         config.ocr.morphology_kernel_size));
     cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
 
-    if (final.empty() || final.cols <= 0 || final.rows <= 0) {
+    if ((final.empty() || final.cols <= 0 || final.rows <= 0)) {
         --ocrCounter;
-        return {};
+        return emptyMat;
     }
 
     return final;
@@ -180,7 +182,7 @@ std::string tesseract_engine::tesseractEngine(cv::Mat &img) { // Needs detection
     if (!initTesseractEngine()) {
         return "";
     }
-    cv::Mat finalImg = proccessImage(img); // Needs detection
+    cv::Mat finalImg = processImage(img); // Needs detection
     std::string result = extractText(finalImg);
     result = findMinDistance(result);
 

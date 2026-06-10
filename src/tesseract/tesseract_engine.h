@@ -21,7 +21,7 @@ private:
 
     bool initTesseractEngine();
 
-    cv::Mat &proccessImage(const cv::Mat &hsvImage);
+    cv::Mat processImage(const cv::Mat &hsvImage);
 
     tesseract::TessBaseAPI& getTesseract();
 
