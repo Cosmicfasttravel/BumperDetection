@@ -1,4 +1,4 @@
-﻿#ifndef BUMPERDETECTION_CONFIG_EXTRACTION_H
+#ifndef BUMPERDETECTION_CONFIG_EXTRACTION_H
 #define BUMPERDETECTION_CONFIG_EXTRACTION_H
 
 #include "core/config/config_types.h"
@@ -7,7 +7,6 @@ namespace config {
 
     Config getLatestCopy();
     bool tryUpdate();
-    uint64_t getVersion();
     bool checkConfigVersion(const Config& config);
 
 }
