@@ -1,6 +1,7 @@
 ﻿#ifndef BUMPERDETECTION_TESSERACT_ENGINE_H
 #define BUMPERDETECTION_TESSERACT_ENGINE_H
 #include <atomic>
+#include <mutex>
 #include <tesseract/baseapi.h>
 #include <leptonica/allheaders.h>
 #include <opencv2/core/mat.hpp>
@@ -13,23 +14,22 @@ public:
     tesseract_engine();
     ~tesseract_engine();
 
-    std::string tesseractEngine(cv::Mat &img);
+    std::string tesseractEngine(const cv::Mat &img);
 
 private:
-    static Config config;
     static std::atomic<int> ocrCounter;
+    static std::mutex ocrMutex;
 
-    bool initTesseractEngine();
+    bool initTesseractEngine(const Config &config);
 
-    cv::Mat processImage(const cv::Mat &hsvImage);
+    cv::Mat processImage(const Config &config ,const cv::Mat &hsvImage);
 
     tesseract::TessBaseAPI& getTesseract();
 
-    std::string extractText(cv::Mat &img);
-    std::string findMinDistance(std::string text);
+    std::string extractText(const Config &config, cv::Mat &img);
+    std::string findMinDistance(const Config &config, std::string text);
 
     static int levDistance(const std::string &s1, const std::string &s2);
-    static void updateConfig();
 
     void cleanTesseractEngine();
 };
