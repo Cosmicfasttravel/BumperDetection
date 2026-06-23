@@ -44,7 +44,6 @@ struct MaskThresholds
 struct OCR
 {
     double lev_distance;
-    int max_instances;
     int morphology_kernel_size;
     std::string mode;
     int min_img_size;
@@ -156,7 +155,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaskThresholds,
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OCR,
     lev_distance,
-    max_instances,
     morphology_kernel_size,
     mode,
     min_img_size,

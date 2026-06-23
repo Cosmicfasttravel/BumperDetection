@@ -186,7 +186,7 @@ std::string tesseract_engine::findMinDistance(const Config &config, std::string 
             }
         }
     }
-    // Needs correct detection data structure
+    // Needs correct detection data structure and reworked config structure
     // if (det.color == "blue") text = config.teams.blueTeams[minIndex];
     // if (det.color == "red") text = config.teams.redTeams[minIndex];
 

@@ -27,7 +27,8 @@ private:
     tesseract::TessBaseAPI& getTesseract();
 
     std::string extractText(const Config &config, cv::Mat &img);
-    std::string findMinDistance(const Config &config, std::string text);
+
+    static std::string findMinDistance(const Config &config, std::string text);
 
     static int levDistance(const std::string &s1, const std::string &s2);
 

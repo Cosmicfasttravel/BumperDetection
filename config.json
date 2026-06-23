@@ -17,14 +17,13 @@
 
     "position_kalman": {
         "_comments": "Centimeters",
-        "process_noise": 100,
-        "measurement_noise": 100,
+        "process_noise": 50,
+        "measurement_noise": 50,
         "error": 20
     },
 
     "ocr": {
         "lev_distance": 3,
-        "max_instances": 3,
         "morphology_kernel_size": 3,
         "mode": "tessonly",
         "min_img_size": 300,

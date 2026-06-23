@@ -1,0 +1,9 @@
+﻿#ifndef BUMPERDETECTION_VIDEO_CAPTURE_H
+#define BUMPERDETECTION_VIDEO_CAPTURE_H
+
+
+class video_capture {
+};
+
+
+#endif //BUMPERDETECTION_VIDEO_CAPTURE_H
