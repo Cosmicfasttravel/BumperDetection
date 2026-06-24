@@ -12,7 +12,8 @@
         "x_fov": 70,
         "y_fov": 39.5,
         "rotation": 0,
-        "frame_skip": 1
+        "frame_skip": 1,
+        "target_fps": 60
     },
 
     "position_kalman": {

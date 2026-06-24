@@ -21,6 +21,7 @@ struct Screen
 
     int rotation;
     int frame_skip;
+    int target_fps;
 };
 
 struct Kalman
@@ -135,7 +136,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Screen,
     x_fov,
     y_fov,
     rotation,
-    frame_skip
+    frame_skip,
+    target_fps
 )
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Kalman,

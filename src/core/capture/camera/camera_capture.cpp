@@ -3,6 +3,7 @@
 #include "core/config/config_extraction.h"
 #include "global/internal/built_os.h"
 #include "log/logger.h"
+#include "../video/video_capture.h"
 
 camera_capture::camera_capture() = default;
 
@@ -29,8 +30,7 @@ void camera_capture::configureCaptureComponent() {
         if (build_info::is_windows) cap.open(0, cv::CAP_DSHOW);
         else cap.open(0, cv::CAP_V4L2);
         videoMode = false;
-    }
-    else {
+    } else {
         logging::write("VideoPath is filled, switching to video mode");
         cap.open(videoPath);
         videoMode = true;
@@ -42,20 +42,8 @@ void camera_capture::configureCaptureComponent() {
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
     cap.set(cv::CAP_PROP_FPS, 60);
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
-}
 
-cv::Mat camera_capture::retrieveLatestFrame() {
-    cv::Mat frame;
-
-    {
-        std::lock_guard<std::mutex> lock(frameMutex);
-        if (currentFrame.empty()) return frame;
-        frame = currentFrame.clone();
-    }
-
-    if (config::tryUpdate()) {
-        const auto config = config::getLatestCopy();
-
+    if (config::checkConfigVersion(config)) {
         cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
         cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
         cap.set(cv::CAP_PROP_HUE, config.camera.hue);
@@ -67,7 +55,14 @@ cv::Mat camera_capture::retrieveLatestFrame() {
         cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
     }
+}
 
+cv::Mat camera_capture::retrieveLatestFrame() {
+    cv::Mat frame; {
+        std::lock_guard<std::mutex> lock(frameMutex);
+        if (currentFrame.empty()) return frame;
+        frame = currentFrame.clone();
+    }
     return frame;
 }
 
@@ -79,8 +74,11 @@ void camera_capture::capture(cv::VideoCapture &capture) {
         capture.read(frame);
 
         if (!frame.empty()) {
-            std::lock_guard<std::mutex> lock(frameMutex);
-            currentFrame = frame.clone();
+            {
+                std::lock_guard<std::mutex> lock(frameMutex);
+                currentFrame = frame.clone();
+            }
+            video_capture::pushFrame(currentFrame);
         }
     }
 }
