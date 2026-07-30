@@ -33,31 +33,30 @@ namespace measurements {
         const Config config = config::getLatestCopy();
         thread_local cv::Rect boundingBox = bound;
 
-        const double SCREEN_HEIGHT = config.screen.height;
-        const double SCREEN_WIDTH = config.screen.width;
+        double max_cord_x = 1280.0 / 2.0;
+        double max_cord_y = 720.0 / 2.0;
 
-        const double X_FOV = config.screen.x_fov;
-        const double Y_FOV = config.screen.y_fov;
+        double abs_bounding_x = boundingBox.x + (0.5 * boundingBox.width);
+        double abs_bounding_y = boundingBox.y + (boundingBox.height);
 
-        const double max_cord_x = SCREEN_WIDTH / 2.0;
-        const double max_cord_y = SCREEN_HEIGHT / 2.0;
+        double fx = max_cord_x / tan((config.screen.x_fov / 2.0) * CV_PI / 180.0);
+        double fy = max_cord_y / tan((config.screen.y_fov / 2.0) * CV_PI / 180.0);
 
-        const double middle_bound_x = boundingBox.x + (0.5 * boundingBox.width);
-        const double bottom_bound_y = boundingBox.y + boundingBox.height;
+        double pixel_offset_x = abs_bounding_x - max_cord_x;
+        double pixel_offset_y = abs_bounding_y - max_cord_y;
 
-        const double offset_x = (middle_bound_x - max_cord_x) / max_cord_x;
-        const double offset_y = (bottom_bound_y - max_cord_y) / max_cord_y;
+        double d_left_right = pixel_offset_x / fx;
+        double d_up_down    = pixel_offset_y / fy;
+        double d_forward    = 1.0;
 
-        const double x_angle = (X_FOV / 2 * offset_x) * CV_PI / 180.0;
-        const double y_angle = (Y_FOV / 2 * offset_y) * CV_PI / 180.0;
+        double ray_length = sqrt(d_forward * d_forward + d_left_right * d_left_right + d_up_down * d_up_down);
 
-        const double distance = getDistance(measured_height);
-        if (distance == 0) return {};
+        double total_dist_m = measured_height / 100.0;
 
         Position3D position = {
-            (distance / 100.0) * sin(y_angle) * cos(x_angle), // If these don't work try cos(y) * cos(x)
-            (distance / 100.0) * sin(y_angle) * sin(x_angle), // cos(y) * sin(x)
-            (distance / 100.0) * cos(x_angle) // sin(y)
+            total_dist_m * (d_forward / ray_length),    // depth
+            total_dist_m * (d_left_right / ray_length), // left-right
+            total_dist_m * (d_up_down / ray_length)     // up-down
         };
 
         return position;
