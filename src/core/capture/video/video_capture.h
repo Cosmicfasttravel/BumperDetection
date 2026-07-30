@@ -16,7 +16,7 @@ public:
     static void pushFrame(const cv::Mat &frame);
 
 private:
-    bool captureMode = true;
+    bool captureMode = true; //needs config (probably separate)
     bool running = true;
 
     static std::mutex videoMutex;

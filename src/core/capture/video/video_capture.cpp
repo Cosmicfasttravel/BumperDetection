@@ -19,7 +19,7 @@ void video_capture::initializeVideoCapture() {
 void video_capture::configureVideoCapture() {
     if (!captureMode) return;
 
-    if (build_info::is_linux) codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+    if constexpr (build_info::is_linux) codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
     else codec = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
 
     const Config config = config::getLatestCopy();
@@ -31,7 +31,7 @@ void video_capture::configureVideoCapture() {
     int frame_width = static_cast<int>(config.screen.width);
     int frame_height = static_cast<int>(config.screen.height);
 
-    std::string filename = "./output/ouput.mp4";
+    std::string filename = "./output/output.mp4";
     writer.open(filename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
 }
 

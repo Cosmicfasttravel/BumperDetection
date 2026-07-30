@@ -233,3 +233,9 @@ add_executable(run_yolo src/exec/main.cpp)
 target_link_libraries(run_yolo PRIVATE BumperDetection)
 
 target_include_directories(run_yolo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+if(MSVC)
+    target_compile_options(BumperDetection PRIVATE /W4)
+else()
+    target_compile_options(BumperDetection PRIVATE -Wall -Wextra)
+endif()
