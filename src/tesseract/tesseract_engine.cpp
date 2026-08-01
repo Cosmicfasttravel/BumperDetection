@@ -6,6 +6,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "core/config/config_extraction.h"
+#include "core/detection/structure/detection_data.h"
 #include "global/internal/built_components.h"
 #include "log/logger.h"
 #include "spdlog/logger.h"
@@ -48,29 +49,22 @@ bool tesseract_engine::initTesseractEngine(const Config &config) {
     return true;
 }
 
-cv::Mat tesseract_engine::processImage(const Config &config, const cv::Mat &hsvImage) {
+cv::Mat tesseract_engine::processImage(const Config &config, const cv::Mat &hsvImage, Detection detection) {
     static cv::Mat emptyMat;
 
-    // When the data structure for the detection is created ensure that these lines are performed (saves large performance)
-    // cv::Rect safeBB = det.bounding_box & cv::Rect(0, 0, hsvImage.cols, hsvImage.rows);
-    // if (safeBB.empty()) {
-    //     return emptyMat;
-    // }
+    cv::Rect safeBB = detection.boundingBox & cv::Rect(0, 0, hsvImage.cols, hsvImage.rows);
+    if (safeBB.empty()) {
+        return emptyMat;
+    }
+    cv::Mat hsv = hsvImage(safeBB);
 
     cv::Mat colorMask;
 
-    cv::inRange(
-        hsvImage, cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
-                             config.ocr.mask_thresholds.value_lower),
-        cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
-                   config.ocr.mask_thresholds.value_upper), colorMask);
-
-    // Convert the above line to (once data structure has been created)
-    // cv::inRange(
-    // safeBB, cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
-    //                 config.ocr.mask_thresholds.value_lower),
-    // cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
-    //            config.ocr.mask_thresholds.value_upper), colorMask);
+    cv::inRange(hsv,
+        cv::Scalar(config.ocr.mask_thresholds.hue_lower, config.ocr.mask_thresholds.saturation_lower,
+    config.ocr.mask_thresholds.value_lower),
+    cv::Scalar(config.ocr.mask_thresholds.hue_upper, config.ocr.mask_thresholds.saturation_upper,
+    config.ocr.mask_thresholds.value_upper), colorMask);
 
     if (colorMask.cols < config.ocr.min_img_size) {
         double scale = static_cast<float>(config.ocr.min_img_size) / static_cast<float>(colorMask.cols);
@@ -169,16 +163,15 @@ int tesseract_engine::levDistance(const std::string &s1, const std::string &s2) 
     return verif[size1][size2];
 }
 
-std::string tesseract_engine::findMinDistance(const Config &config, std::string text) {
+std::string tesseract_engine::findMinDistance(const Config &config, std::string text, Detection detection) {
     int minIndex = 0;
 
     int minDist = INT_MAX;
     if (!text.empty() && std::ranges::all_of(text, ::isdigit)) {
         for (int i = 0; i < 3; i++) {
             int d = {};
-            // Needs correct detection data structure
-            // if (det.color == "blue") d = levDistance(text, config.teams.blueTeams[i]);
-            // if (det.color == "red") d = levDistance(text, config.teams.redTeams[i]);
+            if (detection.color == Color::BLUE) d = levDistance(text, config.teams.blueTeams[i]);
+            if (detection.color == Color::RED) d = levDistance(text, config.teams.redTeams[i]);
 
             if (d < minDist) {
                 minDist = d;
@@ -186,9 +179,9 @@ std::string tesseract_engine::findMinDistance(const Config &config, std::string 
             }
         }
     }
-    // Needs correct detection data structure and reworked config structure
-    // if (det.color == "blue") text = config.teams.blueTeams[minIndex];
-    // if (det.color == "red") text = config.teams.redTeams[minIndex];
+
+    if (detection.color == Color::BLUE) text = config.teams.blueTeams[minIndex];
+    if (detection.color == Color::RED) text = config.teams.redTeams[minIndex];
 
     if (minDist > config.ocr.lev_distance) {
         return "";
@@ -197,19 +190,18 @@ std::string tesseract_engine::findMinDistance(const Config &config, std::string 
     return text;
 }
 
-std::string tesseract_engine::tesseractEngine(const cv::Mat &img) {
-    // Needs detection data structure which is passed to the helper internal functions
+std::string tesseract_engine::tesseractEngine(const cv::Mat &img, Detection detection) {
     thread_local Config config = config::getLatestCopy();
 
     if (!initTesseractEngine(config)) {
         return "";
     }
 
-    cv::Mat finalImg = processImage(config, img); // Needs detection
+    cv::Mat finalImg = processImage(config, img, detection);
 
     std::string result;
     if (!finalImg.empty()) result = extractText(config, finalImg);
-    if (!result.empty()) result = findMinDistance(config, result);
+    if (!result.empty()) result = findMinDistance(config, result, detection);
 
     return result;
 }

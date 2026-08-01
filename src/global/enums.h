@@ -1,0 +1,10 @@
+﻿#ifndef BUMPERDETECTION_ENUMS_H
+#define BUMPERDETECTION_ENUMS_H
+
+enum Color {
+    RED,
+    BLUE,
+    NONE,
+};
+
+#endif //BUMPERDETECTION_ENUMS_H

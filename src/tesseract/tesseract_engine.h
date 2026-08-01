@@ -7,6 +7,7 @@
 #include <opencv2/core/mat.hpp>
 
 #include "core/config/config_types.h"
+#include "core/detection/structure/detection_data.h"
 
 class tesseract_engine {
 public:
@@ -14,7 +15,7 @@ public:
     tesseract_engine();
     ~tesseract_engine();
 
-    std::string tesseractEngine(const cv::Mat &img);
+    std::string tesseractEngine(const cv::Mat &img, Detection detection);
 
 private:
     static std::atomic<int> ocrCounter;
@@ -22,13 +23,13 @@ private:
 
     bool initTesseractEngine(const Config &config);
 
-    cv::Mat processImage(const Config &config ,const cv::Mat &hsvImage);
+    cv::Mat processImage(const Config &config ,const cv::Mat &hsvImage, Detection detection);
 
     tesseract::TessBaseAPI& getTesseract();
 
     std::string extractText(const Config &config, cv::Mat &img);
 
-    static std::string findMinDistance(const Config &config, std::string text);
+    static std::string findMinDistance(const Config &config, std::string text, Detection detection);
 
     static int levDistance(const std::string &s1, const std::string &s2);
 
