@@ -13,7 +13,9 @@
 
 namespace measurements {
     Position3D getXYZ(Detection detection, double measured_height) {
-        const Config config = config::getLatestCopy();
+        static Config config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) config = config::getLatestCopy();
+
         thread_local cv::Rect boundingBox = detection.boundingBox;
 
         double max_cord_x = 1280.0 / 2.0;
@@ -54,7 +56,8 @@ namespace measurements {
 
         auto bumperBoundingBox = hsvFrame(boundingBox);
 
-        const Config config = config::getLatestCopy();
+        static Config config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
         //Red thresholds
         const auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,
@@ -117,11 +120,12 @@ namespace measurements {
         cv::Mat redMask, redMask1;
         cv::Mat blueMask;
 
-        cv::Rect boundingBox = detection.boundingBox;
+        const cv::Rect& boundingBox = detection.boundingBox;
 
         auto bumperBoundingBox = hsv(boundingBox);
 
-        const Config config = config::getLatestCopy();
+        static Config config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
         //Red thresholds
         const auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,
@@ -160,7 +164,7 @@ namespace measurements {
                 countNonZero(blueMask) /
                 static_cast<double>(boundingBox.area());
 
-        if (redRatio >= blueRatio && redRatio >= 0.5) return Color::RED;
+        if (redRatio >= blueRatio && redRatio >= 0.5) return Color::RED; //make it a config
         if (redRatio <= blueRatio && blueRatio >= 0.5) return Color::BLUE;
         return Color::NONE;
 
@@ -176,7 +180,8 @@ namespace measurements {
         cv::Mat redMask, redMask1;
         cv::Mat blueMask;
 
-        const Config config = config::getLatestCopy();
+        static Config config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
         //Red thresholds
         const auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,

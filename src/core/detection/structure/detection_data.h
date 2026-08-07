@@ -3,6 +3,12 @@
 #include <opencv2/opencv.hpp>
 #include "global/enums.h"
 
+struct Position3D {
+    double x;
+    double y;
+    double z;
+};
+
 struct Detection{
     cv::Rect boundingBox;
 
@@ -10,6 +16,8 @@ struct Detection{
 
     int teamNumber;
     double confidence;
+
+    Position3D pos;
 };
 
 #endif //BUMPERDETECTION_DETECTION_DATA_H

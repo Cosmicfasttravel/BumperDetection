@@ -146,6 +146,10 @@ if (BUILD_CORE)
     target_sources(BumperDetection PRIVATE src/global/build_info.h)
     target_sources(BumperDetection PRIVATE src/core/capture/camera/camera_capture.cpp)
     target_sources(BumperDetection PRIVATE src/core/capture/video/video_capture.cpp)
+    target_sources(BumperDetection PRIVATE src/core/measurement/measurement.cpp)
+    target_sources(BumperDetection PRIVATE src/core/detection/detector/detector.cpp)
+    target_sources(BumperDetection PRIVATE src/core/detection/detector/process_detection.cpp)
+    target_sources(BumperDetection PRIVATE src/core/detection/structure/detection_data.h)
 
     target_include_directories(BumperDetection PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
@@ -239,3 +243,5 @@ if(MSVC)
 else()
     target_compile_options(BumperDetection PRIVATE -Wall -Wextra)
 endif()
+
+# EVERYTHING NEEDS LINKING
