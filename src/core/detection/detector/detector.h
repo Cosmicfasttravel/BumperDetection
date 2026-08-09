@@ -12,13 +12,13 @@ public:
     ~Detector();
 
     void initializeDetector();
-    std::vector<Detection> detect(const cv::Mat &img);
+    [[nodiscard]] std::vector<Detection> detect(const cv::Mat &img);
 
 private:
-    cv::dnn::Net net;
-
 #ifdef __aarch64__
     rknn_context ctx{}{};
+#else
+    cv::dnn::Net net;
 #endif
 
     bool initialized;

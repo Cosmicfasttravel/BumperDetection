@@ -3,11 +3,11 @@
 #include "opencv2/opencv.hpp"
 #include <queue>
 
-class video_capture {
+class VideoCapture {
 public:
 
-    video_capture();
-    ~video_capture();
+    VideoCapture();
+    ~VideoCapture();
 
     void writeToFile();
     void initializeVideoCapture();
@@ -16,8 +16,8 @@ public:
     static void pushFrame(const cv::Mat &frame);
 
 private:
-    bool captureMode = true; //needs config (probably separate)
     bool running = true;
+    bool initialized = false;
 
     static std::mutex videoMutex;
     static std::condition_variable frameCv;

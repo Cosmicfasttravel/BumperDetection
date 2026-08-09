@@ -2,6 +2,7 @@
 #include "process_detection.h"
 #include "core/config/config_extraction.h"
 #include "log/logger.h"
+#include <iostream>
 #include "global/build_info.h"
 
 
@@ -43,9 +44,10 @@ void Detector::initializeDetector() {
     }
     rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2;
     rknn_set_core_mask(ctx, core_mask);
+
     logging::write("RKNN Loaded sucessfully");
     initialized = true;
-#endif
+#else
     if (build_info::is_cpu) {
         std::string model_path = config.input_paths.onnx_path;
         net = cv::dnn::readNetFromONNX(model_path);
@@ -53,12 +55,14 @@ void Detector::initializeDetector() {
             return;
         }
         initialized = true;
+        logging::write("ONNX Loaded sucessfully");
     }
     INPUT_HEIGHT = config.yolo.input_dimensions;
     INPUT_WIDTH = config.yolo.input_dimensions;
 
     CONF_THRESHOLD = static_cast<float>(config.yolo.conf_threshold);
     NMS_THRESHOLD = static_cast<float>(config.yolo.nms_threshold);
+#endif
 }
 
 std::vector<Detection> Detector::detect(const cv::Mat &img) {
@@ -106,7 +110,7 @@ std::vector<Detection> Detector::detect(const cv::Mat &img) {
         CONF_THRESHOLD, NMS_THRESHOLD);
 
     rknn_outputs_release(ctx, 1, outputs_rknn);
-#endif
+#else
     if (build_info::is_cpu) {
         cv::Mat blob;
         cv::dnn::blobFromImage(img, blob, 1.0 / 255.0, cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(0, 0, 0), true,
@@ -121,6 +125,6 @@ std::vector<Detection> Detector::detect(const cv::Mat &img) {
             INPUT_WIDTH, INPUT_HEIGHT,
             CONF_THRESHOLD, NMS_THRESHOLD);
     }
-
+#endif
     return detections;
 }

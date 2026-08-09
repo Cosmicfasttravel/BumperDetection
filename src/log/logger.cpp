@@ -12,7 +12,7 @@ inline std::shared_ptr<spdlog::logger> logger;
 std::once_flag loggerInitFlag;
 void initLogger() {
     try {
-        logger = spdlog::basic_logger_mt("debug_log", "logs/debug-log.txt");
+        logger = spdlog::basic_logger_mt("debug_log", "../src/log/logs/debug-log.txt");
     } catch (const spdlog::spdlog_ex &ex) {
         std::cout << "Log init failed: " << ex.what() << std::endl;
     }
@@ -26,12 +26,14 @@ void ensureLogger() {
     });
 }
 
-void write(const std::string &text, const spdlog::level::level_enum lvl) {
-    ensureLogger();
+namespace logging {
+    void write(const std::string& text, spdlog::level::level_enum lvl) {
+        ensureLogger();
 
-    if (!logger) return;
+        if (!logger) return;
 
-    if (text.empty()) return;
+        if (text.empty()) return;
 
-    logger->log(lvl, text);
+        logger->log(lvl, text);
+    }
 }

@@ -8,7 +8,6 @@ namespace config {
     Config getLatestCopy();
     bool tryUpdate();
     bool checkConfigVersion(const Config& config);
-
 }
 
 #endif // BUMPERDETECTION_CONFIG_EXTRACTION_H

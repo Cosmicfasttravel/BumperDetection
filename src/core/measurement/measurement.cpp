@@ -12,7 +12,7 @@
 
 
 namespace measurements {
-    Position3D getXYZ(Detection detection, double measured_height) {
+    Position3D getXYZ(const Detection &detection, const double measured_height) {
         static Config config = config::getLatestCopy();
         if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
@@ -47,11 +47,11 @@ namespace measurements {
         return position;
     }
 
-    double getHeight(const cv::Mat &hsv, Detection &detection) {
+    double getHeight(const cv::Mat &hsv, const Detection &detection) {
         cv::Mat redMask, redMask1;
         cv::Mat blueMask;
 
-        cv::Mat hsvFrame = hsv;
+        const cv::Mat& hsvFrame = hsv;
         cv::Rect boundingBox = detection.boundingBox;
 
         auto bumperBoundingBox = hsvFrame(boundingBox);

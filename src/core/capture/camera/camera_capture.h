@@ -4,17 +4,20 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/opencv.hpp>
 
-class camera_capture {
+class CameraCapture {
 public:
-    camera_capture();
-    ~camera_capture();
+    CameraCapture();
+    ~CameraCapture();
 
-    void initializeCaptureComponent();
+    void initializeCameraCapture();
     cv::Mat retrieveLatestFrame();
+    void configureCaptureComponent();
     void shutdownCaptureComponent();
+    void runtimeConfigure();
 
 private:
     bool shutdown = true;
+    bool initialized = false;
     bool videoMode = false;
 
     std::mutex frameMutex;
@@ -26,7 +29,6 @@ private:
     cv::VideoCapture cap;
 
     void capture(cv::VideoCapture &capture);
-    void configureCaptureComponent();
 
 };
 

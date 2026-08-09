@@ -3,22 +3,24 @@
 #include "core/config/config_extraction.h"
 #include "global/internal/built_os.h"
 
-video_capture::video_capture() = default;
+std::mutex VideoCapture::videoMutex;
+std::condition_variable VideoCapture::frameCv;
+std::queue<cv::Mat> VideoCapture::frameQueue;
 
-video_capture::~video_capture() {
-    shutdownVideoCapture();
+VideoCapture::VideoCapture() = default;
+
+VideoCapture::~VideoCapture() {
+    if (initialized) shutdownVideoCapture();
 }
 
-void video_capture::initializeVideoCapture() {
-    if (!captureMode) return;
+void VideoCapture::initializeVideoCapture() {
     configureVideoCapture();
 
-    vidThread = std::thread(&video_capture::writeToFile, this);
+    vidThread = std::thread(&VideoCapture::writeToFile, this);
+    if (vidThread.joinable()) initialized = true;
 }
 
-void video_capture::configureVideoCapture() {
-    if (!captureMode) return;
-
+void VideoCapture::configureVideoCapture() {
     if constexpr (build_info::is_linux) codec = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
     else codec = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
 
@@ -35,7 +37,7 @@ void video_capture::configureVideoCapture() {
     writer.open(filename, codec, fpsVideo, cv::Size(frame_width, frame_height), true);
 }
 
-void video_capture::pushFrame(const cv::Mat &frame) { {
+void VideoCapture::pushFrame(const cv::Mat &frame) { {
         std::lock_guard lock(videoMutex);
         frameQueue.push(frame.clone());
 
@@ -46,7 +48,7 @@ void video_capture::pushFrame(const cv::Mat &frame) { {
     frameCv.notify_one();
 }
 
-void video_capture::writeToFile() {
+void VideoCapture::writeToFile() {
     while (true) {
         try {
             std::unique_lock lock(videoMutex);
@@ -74,7 +76,7 @@ void video_capture::writeToFile() {
     }
 }
 
-void video_capture::shutdownVideoCapture() { {
+void VideoCapture::shutdownVideoCapture() { {
         std::lock_guard lock(videoMutex);
         running = false;
     }

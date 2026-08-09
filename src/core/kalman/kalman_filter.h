@@ -5,17 +5,16 @@
 
 #include "core/config/config_extraction.h"
 
-class kalmanFilter {
+class KalmanFilter {
 public:
 
-    kalmanFilter();
+    KalmanFilter();
 
     cv::Vec3d update(double x, double y, double z, double dt);
 private:
-    void init();
+    void updateKalmanFilter();
 
     cv::KalmanFilter kf;
-    Config k_config;
 
     double deltaTime;
 

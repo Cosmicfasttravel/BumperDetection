@@ -65,32 +65,37 @@ static bool load() {
 }
 
 
-bool tryUpdate() {
-    std::lock_guard<std::mutex> lock(lockMutex);
-    resolveAbsolutePath();
 
-    try {
-        auto curTime = std::filesystem::last_write_time(ABSOLUTE_CONFIG_PATH);
-        if (curTime != prevTime) {
-            return load();
-        }
-    } catch (const std::exception &e) {
-        std::cerr << "File watch failed: " << e.what() << '\n';
-    }
-
-    return false;
-}
-
-Config getLatestCopy() {
-    std::lock_guard<std::mutex> lock(lockMutex);
-    return robotConfig;
-}
 
 uint64_t getVersion() {
     std::lock_guard<std::mutex> lock(lockMutex);
     return robotConfig.version;
 }
 
-bool checkConfigVersion(const Config& config) {
-    return config.version != getVersion();
+namespace config {
+    Config getLatestCopy() {
+        std::lock_guard<std::mutex> lock(lockMutex);
+        return robotConfig;
+    }
+
+    bool checkConfigVersion(const Config& config) {
+        return config.version != getVersion();
+    }
+
+    bool tryUpdate() {
+        std::lock_guard<std::mutex> lock(lockMutex);
+        resolveAbsolutePath();
+
+        try {
+            auto curTime = std::filesystem::last_write_time(ABSOLUTE_CONFIG_PATH);
+            if (curTime != prevTime) {
+                return load();
+            }
+        } catch (const std::exception &e) {
+            std::cerr << "File watch failed: " << e.what() << '\n';
+        }
+
+        return false;
+    }
 }
+

@@ -116,6 +116,6 @@
     "input_paths": {
         "rknn_path": "../models/LATEST.rknn",
         "onnx_path": "../models/LATEST.onnx",
-        "video_path": "../vids/5ft.MP4"
+        "video_path": ""
     }
 }

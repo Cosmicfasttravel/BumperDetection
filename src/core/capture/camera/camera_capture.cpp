@@ -5,24 +5,27 @@
 #include "log/logger.h"
 #include "../video/video_capture.h"
 
-camera_capture::camera_capture() = default;
+CameraCapture::CameraCapture() = default;
 
-camera_capture::~camera_capture() {
+CameraCapture::~CameraCapture() {
     shutdownCaptureComponent();
 }
 
-void camera_capture::initializeCaptureComponent() {
+void CameraCapture::initializeCameraCapture() {
     configureCaptureComponent();
-    camThread = std::thread(&camera_capture::capture, this, std::ref(cap));
+    capturing = true;
+    camThread = std::thread(&CameraCapture::capture, this, std::ref(cap));
+
+    if (camThread.joinable()) initialized = true;
 }
 
-void camera_capture::shutdownCaptureComponent() {
+void CameraCapture::shutdownCaptureComponent() {
     capturing = false;
     if (!videoMode && camThread.joinable()) camThread.join();
     cap.release();
 }
 
-void camera_capture::configureCaptureComponent() {
+void CameraCapture::configureCaptureComponent() {
     std::string videoPath = config::getLatestCopy().input_paths.video_path;
 
     if (videoPath.empty()) {
@@ -35,15 +38,19 @@ void camera_capture::configureCaptureComponent() {
         cap.open(videoPath);
         videoMode = true;
     }
+    runtimeConfigure();
+}
 
-    const auto config = config::getLatestCopy();
-    cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
-    cap.set(cv::CAP_PROP_FPS, 60);
-    cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
 
+void CameraCapture::runtimeConfigure() {
+    static auto config = config::getLatestCopy();
     if (config::checkConfigVersion(config)) {
+        cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
+        cap.set(cv::CAP_PROP_FPS, 60);
+        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
         cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
         cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
         cap.set(cv::CAP_PROP_HUE, config.camera.hue);
@@ -54,10 +61,13 @@ void camera_capture::configureCaptureComponent() {
         cap.set(cv::CAP_PROP_AUTO_WB, config.camera.temperature);
         cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
+
+        config = config::getLatestCopy();
     }
 }
 
-cv::Mat camera_capture::retrieveLatestFrame() {
+
+cv::Mat CameraCapture::retrieveLatestFrame() {
     cv::Mat frame; {
         std::lock_guard<std::mutex> lock(frameMutex);
         if (currentFrame.empty()) return frame;
@@ -66,19 +76,19 @@ cv::Mat camera_capture::retrieveLatestFrame() {
     return frame;
 }
 
-void camera_capture::capture(cv::VideoCapture &capture) {
+void CameraCapture::capture(cv::VideoCapture &capture) {
     cv::Mat frame;
 
     while (capturing) {
         if (!capture.isOpened()) return;
-        capture.read(frame);
+        if (!capture.read(frame)) continue;
 
         if (!frame.empty()) {
             {
                 std::lock_guard<std::mutex> lock(frameMutex);
                 currentFrame = frame.clone();
             }
-            video_capture::pushFrame(currentFrame);
+            VideoCapture::pushFrame(currentFrame);
         }
     }
 }
