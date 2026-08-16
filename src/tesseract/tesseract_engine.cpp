@@ -11,16 +11,26 @@
 #include "log/logger.h"
 #include "spdlog/logger.h"
 
-tesseract_engine::tesseract_engine() = default;
+std::atomic<int> TesseractEngine::ocrCounter{0};
+std::mutex TesseractEngine::ocrMutex;
 
-tesseract_engine::~tesseract_engine() = default;
+TesseractEngine::TesseractEngine() = default;
 
-tesseract::TessBaseAPI &tesseract_engine::getTesseract() {
+TesseractEngine::~TesseractEngine() {
+    cleanTesseractEngine();
+}
+
+tesseract::TessBaseAPI &TesseractEngine::getTesseract() {
     static thread_local tesseract::TessBaseAPI api;
     return api;
 }
 
-bool tesseract_engine::initTesseractEngine(const Config &config) {
+TesseractEngine& TesseractEngine::current() {
+    static thread_local TesseractEngine engine;
+    return engine;
+}
+
+bool TesseractEngine::initTesseractEngine(const Config &config) {
     try {
         static thread_local std::atomic<bool> init = false;
 
@@ -49,7 +59,7 @@ bool tesseract_engine::initTesseractEngine(const Config &config) {
     return true;
 }
 
-cv::Mat tesseract_engine::processImage(const Config &config, const cv::Mat &hsvImage, Detection detection) {
+cv::Mat TesseractEngine::processImage(const Config &config, const cv::Mat &hsvImage, Detection detection) {
     static cv::Mat emptyMat;
 
     cv::Rect safeBB = detection.boundingBox & cv::Rect(0, 0, hsvImage.cols, hsvImage.rows);
@@ -71,26 +81,27 @@ cv::Mat tesseract_engine::processImage(const Config &config, const cv::Mat &hsvI
         cv::resize(colorMask, colorMask, cv::Size(), scale, scale, cv::INTER_CUBIC);
     }
 
-    cv::Mat final;
-    cv::bitwise_not(colorMask, final);
+    cv::Mat final = colorMask;
 
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT,
                                                cv::Size(config.ocr.morphology_kernel_size,
                                                         config.ocr.morphology_kernel_size));
-    cv::morphologyEx(final, final, cv::MORPH_OPEN, kernel);
+
+    // cv::imwrite("../src/tesseract/img/ocr_debug" + std::to_string(std::rand()) + ".png", final);
 
     if ((final.empty() || final.cols <= 0 || final.rows <= 0)) {
+        logging::write("Final was empty");
         return emptyMat;
     }
 
     return final;
 }
 
-std::string tesseract_engine::extractText(const Config &config, cv::Mat &img) {
+std::string TesseractEngine::extractText(const Config &config, cv::Mat &img) {
     try {
         {
             std::lock_guard l(ocrMutex);
-            if (ocrCounter >= config.thread_pool_size) return "";
+            if (ocrCounter >= config.thread_pool_size) return "-1";
             ++ocrCounter;
         }
 
@@ -99,6 +110,12 @@ std::string tesseract_engine::extractText(const Config &config, cv::Mat &img) {
         api.SetImage(img.data, img.cols, img.rows, 1, img.step);
         api.SetSourceResolution(70);
         char *outText = api.GetUTF8Text();
+
+        if (outText == nullptr) {
+            logging::write("Out Text from tess was null");
+            return "";
+        }
+
         std::string result(outText);
         delete[] outText;
 
@@ -122,11 +139,12 @@ std::string tesseract_engine::extractText(const Config &config, cv::Mat &img) {
             --ocrCounter;
         }
 
+        logging::write("Other issue occurred", spdlog::level::err);
         return "";
     }
 }
 
-void tesseract_engine::cleanTesseractEngine() {
+void TesseractEngine::cleanTesseractEngine() {
     try {
         thread_local auto &api = getTesseract();
 
@@ -136,7 +154,7 @@ void tesseract_engine::cleanTesseractEngine() {
     }
 }
 
-int tesseract_engine::levDistance(const std::string &s1, const std::string &s2) {
+int TesseractEngine::levDistance(const std::string &s1, const std::string &s2) {
     const int size1 = static_cast<int>(s1.size());
     const int size2 = static_cast<int>(s2.size());
     std::vector verif(size1 + 1, std::vector<int>(size2 + 1));
@@ -163,7 +181,7 @@ int tesseract_engine::levDistance(const std::string &s1, const std::string &s2) 
     return verif[size1][size2];
 }
 
-std::string tesseract_engine::findMinDistance(const Config &config, std::string text, Detection detection) {
+std::string TesseractEngine::findMinDistance(const Config &config, std::string text, Detection detection) {
     int minIndex = 0;
 
     int minDist = INT_MAX;
@@ -172,7 +190,7 @@ std::string tesseract_engine::findMinDistance(const Config &config, std::string 
             int d = {};
             if (detection.color == Color::BLUE) d = levDistance(text, config.teams.blueTeams[i]);
             if (detection.color == Color::RED) d = levDistance(text, config.teams.redTeams[i]);
-
+            else logging::write("Not a valid color", spdlog::level::err);
             if (d < minDist) {
                 minDist = d;
                 minIndex = i;
@@ -184,17 +202,20 @@ std::string tesseract_engine::findMinDistance(const Config &config, std::string 
     if (detection.color == Color::RED) text = config.teams.redTeams[minIndex];
 
     if (minDist > config.ocr.lev_distance) {
+        logging::write("Lev distance larger than minimum distance");
         return "";
     }
 
     return text;
 }
 
-std::string tesseract_engine::tesseractEngine(const cv::Mat &img, Detection detection) {
+std::string TesseractEngine::tesseractEngine(const cv::Mat &img, Detection detection) {
     thread_local Config config = config::getLatestCopy();
+    if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
     if (!initTesseractEngine(config)) {
-        return "";
+        logging::write("Tess init failed", spdlog::level::err);
+        return "-1";
     }
 
     cv::Mat finalImg = processImage(config, img, detection);

@@ -164,8 +164,8 @@ namespace measurements {
                 countNonZero(blueMask) /
                 static_cast<double>(boundingBox.area());
 
-        if (redRatio >= blueRatio && redRatio >= 0.5) return Color::RED; //make it a config
-        if (redRatio <= blueRatio && blueRatio >= 0.5) return Color::BLUE;
+        if (redRatio >= blueRatio && redRatio >= 0.1) return Color::RED; // needs config for red and blue ratio
+        if (redRatio <= blueRatio && blueRatio >= 0.1) return Color::BLUE;
         return Color::NONE;
 
     }

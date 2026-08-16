@@ -25,7 +25,7 @@
 
     "ocr": {
         "lev_distance": 3,
-        "morphology_kernel_size": 3,
+        "morphology_kernel_size": 2,
         "mode": "tessonly",
         "min_img_size": 300,
 
@@ -34,7 +34,7 @@
             "saturation_lower": 0,
             "value_lower": 130,
             "hue_upper": 179,
-            "saturation_upper": 170,
+            "saturation_upper": 70,
             "value_upper": 255
         },
         "tessdata_path": "../models/"
@@ -86,7 +86,7 @@
         "254"
     ],
     "blueTeams": [
-        "1768",
+        "9450",
         "245",
         "1307"
     ],
@@ -116,6 +116,6 @@
     "input_paths": {
         "rknn_path": "../models/LATEST.rknn",
         "onnx_path": "../models/LATEST.onnx",
-        "video_path": ""
+        "video_path": "../vids/5ft.mp4"
     }
 }

@@ -21,7 +21,7 @@ void CameraCapture::initializeCameraCapture() {
 
 void CameraCapture::shutdownCaptureComponent() {
     capturing = false;
-    if (!videoMode && camThread.joinable()) camThread.join();
+    if (camThread.joinable()) camThread.join();
     cap.release();
 }
 

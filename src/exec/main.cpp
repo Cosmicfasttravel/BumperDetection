@@ -1,7 +1,12 @@
-﻿#include "core/detection/detector/detector.h"
+﻿#include <future>
+
+#include "core/detection/detector/detector.h"
 #include "core/capture/capture.h"
 #include "core/kalman/kalman_filter.h"
 #include "core/measurement/measurement.h"
+#include "tesseract/tesseract_engine.h"
+#include "core/threading/thread_manager.h"
+#include "log/logger.h"
 
 int main() {
     config::tryUpdate();
@@ -22,6 +27,8 @@ int main() {
 
     KalmanFilter kf;
 
+    ThreadManager tessThreadManager(config::getLatestCopy().thread_pool_size);
+
     while (true) {
         config::tryUpdate();
 
@@ -41,9 +48,29 @@ int main() {
         for (auto& detection : detections) {
             double height = measurements::getHeight(hsv, detection);
             detection.pos = measurements::getXYZ(detection, height);
+
+            detection.color = measurements::calculateColor(hsv, detection);
         }
 
-        //tess engine in a different thread
+        std::vector<std::future<std::string>> futures;
+        std::vector<std::string> results = {};
+        for (const auto &detection : detections) {
+            futures.push_back(tessThreadManager.enqueue([hsv, detection]() {
+                try {
+                    return TesseractEngine::current().tesseractEngine(hsv, detection);
+                } catch (...) {
+                    logging::write("Problem occurred with thread scheduling", spdlog::level::warn);
+                    return std::string("");
+                }
+            }));
+        }
+        results.reserve(futures.size());
+
+        for (size_t i = 0; i < futures.size(); ++i) {
+            auto result = futures[i].get();
+            if (!result.empty()) detections[i].teamNumber = std::stoi(result);
+            std::cout << detections[i].teamNumber << std::endl;
+        }
 
         for (const auto& detection : detections) {
             cv::rectangle(frame, cv::Point(detection.boundingBox.x, detection.boundingBox.y),

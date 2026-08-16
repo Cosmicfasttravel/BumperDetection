@@ -4,8 +4,9 @@
 #include "core/detection/structure/detection_data.h"
 
 namespace measurements {
-    Position3D getXYZ(const Detection &detection, const double measured_height);
+    Position3D getXYZ(const Detection &detection, double measured_height);
     double getHeight(const cv::Mat &hsv, const Detection &detection);
+    Color calculateColor(const cv::Mat &hsv, const Detection &detection);
 }
 
 

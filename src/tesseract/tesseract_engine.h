@@ -9,13 +9,14 @@
 #include "core/config/config_types.h"
 #include "core/detection/structure/detection_data.h"
 
-class tesseract_engine {
+class TesseractEngine {
 public:
 
-    tesseract_engine();
-    ~tesseract_engine();
+    TesseractEngine();
+    ~TesseractEngine();
 
     std::string tesseractEngine(const cv::Mat &img, Detection detection);
+    static TesseractEngine& current();
 
 private:
     static std::atomic<int> ocrCounter;
