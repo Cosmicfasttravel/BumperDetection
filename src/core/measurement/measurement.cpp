@@ -254,4 +254,66 @@ namespace measurements {
 
         return nearbyRobotCount;
     }
+
+    cv::Rect trimBoundingBox(const cv::Mat& hsv, const Detection& detection) {
+        auto hsvRoi = hsv(detection.boundingBox);
+
+        cv::Mat redMask, redMask1;
+        cv::Mat blueMask;
+
+        static Config config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) config = config::getLatestCopy();
+
+        //Red thresholds
+        const auto lowerRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_lower,
+                                                    config.height_measurement.red_mask_thresholds_1.saturation_lower,
+                                                    config.height_measurement.red_mask_thresholds_1.value_lower);
+        const auto upperRedThreshold_1 = cv::Scalar(config.height_measurement.red_mask_thresholds_1.hue_upper,
+                                                    config.height_measurement.red_mask_thresholds_1.saturation_upper,
+                                                    config.height_measurement.red_mask_thresholds_1.value_upper);
+
+        const auto lowerRedThreshold_2 = cv::Scalar(config.height_measurement.red_mask_thresholds_2.hue_lower,
+                                                    config.height_measurement.red_mask_thresholds_2.saturation_lower,
+                                                    config.height_measurement.red_mask_thresholds_2.value_lower);
+        const auto upperRedThreshold_2 = cv::Scalar(config.height_measurement.red_mask_thresholds_2.hue_upper,
+                                                    config.height_measurement.red_mask_thresholds_2.saturation_upper,
+                                                    config.height_measurement.red_mask_thresholds_2.value_upper);
+
+        //Blue threshold
+        const auto lowerBlueThreshold = cv::Scalar(config.height_measurement.blue_mask_thresholds.hue_lower,
+                                                   config.height_measurement.blue_mask_thresholds.saturation_lower,
+                                                   config.height_measurement.blue_mask_thresholds.value_lower);
+        const auto upperBlueThreshold = cv::Scalar(config.height_measurement.blue_mask_thresholds.hue_upper,
+                                                   config.height_measurement.blue_mask_thresholds.saturation_upper,
+                                                   config.height_measurement.blue_mask_thresholds.value_upper);
+        cv::inRange(hsvRoi, lowerRedThreshold_1, upperRedThreshold_1, redMask);
+        cv::inRange(hsvRoi, lowerRedThreshold_2, upperRedThreshold_2, redMask1);
+        cv::bitwise_or(redMask, redMask1, redMask);
+
+        cv::inRange(hsvRoi, lowerBlueThreshold, upperBlueThreshold, blueMask);
+
+        std::vector<cv::Point> points;
+
+        if (detection.color == Color::RED) {
+            cv::findNonZero(redMask, points);
+        }
+        else if (detection.color == Color::BLUE) {
+            cv::findNonZero(blueMask, points);
+        }
+        else {
+            return {};
+        }
+
+        cv::Rect trimmed = cv::boundingRect(points);
+
+        trimmed.x += detection.boundingBox.x;
+        trimmed.y += detection.boundingBox.y;
+
+        double aspect = static_cast<double>(trimmed.width) / trimmed.height;
+        if (aspect < 2.0 || aspect > 6.0) {
+            return {};
+        }
+
+        return trimmed;
+    }
 }

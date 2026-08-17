@@ -7,6 +7,7 @@ namespace measurements {
     Position3D getXYZ(const Detection &detection, double measured_height);
     double getHeight(const cv::Mat &hsv, const Detection &detection);
     Color calculateColor(const cv::Mat &hsv, const Detection &detection);
+    cv::Rect trimBoundingBox(const cv::Mat& hsv, const Detection& detection);
 }
 
 

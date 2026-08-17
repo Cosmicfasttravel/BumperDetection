@@ -18,6 +18,8 @@ struct Detection{
     double confidence;
 
     Position3D pos;
+
+    bool noise;
 };
 
 #endif //BUMPERDETECTION_DETECTION_DATA_H
