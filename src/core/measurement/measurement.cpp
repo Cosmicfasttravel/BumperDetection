@@ -22,7 +22,7 @@ namespace measurements {
         double max_cord_y = 720.0 / 2.0;
 
         double abs_bounding_x = boundingBox.x + (0.5 * boundingBox.width);
-        double abs_bounding_y = boundingBox.y + (boundingBox.height);
+        double abs_bounding_y = boundingBox.y + (boundingBox.height); 
 
         double fx = max_cord_x / tan((config.screen.x_fov / 2.0) * CV_PI / 180.0);
         double fy = max_cord_y / tan((config.screen.y_fov / 2.0) * CV_PI / 180.0);
@@ -32,16 +32,13 @@ namespace measurements {
 
         double d_left_right = pixel_offset_x / fx;
         double d_up_down = pixel_offset_y / fy;
-        double d_forward = 1.0;
 
-        double ray_length = sqrt(d_forward * d_forward + d_left_right * d_left_right + d_up_down * d_up_down);
-
-        double total_dist_m = measured_height / 100.0;
+        double parallel_depth = measured_height / 100.0; 
 
         Position3D position = {
-            total_dist_m * (d_forward / ray_length), // depth
-            total_dist_m * (d_left_right / ray_length), // left-right
-            total_dist_m * (d_up_down / ray_length) // up-down
+            parallel_depth,                    // Depth
+            parallel_depth * d_left_right,     // Left Right
+            parallel_depth * d_up_down         // Up Down
         };
 
         return position;
