@@ -17,6 +17,14 @@ Detector::~Detector() {
     }
 }
 
+int calculateYoloRows(int width, int height) {
+    int stride8  = (width / 8)  * (height / 8);
+    int stride16 = (width / 16) * (height / 16);
+    int stride32 = (width / 32) * (height / 32);
+    
+    return stride8 + stride16 + stride32;
+}
+
 void Detector::initializeDetector() {
     static Config config = config::getLatestCopy();
     if (config::checkConfigVersion(config)) config = config::getLatestCopy();
@@ -98,7 +106,7 @@ std::vector<Detection> Detector::detect(const cv::Mat &img) {
 
     cv::Mat outputMat;
     int sizes[3] = {
-        config.yolo.output_dimensions[0], config.yolo.output_dimensions[1], config.yolo.output_dimensions[2]
+        1, 5, calculateYoloRows(INPUT_WIDTH, INPUT_HEIGHT)
     };
     cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
     outputMat = output_mat_buf.clone();
