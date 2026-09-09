@@ -1,0 +1,7 @@
+*.rknn
+*.onnx
+log.txt
+
+build/
+vids/
+/vision-notes/.obsidian/
