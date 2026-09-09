@@ -5,11 +5,9 @@ on:
 
 jobs:
   cache-opencv:
-    # Restrict to Linux since your specific dependencies rely on Ubuntu's package manager
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Initialize Cache
     - name: Cache OpenCV Binaries
       id: cache-opencv
       uses: actions/cache@v4
@@ -17,7 +15,6 @@ jobs:
         path: ${{ github.workspace }}/opencv-install
         key: global-linux-opencv-4.10.0-contrib-custom
 
-    # 2. Install your required system dependencies
     - name: Install System Dependencies
       if: steps.cache-opencv.outputs.cache-hit != 'true'
       run: |
@@ -28,7 +25,6 @@ jobs:
           libgstreamer-plugins-base1.0-dev \
           libgtk-3-dev libgtk2.0-dev
 
-    # 3. Clone and compile from source using your precise CMake parameters
     - name: Build OpenCV from Source
       if: steps.cache-opencv.outputs.cache-hit != 'true'
       shell: bash
@@ -40,7 +36,6 @@ jobs:
         mkdir opencv/build
         cd opencv/build
         
-        # Modified your snippet to install to the isolated workspace path for proper caching
         cmake \
           -D CMAKE_BUILD_TYPE=RELEASE \
           -D CMAKE_INSTALL_PREFIX="${{ github.workspace }}/opencv-install" \
