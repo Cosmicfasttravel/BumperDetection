@@ -1,0 +1,121 @@
+﻿{
+    "bumper": {
+        "_comments": "Centimeters",
+        "height": 15.4
+    },
+
+    "screen": {
+        "_comments": "Pixels",
+        "width": 1280,
+        "height": 720,
+
+        "x_fov": 70,
+        "y_fov": 39.5,
+        "rotation": 0,
+        "frame_skip": 1,
+        "target_fps": 60
+    },
+
+    "position_kalman": {
+        "_comments": "Centimeters",
+        "process_noise": 50,
+        "measurement_noise": 50,
+        "error": 20
+    },
+
+    "ocr": {
+        "lev_distance": 3,
+        "morphology_kernel_size": 2,
+        "mode": "tessonly",
+        "min_img_size": 300,
+
+        "mask_thresholds": {
+            "hue_lower": 0,
+            "saturation_lower": 0,
+            "value_lower": 130,
+            "hue_upper": 179,
+            "saturation_upper": 70,
+            "value_upper": 255
+        },
+        "tessdata_path": "../models/"
+    },
+
+    "height_measurement": {
+        "red_mask_thresholds_1": {
+            "hue_lower": 0,
+            "saturation_lower": 100,
+            "value_lower": 30,
+            "hue_upper": 15,
+            "saturation_upper": 255,
+            "value_upper": 255
+        },
+        "red_mask_thresholds_2": {
+            "hue_lower": 170,
+            "saturation_lower": 100,
+            "value_lower": 30,
+            "hue_upper": 179,
+            "saturation_upper": 255,
+            "value_upper": 255
+        },
+        "blue_mask_thresholds": {
+            "hue_lower": 80,
+            "saturation_lower": 100,
+            "value_lower": 30,
+            "hue_upper": 130,
+            "saturation_upper": 255,
+            "value_upper": 255
+        }
+    },
+
+    "thread_pool_size": -1,
+
+    "nt": {
+        "ip": "1"
+    },
+
+    "yolo": {
+        "conf_threshold": 0.025,
+        "nms_threshold": 0.1,
+        "input_dimensions": 320,
+        "output_dimensions": [1, 5, 2100]
+    },
+
+    "redTeams": [
+        "",
+        "1678",
+        "254"
+    ],
+    "blueTeams": [
+        "9450",
+        "245",
+        "1307"
+    ],
+    "camera": {
+        "brightness": 75,
+        "contrast": 50,
+        "hue": 0,
+        "saturation": -1,
+        "gain": -1,
+        "exposure": 0,
+        "temperature": 4000,
+        "auto_white_balance": 1,
+        "initial_blur": 0,
+        "focal_length": 0.26,
+        "pixel_height": 0.0003
+    },
+
+    "tracking": {
+        "_comments": "Pixels",
+        "max_distance_threshold_x": 100,
+        "max_distance_threshold_y": 15,
+
+        "id_count": 20,
+        "lost_threshold": 10
+    },
+
+    "input_paths": {
+        "rknn_path": "../models/LATEST.rknn",
+        "onnx_path": "../models/LATEST.onnx",
+        "video_path": "../vids/robotcropped.mp4"
+    }
+}
