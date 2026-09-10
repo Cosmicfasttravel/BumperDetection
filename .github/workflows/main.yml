@@ -29,7 +29,6 @@ jobs:
       if: steps.cache-opencv.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        # Clone both core and contrib modules targeting version 4.10.0
         git clone --depth 1 --branch 4.10.0 https://github.com/opencv/opencv.git
         git clone --depth 1 --branch 4.10.0 https://github.com/opencv/opencv_contrib.git
         
@@ -50,6 +49,5 @@ jobs:
           -D BUILD_PERF_TESTS=OFF \
           ..
           
-        # Compile and install to your localized directory
         make -j$(nproc)
         make install

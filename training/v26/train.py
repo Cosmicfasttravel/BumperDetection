@@ -33,7 +33,7 @@ def download_dataset():
     print("="*60)
 
     # Edit these lines
-    rf = Roboflow(api_key="REDACTED")
+    rf = Roboflow(api_key="")
     project = rf.workspace("train-1jrhy").project("yolodataset-dwciq")
     version = project.version(2)
     dataset = version.download("yolo26")

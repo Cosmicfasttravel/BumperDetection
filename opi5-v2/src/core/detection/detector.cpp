@@ -6,8 +6,7 @@
 #include "global/build_info.h"
 
 
-Detector::Detector() : initialized(false), INPUT_HEIGHT(0), INPUT_WIDTH(0), NMS_THRESHOLD(0), CONF_THRESHOLD(0) {
-}
+Detector::Detector() : initialized(false), INPUT_HEIGHT(0), INPUT_WIDTH(0), NMS_THRESHOLD(0), CONF_THRESHOLD(0) {}
 
 Detector::~Detector() {
     if (initialized) {
