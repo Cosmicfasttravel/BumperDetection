@@ -64,12 +64,27 @@ vcpkg_installed/
 # debug information files
 *.dwo
 
+# large Files
 *.rknn
 *.onnx
 log.txt
 
+# large Directories
 vids/
 /improvements/.obsidian/
+
+# model information
+/training/v26/run/
+/training/v26/venv/
+/training/v26/weights/
+/training/v26/yolodataset-2/
+*.pt
+
+# conversion
+/training/onnx2rknn/venv/
+/training/onnx2rknn/calibration/imgs/
+
+
 
 # test output & cache
 Testing/
