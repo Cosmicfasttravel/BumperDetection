@@ -90,3 +90,6 @@ vids/
 # test output & cache
 Testing/
 .cache/
+
+#API keys
+.env

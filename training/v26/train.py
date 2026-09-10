@@ -8,6 +8,10 @@ import shutil
 import glob
 import time
 import cv2
+from dotenv import load_dotenv
+
+load_dotenv()
+api_key = os.getenv("ROBOFLOW_API_KEY")
 
 INPUT_SIZE = 320
 
@@ -33,7 +37,7 @@ def download_dataset():
     print("="*60)
 
     # Edit these lines
-    rf = Roboflow(api_key="")
+    rf = Roboflow(api_key=api_key)
     project = rf.workspace("train-1jrhy").project("yolodataset-dwciq")
     version = project.version(2)
     dataset = version.download("yolo26")
