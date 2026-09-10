@@ -84,8 +84,6 @@ vids/
 /training/onnx2rknn/venv/
 /training/onnx2rknn/calibration/imgs/
 
-
-
 # test output & cache
 Testing/
 .cache/
