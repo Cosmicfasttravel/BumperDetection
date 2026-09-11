@@ -1,0 +1,25 @@
+name: Upload OpenCV Cache
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download-cache-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache OpenCV Binaries
+        id: cache-opencv
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/opencv-install
+          key: global-linux-opencv-4.10.0-contrib-custom
+
+      - name: Upload Cache as Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencv-binaries-download
+          path: ${{ github.workspace }}/opencv-install
