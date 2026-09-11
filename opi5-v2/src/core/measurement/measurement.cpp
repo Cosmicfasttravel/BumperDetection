@@ -33,12 +33,12 @@ namespace measurements {
         double d_left_right = pixel_offset_x / fx;
         double d_up_down = pixel_offset_y / fy;
 
-        double parallel_depth = measured_height / 100.0; 
+        double parallel_depth = (config.bumper.height * fy) / measured_height;
 
         Position3D position = {
-            parallel_depth,                    // Depth
-            parallel_depth * d_left_right,     // Left Right
-            parallel_depth * d_up_down         // Up Down
+            parallel_depth,                // Depth
+            parallel_depth * d_left_right, // Left Right
+            parallel_depth * d_up_down     // Up Down
         };
 
         return position;
