@@ -1,6 +1,6 @@
 ﻿#include <future>
 
-#include "core/detection/detector/detector.h"
+#include "core/detection/detector.h"
 #include "core/capture/capture.h"
 #include "core/kalman/kalman_filter.h"
 #include "core/measurement/measurement.h"

@@ -12,7 +12,7 @@
 using json = nlohmann::json;
 
 namespace {
-    const std::filesystem::path RELATIVE_CONFIG_PATH = "../config.json";
+    const std::filesystem::path RELATIVE_CONFIG_PATH = "../opi5-v2/config.json";
     std::filesystem::path ABSOLUTE_CONFIG_PATH;
 
     Config robotConfig;

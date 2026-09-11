@@ -12,7 +12,7 @@ inline std::shared_ptr<spdlog::logger> logger;
 std::once_flag loggerInitFlag;
 void initLogger() {
     try {
-        logger = spdlog::basic_logger_mt("debug_log", "../src/log/logs/debug-log.txt");
+        logger = spdlog::basic_logger_mt("debug_log", "../logs/opi5-v2-log.txt");
     } catch (const spdlog::spdlog_ex &ex) {
         std::cout << "Log init failed: " << ex.what() << std::endl;
     }

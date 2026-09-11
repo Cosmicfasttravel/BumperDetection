@@ -52,7 +52,7 @@ if (BUILD_CORE)
     FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
     FetchContent_MakeAvailable(json)
 
-    find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui videoio dnn video)
+    find_package(OpenCV REQUIRED PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../opencv" COMPONENTS core imgproc highgui videoio dnn video)
 
     message(STATUS " Built Core Module")
 

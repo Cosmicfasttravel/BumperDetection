@@ -67,7 +67,7 @@ vcpkg_installed/
 # large Files
 *.rknn
 *.onnx
-log.txt
+logs/
 
 #vscode
 .vscode/
@@ -75,6 +75,7 @@ log.txt
 # large Directories
 vids/
 /improvements/.obsidian/
+opencv/
 
 # model information
 /training/v26/run/
