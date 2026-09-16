@@ -156,3 +156,46 @@
 		- Slight overhead
 		- Extra code
 	- #### Priority: LOW
+	
+# Tesseract Improvements
+
+### Problem:
+- ##### Bounding box binarization in the target pipeline is accurate (~0.015–0.04 ms/crop) but relies on sequential `cv::pointPolygonTest` loops inside local bounding boxes, missing out on simple vectorized image-wide operations.
+### Approaches:
+- ##### Pass the isolated inner contour coordinates directly to `cv::drawContours` on a zero-initialized destination matrix to binarize all valid shapes in a single vectorized step.
+	- **Implementation details**:
+		- Filter inner contours using the hierarchy (`parentIdx != -1`) and area threshold.
+		- Push all passing contours into a temporary `std::vector<std::vector<cv::Point>>`.
+		- Call `cv::drawContours(binaryResult, validContours, -1, cv::Scalar(255), cv::FILLED)` to draw and fill all target regions at once instead of doing manual point checks per pixel.
+- ##### Keep the single-channel matrix memory allocated across frames to eliminate heap reallocations.
+	- **Implementation details**:
+		- Store the output `cv::Mat` buffer outside the frame loop or in thread-local storage.
+		- Clear the buffer using `.setTo(0)` instead of constructing a new `cv::Mat::zeros(...)` on every pass.
+- ##### Flatten the 2D bounding box coordinate tracking into a single unified step during the contour filtering loop.
+	- **Implementation details**:
+		- Run `cv::boundingRect()` on each valid inner contour and continuously compute `min()` and `max()` bounds for X and Y.
+		- Return the final merged `cv::Rect(minX, minY, maxX - minX, maxY - minY)` in the same pass as the binarization vector populating.
+
+## Todo:
+- [ ] **Vectorized binarization via `cv::drawContours`**
+	- #### Pros:
+		- Drops the point-in-polygon loop entirely
+		- Faster per-crop execution
+		- Cleaner code with fewer nested loops
+	- #### Cons:
+		- None
+	- #### Priority: VERY HIGH
+- [ ] **Buffer reuse across iterations**
+	- #### Pros:
+		- Prevents dynamic memory allocations
+		- Keeps pixel buffer warm in CPU cache
+	- #### Cons:
+		- Needs proper reset handling (`.setTo(0)`) to prevent cross-frame artifacts
+	- #### Priority: HIGH
+- [ ] **Single-pass unified bounding box calculation**
+	- #### Pros:
+		- Zero extra passes needed to get the merged rectangle
+		- Negligible CPU cost
+	- #### Cons:
+		- None
+	- #### Priority: HIGH
