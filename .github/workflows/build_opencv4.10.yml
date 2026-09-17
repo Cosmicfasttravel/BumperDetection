@@ -12,7 +12,7 @@ jobs:
       id: cache-opencv
       uses: actions/cache@v4
       with:
-        path: ${{ github.workspace }}/opencv-install
+        path: ${{ github.workspace }}/opencv4-install
         key: global-linux-opencv-4.10.0-contrib-custom
 
     - name: Install System Dependencies
