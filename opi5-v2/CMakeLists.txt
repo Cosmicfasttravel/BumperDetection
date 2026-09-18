@@ -228,6 +228,7 @@ endif ()
 
 if (INFERENCE_BACKEND STREQUAL "RKNN_NPU")
     target_link_libraries(BumperDetection PUBLIC rknnrt)
+    target_link_libraries(run_yolo PUBLIC rknnrt)
 endif ()
 
 add_executable(run_yolo src/exec/main.cpp)
