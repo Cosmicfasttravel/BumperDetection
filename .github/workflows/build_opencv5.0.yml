@@ -37,7 +37,7 @@ jobs:
         
         cmake \
           -D CMAKE_BUILD_TYPE=RELEASE \
-          -D CMAKE_INSTALL_PREFIX="${{ github.workspace }}/opencv-install" \
+          -D CMAKE_INSTALL_PREFIX="${{ github.workspace }}/opencv5-install" \
           -D OPENCV_EXTRA_MODULES_PATH="${{ github.workspace }}/opencv_contrib/modules" \
           -D WITH_FFMPEG=ON \
           -D WITH_GSTREAMER=ON \
