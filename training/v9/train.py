@@ -21,7 +21,7 @@ def download_dataset():
 
 def train_and_export(dataset):
     print("STARTING TRAINING")
-    model = YOLO("yolo9t.pt")
+    model = YOLO("yolov9t.pt")
     
     model.train(
         data=f'{dataset.location}/data.yaml',
