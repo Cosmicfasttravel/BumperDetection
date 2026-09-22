@@ -40,7 +40,7 @@ def train_and_export(dataset):
     )
     
     print("EXPORTING TO ONNX")
-    best_model = YOLO('runs/detect/bumper_detector_pi/weights/best.pt')
+    best_model = YOLO('runs/detect/Yolo_v26s_10ep/weights/best.pt')
     onnx_path = best_model.export(
         format='onnx',
         imgsz=INPUT_SIZE,
