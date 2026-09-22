@@ -29,7 +29,7 @@ def train_and_export(dataset):
         optimizer='MuSGD',
         lr0=0.01,
         patience=50,
-        name='bumper_detector_pi',
+        name='Yolo_v26s_10ep',
         exist_ok=True,
         workers=8,
         verbose=True,
@@ -50,7 +50,7 @@ def train_and_export(dataset):
         end2end=False,
     )
 
-    output_dir = "../onnx2rknn"
+    output_dir = "./"
     os.makedirs(output_dir, exist_ok=True)
     output_path_compat = os.path.join(output_dir, os.path.basename(onnx_path))
     shutil.copy(onnx_path, output_path_compat)
