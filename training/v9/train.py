@@ -8,20 +8,20 @@ load_dotenv()
 api_key = os.getenv("ROBOFLOW_API_KEY")
 
 INPUT_SIZE = 320
-EPOCHS = 250
-NAME = 'Yolo_v26s_' + str(EPOCHS) + 'ep'
+EPOCHS = 2
+NAME = 'Yolo_v9t_' + str(EPOCHS) + 'ep'
 
 def download_dataset():
     print("DOWNLOADING DATASET FROM ROBOFLOW")
     rf = Roboflow(api_key=api_key)
     project = rf.workspace("train-1jrhy").project("yolodataset-dwciq")
     version = project.version(2)
-    dataset = version.download("yolo26")
+    dataset = version.download("yolov9")
     return dataset
 
 def train_and_export(dataset):
     print("STARTING TRAINING")
-    model = YOLO("yolo26s.pt")
+    model = YOLO("yolo9t.pt")
     
     model.train(
         data=f'{dataset.location}/data.yaml',

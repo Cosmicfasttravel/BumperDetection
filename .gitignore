@@ -78,11 +78,12 @@ vids/
 opencv/
 
 # model information
-/training/v26/run/
-/training/v26/runs/
-/training/v26/venv/
-/training/v26/weights/
-/training/v26/yolodataset-2/
+venv/
+run/
+runs/
+weights/
+yolodataset/
+yolodataset-*/
 
 *.pt
 
