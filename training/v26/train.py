@@ -23,7 +23,7 @@ def train_and_export(dataset):
     
     model.train(
         data=f'{dataset.location}/data.yaml',
-        epochs=1000,
+        epochs=10,
         imgsz=INPUT_SIZE,
         batch=8,
         optimizer='MuSGD',
