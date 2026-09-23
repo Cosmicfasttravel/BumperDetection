@@ -44,7 +44,6 @@ static bool load() {
 
         robotConfig.teams.blueTeams = data["blueTeams"];
         robotConfig.teams.redTeams = data["redTeams"];
-        robotConfig.yolo.output_dimensions = data["yolo"]["output_dimensions"];
 
         prevTime = std::filesystem::last_write_time(ABSOLUTE_CONFIG_PATH);
 

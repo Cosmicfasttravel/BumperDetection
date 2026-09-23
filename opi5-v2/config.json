@@ -74,8 +74,8 @@
     },
 
     "yolo": {
-        "conf_threshold": 0.25,
-        "nms_threshold": 0.5,
+        "conf_threshold": 0.75,
+        "nms_threshold": 0.4,
         "input_dimensions": 320
     },
 
@@ -113,7 +113,7 @@
     },
 
     "input_paths": {
-        "rknn_path": "../models/LATEST.rknn",
+        "rknn_path": "../models/v26s.rknn",
         "onnx_path": "../models/LATEST.onnx",
         "video_path": ""
     }
