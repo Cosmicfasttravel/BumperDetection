@@ -1,7 +1,7 @@
 import os
 from rknn.api import RKNN
 
-ONNX_MODEL_PATH = "./LATEST.onnx" 
+ONNX_MODEL_PATH = "./best.onnx" 
 RKNN_MODEL_PATH = "./LATEST.rknn"
 
 TARGET_PLATFORM = "rk3588" 
@@ -10,7 +10,7 @@ if __name__ == "__main__":
     rknn = RKNN(verbose=False)
     
 
-    print(f"--> Configuring for {TARGET_PLATFORM} in FP16 precision...")
+    print(f"--> Configuring for {TARGET_PLATFORM}")
     rknn.config(
         target_platform=TARGET_PLATFORM,
         optimization_level=3,
