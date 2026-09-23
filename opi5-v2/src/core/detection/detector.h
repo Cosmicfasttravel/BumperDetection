@@ -16,7 +16,7 @@ public:
 
 private:
 #ifdef __aarch64__
-    rknn_context ctx{}{};
+    rknn_context ctx{};
 #else
     cv::dnn::Net net;
 #endif

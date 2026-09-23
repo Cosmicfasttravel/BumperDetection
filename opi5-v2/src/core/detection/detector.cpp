@@ -84,6 +84,10 @@ std::vector<Detection> Detector::detect(const cv::Mat &img) {
 
 #ifdef __aarch64__
     cv::Mat resized;
+    
+    INPUT_HEIGHT = config.yolo.input_dimensions;
+    INPUT_WIDTH = config.yolo.input_dimensions;
+
     cv::resize(img, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
     cv::cvtColor(resized, resized, cv::COLOR_BGR2RGB);
 

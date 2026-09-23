@@ -74,10 +74,9 @@
     },
 
     "yolo": {
-        "conf_threshold": 0.025,
-        "nms_threshold": 0.1,
-        "input_dimensions": 320,
-        "output_dimensions": [1, 5, 2100]
+        "conf_threshold": 0.25,
+        "nms_threshold": 0.5,
+        "input_dimensions": 320
     },
 
     "redTeams": [

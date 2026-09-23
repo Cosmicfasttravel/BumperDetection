@@ -46,6 +46,7 @@ build-*/
 
 # CMake generated files
 CMakeFiles/
+_deps/
 CMakeCache.txt
 cmake_install.cmake
 Makefile

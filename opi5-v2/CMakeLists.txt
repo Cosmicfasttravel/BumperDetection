@@ -24,7 +24,7 @@ option(BUILD_WEBUI "Build the optional WebUI module" OFF)
 option(BUILD_LOGGER "Build the optional Logger module" ON)
 
 unset(INFERENCE_BACKEND CACHE)
-set(INFERENCE_BACKEND "CPU" CACHE STRING "Inference backend") # Must type exactly the backend
+set(INFERENCE_BACKEND "RKNN_NPU" CACHE STRING "Inference backend") # Must type exactly the backend
 set_property(CACHE INFERENCE_BACKEND PROPERTY STRINGS
         CPU
         NVIDIA_GPU
@@ -227,8 +227,11 @@ if (BUILD_TESS)
 endif ()
 
 if (INFERENCE_BACKEND STREQUAL "RKNN_NPU")
-    target_link_libraries(BumperDetection PUBLIC rknnrt)
-    target_link_libraries(run_yolo PUBLIC rknnrt)
+    set(RKNN_API_DIR "$ENV{HOME}/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/aarch64")
+    
+    find_library(RKNN_RT_LIB rknnrt HINTS ${RKNN_API_DIR} REQUIRED)
+    
+    target_link_libraries(BumperDetection PUBLIC ${RKNN_RT_LIB})
 endif ()
 
 add_executable(run_yolo src/exec/main.cpp)

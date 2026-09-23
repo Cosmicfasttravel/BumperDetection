@@ -70,7 +70,6 @@ struct Yolo
     double conf_threshold;
     double nms_threshold;
     int input_dimensions;
-    std::array<int, 3> output_dimensions;
 };
 
 struct Teams

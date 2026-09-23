@@ -44,8 +44,8 @@ int main() {
 
         cv::Mat frame = cameraCapture.retrieveLatestFrame();
 
-        if (frame.empty()) continue;
-
+        if (frame.empty() || frame.cols <= 0 || frame.rows <= 0) continue;
+        
         cv::Mat hsv;
         cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 

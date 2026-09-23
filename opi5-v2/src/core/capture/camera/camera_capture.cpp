@@ -1,5 +1,6 @@
 ﻿#include "./camera_capture.h"
 
+#include <thread>
 #include "core/config/config_extraction.h"
 #include "global/internal/built_os.h"
 #include "log/logger.h"
@@ -15,7 +16,7 @@ void CameraCapture::initializeCameraCapture() {
     configureCaptureComponent();
     capturing = true;
     camThread = std::thread(&CameraCapture::capture, this, std::ref(cap));
-
+    
     if (camThread.joinable()) initialized = true;
 }
 
@@ -31,7 +32,7 @@ void CameraCapture::configureCaptureComponent() {
     if (videoPath.empty()) {
         logging::write("VideoPath is empty, defaulting to camera mode");
         if (build_info::is_windows) cap.open(0, cv::CAP_DSHOW);
-        else cap.open(0, cv::CAP_V4L2);
+        else cap.open(0);
         videoMode = false;
     } else {
         logging::write("VideoPath is filled, switching to video mode");
@@ -80,7 +81,10 @@ void CameraCapture::capture(cv::VideoCapture &capture) {
     cv::Mat frame;
 
     while (capturing) {
-        if (!capture.isOpened()) return;
+        if (!capture.isOpened()) {
+            logging::write("Capture failed to open", spdlog::level::err);
+            return;
+        }
         if (!capture.read(frame)) continue;
 
         if (!frame.empty()) {
