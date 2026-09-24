@@ -83,10 +83,12 @@ venv/
 run/
 runs/
 weights/
-yolodataset/
-yolodataset-*/
+dataset/
 
 *.pt
+
+*/onnx2rknn/internal/
+calibration_data.txt
 
 # conversion
 /training/onnx2rknn/venv/

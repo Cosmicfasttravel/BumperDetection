@@ -24,7 +24,7 @@ option(BUILD_WEBUI "Build the optional WebUI module" OFF)
 option(BUILD_LOGGER "Build the optional Logger module" ON)
 
 unset(INFERENCE_BACKEND CACHE)
-set(INFERENCE_BACKEND "CPU" CACHE STRING "Inference backend") # Must type exactly the backend
+set(INFERENCE_BACKEND "RKNN_NPU" CACHE STRING "Inference backend") # Must type exactly the backend
 set_property(CACHE INFERENCE_BACKEND PROPERTY STRINGS
         CPU
         NVIDIA_GPU

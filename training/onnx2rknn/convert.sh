@@ -7,6 +7,7 @@ if ! command -v python3.10 &> /dev/null; then
     exit 1
 fi
 
+
 if [ -d "venv" ]; then
     if [[ $(./venv/bin/python --version 2>&1) != *"3.10"* ]]; then
         echo "Wiping old python sandbox..."
@@ -28,6 +29,9 @@ if [ ! -d "venv" ]; then
 else
     source venv/bin/activate
 fi
+
+echo "Creating calibration list"
+./venv/bin/python3 ./calibration/generate_calibration_list.py
 
 echo "Compiling asset graph"
 ./venv/bin/python3 convert.py

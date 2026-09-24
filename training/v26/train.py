@@ -14,9 +14,13 @@ NAME = 'Yolo_v26s_' + str(EPOCHS) + 'ep'
 def download_dataset():
     print("DOWNLOADING DATASET FROM ROBOFLOW")
     rf = Roboflow(api_key=api_key)
-    project = rf.workspace("train-1jrhy").project("yolodataset-dwciq")
+    project = rf.workspace("train-1jrhy").project("frc-bumper-detection-mwwkd-uddpe")
     version = project.version(2)
-    dataset = version.download("yolo26")
+    dataset = version.download(
+        "yolo26",
+        location="./dataset",
+        overwrite=True,
+    )
     return dataset
 
 def train_and_export(dataset):
@@ -27,18 +31,27 @@ def train_and_export(dataset):
         data=f'{dataset.location}/data.yaml',
         epochs=EPOCHS,
         imgsz=INPUT_SIZE,
-        batch=16,
-        optimizer='MuSGD',
-        lr0=0.01,
-        patience=50,
+
+        batch=32,
+        workers=16,
+
+        optimizer='MuSGD', lr0=0.01,
+
+        patience=25,
         name=NAME,
+
         exist_ok=True,
-        workers=32,
         verbose=True,
         plots=True,
         augment=True,
+        amp=True,
+        cos_lr=True,
+
         close_mosaic=15,
         iou=0.65,
+
+        mosaic=1.0, degrees=10.0, scale=0.5, fliplr=0.5,
+        mixup=0.15, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4
     )
     
     print("EXPORTING TO ONNX")
@@ -48,8 +61,8 @@ def train_and_export(dataset):
         imgsz=INPUT_SIZE,
         simplify=True,
         dynamic=False,
-        opset=19,
-        end2end=False,
+        opset=12,
+        nms=None,
     )
 
     output_dir = "./"

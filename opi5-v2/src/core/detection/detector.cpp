@@ -104,15 +104,16 @@ std::vector<Detection> Detector::detect(const cv::Mat &img) {
     rknn_run(ctx, nullptr);
     rknn_output outputs_rknn[1];
     memset(outputs_rknn, 0, sizeof(outputs_rknn));
-    outputs_rknn[0].want_float = 1;
+    outputs_rknn[0].want_float = 0;
     rknn_outputs_get(ctx, 1, outputs_rknn, nullptr);
 
     cv::Mat outputMat;
     int sizes[3] = {
         1, 5, calculateYoloRows(INPUT_WIDTH, INPUT_HEIGHT)
     };
-    cv::Mat output_mat_buf(3, sizes, CV_32F, outputs_rknn[0].buf);
-    outputMat = output_mat_buf.clone();
+    cv::Mat output_mat_buf(3, sizes, CV_16F, outputs_rknn[0].buf);
+    output_mat_buf.convertTo(outputMat, CV_32F); 
+
     std::vector outputs = {outputMat};
 
     detections = process_detection::ProcessYoloOutput(
