@@ -24,12 +24,24 @@ option(BUILD_WEBUI "Build the optional WebUI module" OFF)
 option(BUILD_LOGGER "Build the optional Logger module" ON)
 
 unset(INFERENCE_BACKEND CACHE)
-set(INFERENCE_BACKEND "RKNN_NPU" CACHE STRING "Inference backend") # Must type exactly the backend
+set(INFERENCE_BACKEND "CPU" CACHE STRING "Inference backend") # Must type exactly the backend
 set_property(CACHE INFERENCE_BACKEND PROPERTY STRINGS
         CPU
         NVIDIA_GPU
         RKNN_NPU
 )
+
+execute_process(
+    COMMAND cat /proc/device-tree/model
+    OUTPUT_VARIABLE DEVICE_MODEL
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(DEVICE_MODEL MATCHES "Orange Pi")
+    unset(INFERENCE_BACKEND CACHE)
+    set(INFERENCE_BACKEND "RKNN_NPU" CACHE STRING "Inference backend")
+endif()
 
 message(STATUS "----------------------------------------")
 message(STATUS " Configuration Summary:")
