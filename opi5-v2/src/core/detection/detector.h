@@ -24,7 +24,7 @@ private:
     bool initialized;
 
     int INPUT_HEIGHT, INPUT_WIDTH;
-    float NMS_THRESHOLD, CONF_THRESHOLD;
+    
 
 };
 

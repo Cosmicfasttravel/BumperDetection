@@ -6,7 +6,7 @@
 #include "global/build_info.h"
 
 
-Detector::Detector() : initialized(false), INPUT_HEIGHT(0), INPUT_WIDTH(0), NMS_THRESHOLD(0), CONF_THRESHOLD(0) {}
+Detector::Detector() : initialized(false), INPUT_HEIGHT(0), INPUT_WIDTH(0) {}
 
 Detector::~Detector() {
     if (initialized) {
@@ -66,15 +66,17 @@ void Detector::initializeDetector() {
     }
     INPUT_HEIGHT = config.yolo.input_dimensions;
     INPUT_WIDTH = config.yolo.input_dimensions;
-
-    CONF_THRESHOLD = static_cast<float>(config.yolo.conf_threshold);
-    NMS_THRESHOLD = static_cast<float>(config.yolo.nms_threshold);
 #endif
 }
 
 std::vector<Detection> Detector::detect(const cv::Mat &img) {
-    static Config config = config::getLatestCopy();
-    if (config::checkConfigVersion(config)) config = config::getLatestCopy();
+    static float NMS_THRESHOLD, CONF_THRESHOLD;
+    static auto config = config::getLatestCopy();
+    if (config::checkConfigVersion(config)) {
+        config = config::getLatestCopy();
+        CONF_THRESHOLD = static_cast<float>(config.yolo.conf_threshold);
+        NMS_THRESHOLD = static_cast<float>(config.yolo.nms_threshold);
+    }
 
     if (!initialized) {
         return {};

@@ -15,10 +15,11 @@ namespace {
     const std::filesystem::path RELATIVE_CONFIG_PATH = "../opi5-v2/config.json";
     std::filesystem::path ABSOLUTE_CONFIG_PATH;
 
-    Config robotConfig;
+    Config rConfig;
     std::filesystem::file_time_type prevTime{};
 
     std::mutex lockMutex;
+    int configVersion = 0;
 }
 
 std::once_flag absolutePathResolvedFlag;
@@ -28,7 +29,7 @@ void resolveAbsolutePath() {
     });
 }
 
-static bool load() {
+bool load() {
     try {
         std::ifstream file(ABSOLUTE_CONFIG_PATH);
 
@@ -40,16 +41,16 @@ static bool load() {
 
         json data = json::parse(file);
 
-        robotConfig = data.get<Config>();
+        rConfig = data.get<Config>();
 
-        robotConfig.teams.blueTeams = data["blueTeams"];
-        robotConfig.teams.redTeams = data["redTeams"];
+        rConfig.teams.blueTeams = data["blueTeams"];
+        rConfig.teams.redTeams = data["redTeams"];
 
         prevTime = std::filesystem::last_write_time(ABSOLUTE_CONFIG_PATH);
 
         logging::write("Loaded config");
 
-        robotConfig.version++;
+        configVersion++;
 
         return true;
     } catch (const std::exception &e) {
@@ -63,18 +64,16 @@ static bool load() {
     return false;
 }
 
-
-
-
 uint64_t getVersion() {
     std::lock_guard<std::mutex> lock(lockMutex);
-    return robotConfig.version;
+    return configVersion;
 }
 
 namespace config {
     Config getLatestCopy() {
         std::lock_guard<std::mutex> lock(lockMutex);
-        return robotConfig;
+        rConfig.version = configVersion;
+        return rConfig;
     }
 
     bool checkConfigVersion(const Config& config) {

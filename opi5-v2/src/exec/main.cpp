@@ -40,7 +40,7 @@ int main() {
         auto frame_start = Clock::now();
         prev_frame_time = frame_start;
 
-        config::tryUpdate();
+        if(config::tryUpdate());
 
         cv::Mat frame = cameraCapture.retrieveLatestFrame();
 
@@ -99,7 +99,6 @@ int main() {
 
         //Trimmed Bounding boxes
         for (const auto &detection: detections) {
-            if (detection.noise) continue;
             cv::rectangle(frame, cv::Point(detection.boundingBox.x, detection.boundingBox.y),
                           cv::Point(detection.boundingBox.x + detection.boundingBox.width,
                                     detection.boundingBox.y + detection.boundingBox.height),
@@ -108,7 +107,7 @@ int main() {
             std::stringstream stringStream;
             stringStream << "X: " << detection.pos.x << " " << "Y: " << detection.pos.y << " Color: " << ((detection.color == 0) ? "RED" : (detection.color == 1) ? "BLUE" : "NONE");
             cv::putText(frame, stringStream.str(), cv::Point(detection.boundingBox.x, detection.boundingBox.y - 25),
-                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
         }
 
         auto frame_end = Clock::now();
