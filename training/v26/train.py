@@ -44,13 +44,13 @@ def train_and_export(dataset):
         verbose=True,
         plots=True,
         augment=True,
-        amp=True,
+        amp=False,
         cos_lr=True,
 
-        close_mosaic=15,
+        close_mosaic=20,
         iou=0.65,
 
-        mosaic=1.0, degrees=10.0, scale=0.5, fliplr=0.5,
+        mosaic=1.0, degrees=10.0, scale=0.9, fliplr=0.5,
         mixup=0.15, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4
     )
     

@@ -1,5 +1,4 @@
 ﻿#include <future>
-
 #include "core/detection/detector.h"
 #include "core/capture/capture.h"
 #include "core/kalman/kalman_filter.h"
@@ -39,7 +38,7 @@ int main() {
 
         auto frame_start = Clock::now();
         prev_frame_time = frame_start;
-
+        
         config::tryUpdate();
 
         cv::Mat frame = cameraCapture.retrieveLatestFrame();
@@ -59,7 +58,8 @@ int main() {
                                     detection.boundingBox.y + detection.boundingBox.height),
                           cv::Scalar(255, 255, 255));
         }
-
+        
+        //Trim bounding boxes
         for (auto &detection: detections) {
             detection.color = measurements::calculateColor(hsv, detection);
             cv::Rect trim = measurements::trimBoundingBox(hsv, detection);
@@ -71,7 +71,7 @@ int main() {
             detection.boundingBox = trim;
         }
 
-        //enqueue in a thread
+        //Enqueue in a thread
         for (auto &detection: detections) {
             double height = measurements::getHeight(hsv, detection);
             detection.pos = measurements::getXYZ(detection, height);
