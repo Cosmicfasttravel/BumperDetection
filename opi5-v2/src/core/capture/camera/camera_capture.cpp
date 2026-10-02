@@ -39,32 +39,32 @@ void CameraCapture::configureCaptureComponent() {
         cap.open(videoPath);
         videoMode = true;
     }
-    runtimeConfigure();
+    
+    static auto config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) {
+            cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
+            cap.set(cv::CAP_PROP_FPS, 60);
+            cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+            cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
+            cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
+            cap.set(cv::CAP_PROP_HUE, config.camera.hue);
+            cap.set(cv::CAP_PROP_SATURATION, config.camera.saturation);
+            cap.set(cv::CAP_PROP_GAIN, config.camera.gain);
+            cap.set(cv::CAP_PROP_EXPOSURE, config.camera.exposure);
+            cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.camera.temperature);
+            cap.set(cv::CAP_PROP_AUTO_WB, config.camera.temperature);
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
+
+            config = config::getLatestCopy();
+        }
 }
 
 
 void CameraCapture::runtimeConfigure() {
-    static auto config = config::getLatestCopy();
-    if (config::checkConfigVersion(config)) {
-        cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
-        cap.set(cv::CAP_PROP_FPS, 60);
-        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
-
-        cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
-        cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
-        cap.set(cv::CAP_PROP_HUE, config.camera.hue);
-        cap.set(cv::CAP_PROP_SATURATION, config.camera.saturation);
-        cap.set(cv::CAP_PROP_GAIN, config.camera.gain);
-        cap.set(cv::CAP_PROP_EXPOSURE, config.camera.exposure);
-        cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.camera.temperature);
-        cap.set(cv::CAP_PROP_AUTO_WB, config.camera.temperature);
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
-
-        config = config::getLatestCopy();
-    }
+    
 }
 
 
@@ -85,7 +85,10 @@ void CameraCapture::capture(cv::VideoCapture &capture) {
             logging::write("Capture failed to open", spdlog::level::err);
             return;
         }
-        if (!capture.read(frame)) continue;
+
+        {
+            if (!capture.read(frame)) continue;
+        }
 
         if (!frame.empty()) {
             {
@@ -94,5 +97,21 @@ void CameraCapture::capture(cv::VideoCapture &capture) {
             }
             VideoCapture::pushFrame(currentFrame);
         }
+
+        static auto config = config::getLatestCopy();
+        if (config::checkConfigVersion(config)) {
+            config = config::getLatestCopy();
+            cap.set(cv::CAP_PROP_BRIGHTNESS, config.camera.brightness);
+            cap.set(cv::CAP_PROP_CONTRAST, config.camera.contrast);
+            cap.set(cv::CAP_PROP_HUE, config.camera.hue);
+            cap.set(cv::CAP_PROP_SATURATION, config.camera.saturation);
+            cap.set(cv::CAP_PROP_GAIN, config.camera.gain);
+            cap.set(cv::CAP_PROP_EXPOSURE, config.camera.exposure);
+            cap.set(cv::CAP_PROP_WB_TEMPERATURE, config.camera.temperature);
+            cap.set(cv::CAP_PROP_AUTO_WB, config.camera.temperature);
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, config.screen.width);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, config.screen.height);
+        }
+
     }
 }

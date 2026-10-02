@@ -36,9 +36,9 @@ namespace measurements {
         double parallel_depth = (config.bumper.height * fy) / measured_height;
 
         Position3D position = {
-            parallel_depth,                // Depth
-            parallel_depth * d_left_right, // Left Right
-            parallel_depth * d_up_down     // Up Down
+            parallel_depth / 100,                // Depth
+            parallel_depth * d_left_right / 100, // Left Right
+            parallel_depth * d_up_down / 100     // Up Down
         };
 
         return position;
@@ -85,7 +85,7 @@ namespace measurements {
 
         cv::inRange(bumperBoundingBox, lowerBlueThreshold, upperBlueThreshold, blueMask);
 
-        auto centerX = boundingBox.x + boundingBox.width / 2;
+        auto centerX = boundingBox.x + boundingBox.width / 4;
 
         int blueRelativeCenterX = centerX - boundingBox.x;
 
@@ -161,8 +161,8 @@ namespace measurements {
                 countNonZero(blueMask) /
                 static_cast<double>(boundingBox.area());
 
-        if (redRatio >= blueRatio && redRatio >= 0.1) return Color::RED; // needs config for red and blue ratio
-        if (redRatio <= blueRatio && blueRatio >= 0.1) return Color::BLUE;
+        if (redRatio >= blueRatio && redRatio >= 0.25) return Color::RED; // needs config for red and blue ratio
+        if (redRatio <= blueRatio && blueRatio >= 0.25) return Color::BLUE;
         return Color::NONE;
 
     }
