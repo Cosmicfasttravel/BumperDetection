@@ -8,7 +8,7 @@
 #include "core/config/config_extraction.h"
 #include "core/detection/structure/detection_data.h"
 #include "global/internal/built_components.h"
-#include "log/logger.h"
+#include "core/log/logger.h"
 #include "spdlog/logger.h"
 
 std::atomic<int> TesseractEngine::ocrCounter{0};

@@ -3,7 +3,7 @@
 #include <thread>
 #include "core/config/config_extraction.h"
 #include "global/internal/built_os.h"
-#include "log/logger.h"
+#include "core/log/logger.h"
 #include "../video/video_capture.h"
 
 CameraCapture::CameraCapture() = default;

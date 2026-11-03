@@ -7,9 +7,9 @@ from ultralytics import YOLO
 load_dotenv()
 api_key = os.getenv("ROBOFLOW_API_KEY")
 
-INPUT_SIZE = 320
+INPUT_SIZE = 512
 EPOCHS = 250
-NAME = 'Yolo_v26s_' + str(EPOCHS) + 'ep'
+NAME = 'Yolo_v26s512x_' + str(EPOCHS) + 'ep'
 
 def download_dataset():
     print("DOWNLOADING DATASET FROM ROBOFLOW")
@@ -32,7 +32,7 @@ def train_and_export(dataset):
         epochs=EPOCHS,
         imgsz=INPUT_SIZE,
 
-        batch=32,
+        batch=-1,
         workers=16,
 
         optimizer='MuSGD', lr0=0.01,

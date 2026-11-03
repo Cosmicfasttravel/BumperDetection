@@ -3,9 +3,16 @@
 #include "core/capture/capture.h"
 #include "core/kalman/kalman_filter.h"
 #include "core/measurement/measurement.h"
-#include "tesseract/tesseract_engine.h"
 #include "core/threading/thread_manager.h"
-#include "log/logger.h"
+#include "core/log/logger.h"
+
+#ifdef BUILD_TESS
+#include "tesseract/tesseract_engine.h"
+#endif
+
+//Fix github task
+//Fix y issues with measurement math
+// Change model size from 320x320 to 512x512 and retrain
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -77,25 +84,26 @@ int main() {
             detection.pos = measurements::getXYZ(detection, height);
         }
 
-        std::vector<std::future<std::string> > futures;
-        std::vector<std::string> results = {};
-        for (const auto &detection: detections) {
-            if (detection.noise) continue;
-            futures.push_back(tessThreadManager.enqueue([hsv, detection]() {
-                try {
-                    return TesseractEngine::current().tesseractEngine(hsv, detection);
-                } catch (...) {
-                    logging::write("Problem occurred with thread scheduling", spdlog::level::warn);
-                    return std::string("");
-                }
-            }));
-        }
-        results.reserve(futures.size());
+        // TEMPORARY REMOVE
+        //std::vector<std::future<std::string> > futures;
+        //std::vector<std::string> results = {};
+        //for (const auto &detection: detections) {
+            //if (detection.noise) continue;
+            //futures.push_back(tessThreadManager.enqueue([hsv, detection]() {
+                //try {
+                    //return TesseractEngine::current().tesseractEngine(hsv, detection);
+                //} catch (...) {
+                    //logging::write("Problem occurred with thread scheduling", spdlog::level::warn);
+                    //return std::string("");
+                //}
+            //}));
+        //}
+        //results.reserve(futures.size());
 
-        for (size_t i = 0; i < futures.size(); ++i) {
-            auto result = futures[i].get();
-            if (!result.empty()) detections[i].teamNumber = std::stoi(result);
-        }
+        //for (size_t i = 0; i < futures.size(); ++i) {
+            //auto result = futures[i].get();
+            //if (!result.empty()) detections[i].teamNumber = std::stoi(result);
+        //}
 
         //Trimmed Bounding boxes
         for (const auto &detection: detections) {

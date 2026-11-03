@@ -1,5 +1,5 @@
 ﻿#include "video_capture.h"
-
+#include <iostream>
 #include "core/config/config_extraction.h"
 #include "global/internal/built_os.h"
 

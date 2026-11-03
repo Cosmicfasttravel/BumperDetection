@@ -96,7 +96,10 @@
 		 - Doesn't help during runtime
 	- #### Priority: MEDIUM
 
-# Readability Improvements
+	### Problem: 
+	- ##### Binary masks can be innacurate when measuring height because the thresholding is fixed
+	### Approaches:
+	- ##### Utilize a fuzzy estimation method to check if the threshold is close to the value and weight appropriately
 
 ### Problem:
 - ##### The current config file is messy and long
@@ -199,3 +202,18 @@
 	- #### Cons:
 		- None
 	- #### Priority: HIGH
+
+# Speed improvements:
+### Problem: 
+- ##### 
+### Approaches:
+ - ##### 
+	 - **Implementation details**:
+		 - 
+## Todo:
+- [ ] 
+	- ####
+		- 
+	- #### Cons:
+		- 
+	- #### Priority:	

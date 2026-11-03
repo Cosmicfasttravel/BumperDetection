@@ -16,8 +16,9 @@ namespace measurements {
         static Config config = config::getLatestCopy();
         if (config::checkConfigVersion(config)) config = config::getLatestCopy();
 
-        thread_local cv::Rect boundingBox = detection.boundingBox;
+        cv::Rect boundingBox = detection.boundingBox;
 
+        // Change these values to use a calibration matrix
         double max_cord_x = 1280.0 / 2.0;
         double max_cord_y = 720.0 / 2.0;
 
@@ -33,12 +34,12 @@ namespace measurements {
         double d_left_right = pixel_offset_x / fx;
         double d_up_down = pixel_offset_y / fy;
 
-        double parallel_depth = (config.bumper.height * fy) / measured_height;
+        double parallel_depth = ((config.bumper.height * fy) / measured_height) / 100;
 
         Position3D position = {
-            parallel_depth / 100,                // Depth
-            parallel_depth * d_left_right / 100, // Left Right
-            parallel_depth * d_up_down / 100     // Up Down
+            parallel_depth,
+            parallel_depth * d_left_right, 
+            parallel_depth * d_up_down
         };
 
         return position;

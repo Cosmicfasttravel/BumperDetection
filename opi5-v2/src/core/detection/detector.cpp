@@ -1,7 +1,7 @@
 ﻿#include "detector.h"
 #include "process_detection.h"
 #include "core/config/config_extraction.h"
-#include "log/logger.h"
+#include "core/log/logger.h"
 #include <iostream>
 #include <chrono>
 #include "global/build_info.h"

@@ -23,12 +23,6 @@ namespace build_info {
             false;
 #endif
 
-    inline constexpr bool logger =
-#ifdef BUILD_LOGGER
-            true;
-#else
-    false;
-#endif
 
 }
 

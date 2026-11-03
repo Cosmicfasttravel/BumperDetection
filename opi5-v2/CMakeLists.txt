@@ -14,17 +14,15 @@ unset(BUILD_TESS CACHE)
 unset(BUILD_NT CACHE)
 unset(BUILD_TRACK CACHE)
 unset(BUILD_WEBUI CACHE)
-unset(BUILD_LOGGER CACHE)
 
 option(BUILD_CORE "Build the core engine" ON)
-option(BUILD_TESS "Build the optional tesseract module" ON)
+option(BUILD_TESS "Build the optional tesseract module" OFF)
 option(BUILD_NT "Build the optional network tables module" OFF)
 option(BUILD_TRACK "Build the optional tracking module" OFF)
 option(BUILD_WEBUI "Build the optional WebUI module" OFF)
-option(BUILD_LOGGER "Build the optional Logger module" ON)
 
-unset(INFERENCE_BACKEND CACHE)
-set(INFERENCE_BACKEND "CPU" CACHE STRING "Inference backend") # Must type exactly the backend
+# Must pass exactly the backend
+set(INFERENCE_BACKEND "CPU" CACHE STRING "Inference backend")
 set_property(CACHE INFERENCE_BACKEND PROPERTY STRINGS
         CPU
         NVIDIA_GPU
@@ -50,7 +48,6 @@ message(STATUS "   Tesseract Module:   ${BUILD_TESS}")
 message(STATUS "   Network Tables Module: ${BUILD_NT}")
 message(STATUS "   Tracking Module: ${BUILD_TRACK}")
 message(STATUS "   WebUI Module: ${BUILD_WEBUI}")
-message(STATUS "   Logger Module: ${BUILD_LOGGER}")
 message(STATUS "----------------------------------------")
 message(STATUS " Target device: " ${INFERENCE_BACKEND})
 message(STATUS "----------------------------------------")
@@ -63,6 +60,9 @@ if (BUILD_CORE)
     FetchContent_MakeAvailable(json)
 
     find_package(OpenCV REQUIRED PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../opencv" COMPONENTS core imgproc highgui videoio dnn video)
+
+    FetchContent_Declare(spdlog URL https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.tar.gz)
+    FetchContent_MakeAvailable(spdlog)
 
     message(STATUS " Built Core Module")
 
@@ -129,16 +129,6 @@ if (BUILD_WEBUI)
     message(STATUS " Built WebUI Module")
 endif ()
 
-if (BUILD_LOGGER)
-    message(STATUS " Building Logger Module")
-
-    FetchContent_Declare(spdlog URL https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.tar.gz)
-    FetchContent_MakeAvailable(spdlog)
-
-    message(STATUS " Built Logger Module")
-
-endif ()
-
 message(STATUS " Adding library and linking...")
 
 add_library(BumperDetection STATIC)
@@ -160,6 +150,7 @@ if (BUILD_CORE)
     target_sources(BumperDetection PRIVATE src/core/detection/detector.cpp)
     target_sources(BumperDetection PRIVATE src/core/detection/process_detection.cpp)
     target_sources(BumperDetection PRIVATE src/core/detection/structure/detection_data.h)
+    target_sources(BumperDetection PRIVATE src/core/log/logger.cpp)
 
     target_include_directories(BumperDetection PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_include_directories(BumperDetection PRIVATE ${OpenCV_INCLUDE_DIRS})
@@ -170,6 +161,7 @@ if (BUILD_TESS)
     target_sources(BumperDetection PRIVATE src/tesseract/tesseract_engine.cpp)
 
     target_compile_definitions(BumperDetection PUBLIC BUILD_TESS)
+    target_link_libraries(BumperDetection PUBLIC libtesseract)
 endif ()
 if (BUILD_NT)
     target_sources(BumperDetection PRIVATE src/network-tables)
@@ -187,11 +179,6 @@ if (BUILD_WEBUI)
 
     target_compile_definitions(BumperDetection PUBLIC BUILD_WEBUI)
 endif ()
-if (BUILD_LOGGER)
-    target_sources(BumperDetection PRIVATE src/log/logger.cpp)
-
-    target_compile_definitions(BumperDetection PUBLIC BUILD_LOGGER)
-endif ()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_include_directories(BumperDetection PUBLIC
@@ -205,6 +192,7 @@ if (BUILD_CORE)
             ${OpenCV_LIBS}
             nlohmann_json::nlohmann_json
     )
+    target_link_libraries(BumperDetection PUBLIC spdlog::spdlog)
 endif ()
 
 if (BUILD_TRACK)
@@ -212,10 +200,6 @@ if (BUILD_TRACK)
     target_link_libraries(BumperDetection PUBLIC Eigen3::Eigen)
     target_include_directories(BumperDetection PUBLIC ${MOTCPP_INCLUDE_DIR})
 
-endif ()
-
-if (BUILD_LOGGER)
-    target_link_libraries(BumperDetection PUBLIC spdlog::spdlog)
 endif ()
 
 if (BUILD_TESS)
@@ -238,15 +222,19 @@ if (BUILD_TESS)
     endif ()
 endif ()
 
+add_executable(run_yolo src/exec/main.cpp)
+
 if (INFERENCE_BACKEND STREQUAL "RKNN_NPU")
-    set(RKNN_API_DIR "$ENV{HOME}/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/aarch64")
+    set(RKNN_SDK_DIR "$ENV{HOME}/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api")
+    set(RKNN_API_DIR "${RKNN_SDK_DIR}/aarch64")
+    set(RKNN_INCLUDE_DIR "${RKNN_SDK_DIR}/include")
     
     find_library(RKNN_RT_LIB rknnrt HINTS ${RKNN_API_DIR} REQUIRED)
     
+    target_include_directories(BumperDetection PUBLIC ${RKNN_INCLUDE_DIR})
     target_link_libraries(BumperDetection PUBLIC ${RKNN_RT_LIB})
+    target_link_libraries(run_yolo PUBLIC ${RKNN_RT_LIB})
 endif ()
-
-add_executable(run_yolo src/exec/main.cpp)
 
 target_link_libraries(run_yolo PRIVATE BumperDetection)
 

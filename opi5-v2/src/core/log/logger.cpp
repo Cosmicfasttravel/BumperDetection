@@ -1,4 +1,4 @@
-#include "log/logger.h"
+#include "core/log/logger.h"
 
 #include <chrono>
 #include <iostream>
@@ -21,7 +21,7 @@ void initLogger() {
 
 void ensureLogger() {
     std::call_once(loggerInitFlag, [] {
-        if constexpr (!build_info::logger) spdlog::set_level(spdlog::level::off);
+        if constexpr (!build_info::core) spdlog::set_level(spdlog::level::off);
         initLogger();
     });
 }
