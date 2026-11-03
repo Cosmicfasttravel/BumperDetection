@@ -1,0 +1,67 @@
+
+name: Build and Cache OpenCV 5.0 with Contrib ARM64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cache-opencv:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Cache OpenCV ARM64 Binaries
+        id: cache-opencv
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/opencv5-install
+          key: global-linux-arm64-opencv-5.x-contrib-custom-v1
+
+      - name: Install System Dependencies
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git pkg-config \
+            ffmpeg \
+            libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            libgtk-3-dev
+
+      - name: Download OpenCV Sources
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch 5.x \
+            https://github.com/opencv/opencv.git
+          git clone --depth 1 --branch 5.x \
+            https://github.com/opencv/opencv_contrib.git
+
+      - name: Build OpenCV for ARM64
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          cmake -S opencv -B opencv/build \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D CMAKE_INSTALL_PREFIX="${{ github.workspace }}/opencv5-install" \
+            -D OPENCV_EXTRA_MODULES_PATH="${{ github.workspace }}/opencv_contrib/modules" \
+            -D WITH_FFMPEG=ON \
+            -D WITH_GSTREAMER=ON \
+            -D WITH_GTK=ON \
+            -D WITH_GTK_2_X=OFF \
+            -D WITH_CUDA=OFF \
+            -D BUILD_opencv_python3=OFF \
+            -D BUILD_JAVA=OFF \
+            -D BUILD_EXAMPLES=OFF \
+            -D BUILD_TESTS=OFF \
+            -D BUILD_PERF_TESTS=OFF \
+            -D BUILD_DOCS=OFF \
+            -D OPENCV_ENABLE_NONFREE=OFF
+
+          cmake --build opencv/build --parallel "$(nproc)"
+          cmake --install opencv/build
+
+      - name: Verify ARM64 Libraries
+        run: |
+          file opencv5-install/lib/libopencv_core.so*
+          find opencv5-install -name OpenCVConfig.cmake

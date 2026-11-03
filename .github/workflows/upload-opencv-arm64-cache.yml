@@ -1,0 +1,45 @@
+
+name: Upload OpenCV ARM64 Cache
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download-cache-job:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore OpenCV 4.10.0 ARM64 Cache
+        id: cache-opencv4
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/opencv4-install
+          key: global-linux-arm64-opencv-4.10.0-contrib-custom-v1
+
+      - name: Upload OpenCV 4.10.0 ARM64 Artifact
+        if: steps.cache-opencv4.outputs.cache-hit == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencv4-arm64
+          path: ${{ github.workspace }}/opencv4-install
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Restore OpenCV 5.x ARM64 Cache
+        id: cache-opencv5
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/opencv5-install
+          key: global-linux-arm64-opencv-5.x-contrib-custom-v1
+
+      - name: Upload OpenCV 5.x ARM64 Artifact
+        if: steps.cache-opencv5.outputs.cache-hit == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencv5-arm64
+          path: ${{ github.workspace }}/opencv5-install
+          if-no-files-found: error
+          retention-days: 30
