@@ -39,7 +39,7 @@ jobs:
           -D CMAKE_BUILD_TYPE=RELEASE \
           -D CMAKE_INSTALL_PREFIX="${{ github.workspace }}/opencv4-install" \
           -D OPENCV_EXTRA_MODULES_PATH="${{ github.workspace }}/opencv_contrib/modules" \
-          -D WITH_FFMPEG=ON \
+          -D WITH_FFMPEG=OFF \
           -D WITH_GSTREAMER=ON \
           -D WITH_GTK=ON \
           -D WITH_GTK_2_X=OFF \
