@@ -1,4 +1,4 @@
-name: Build and Cache OpenCV 4.10.0 ARM with Contrib
+name: Build and Cache OpenCV 4.10.0 with Contrib
 
 on:
   workflow_dispatch:
@@ -7,26 +7,20 @@ jobs:
   cache-opencv:
     runs-on: ubuntu-24.04-arm
 
-    container:
-      image: ubuntu:22.04
-
     steps:
-      - name: Restore OpenCV ARM64 Cache
+      - name: Cache OpenCV ARM64 Binaries
         id: cache-opencv
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/opencv4-install
-          key: global-linux-arm64-ubuntu22-opencv-4.10.0-contrib-ffmpeg-off-tiff-off-gstreamer-on-v2
+          key: global-linux-arm64-opencv-4.10.0-contrib-ffmpeg-off-gstreamer-on-v1
 
       - name: Install System Dependencies
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential \
-            cmake \
-            git \
-            pkg-config \
+          sudo apt update
+          sudo apt install -y \
+            build-essential cmake git pkg-config \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             libgtk-3-dev
@@ -51,7 +45,6 @@ jobs:
             -D CMAKE_INSTALL_PREFIX="${{ github.workspace }}/opencv4-install" \
             -D OPENCV_EXTRA_MODULES_PATH="${{ github.workspace }}/opencv_contrib/modules" \
             -D WITH_FFMPEG=OFF \
-            -D WITH_TIFF=OFF \
             -D WITH_GSTREAMER=ON \
             -D WITH_GTK=ON \
             -D WITH_GTK_2_X=OFF \
@@ -59,10 +52,7 @@ jobs:
             -D BUILD_EXAMPLES=OFF \
             -D BUILD_TESTS=OFF \
             -D BUILD_PERF_TESTS=OFF \
-            -D BUILD_DOCS=OFF \
-            -D BUILD_opencv_python3=OFF \
-            -D BUILD_JAVA=OFF \
-            -D OPENCV_ENABLE_NONFREE=OFF
+            ..
 
           cmake --build opencv/build --parallel "$(nproc)"
           cmake --install opencv/build
