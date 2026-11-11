@@ -1,4 +1,4 @@
-name: Build and Cache OpenCV 4.10.0 with Contrib
+name: Build and Cache OpenCV 4.10.0 ARM with Contrib
 
 on:
   workflow_dispatch:
