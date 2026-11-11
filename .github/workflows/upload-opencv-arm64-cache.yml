@@ -1,4 +1,3 @@
-
 name: Upload OpenCV ARM64 Cache
 
 on:
@@ -17,7 +16,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/opencv4-install
-          key: global-linux-arm64-opencv-4.10.0-contrib-custom-v1
+          key: global-linux-arm64-opencv-4.10.0-contrib-ffmpeg-off-gstreamer-on-v1
 
       - name: Upload OpenCV 4.10.0 ARM64 Artifact
         if: steps.cache-opencv4.outputs.cache-hit == 'true'
